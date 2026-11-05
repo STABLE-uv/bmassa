@@ -1,8 +1,13 @@
 Package: bmassa
 Title: Biomass of Aquatic Taxa from Abundances and Body Sizes
 Version: 0.2.0
-Authors@R:
-    person("Pablo", "Amador Crespo", email = "pamadorc@gmail.com", role = c("aut", "cre", "cph"))
+Authors@R: c(
+    person("Pablo", "Amador Crespo", email = "pamadorc@gmail.com",
+           role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0002-3793-8794")),
+    person("Andreu", "Rico", role = "aut",
+           comment = c(ORCID = "0000-0002-1820-4218"))
+  )
 Description: Estimates the mean individual mass and the biomass of aquatic
     taxa (phytoplankton, zooplankton, macroinvertebrates, fish and
     amphibians) from abundance data, with prediction intervals. Hierarchical

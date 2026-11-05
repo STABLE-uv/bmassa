@@ -42,7 +42,12 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Pablo Amador Crespo \email{pamadorc@gmail.com} [copyright holder]
+\strong{Maintainer}: Pablo Amador Crespo \email{pamadorc@gmail.com} (\href{https://orcid.org/0000-0002-3793-8794}{ORCID}) [copyright holder]
+
+Authors:
+\itemize{
+  \item Andreu Rico (\href{https://orcid.org/0000-0002-1820-4218}{ORCID})
+}
 
 }
 \keyword{internal}
