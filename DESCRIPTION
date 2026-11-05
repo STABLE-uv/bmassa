@@ -1,0 +1,40 @@
+Package: bmassa
+Title: Biomass of Aquatic Taxa from Abundances and Body Sizes
+Version: 0.2.0
+Authors@R:
+    person("Pablo", "Amador Crespo", email = "pamadorc@gmail.com", role = c("aut", "cre", "cph"))
+Description: Estimates the mean individual mass and the biomass of aquatic
+    taxa (phytoplankton, zooplankton, macroinvertebrates, fish and
+    amphibians) from abundance data, with prediction intervals. Hierarchical
+    models fitted to published compilations and data sets of typical masses,
+    biovolumes and length-mass relations predict each taxon from its own data
+    or, when it is absent, from its closest relatives in the taxonomy of the
+    Catalogue of Life, with the uncertainty of that substitution. Totals by
+    site keep the correlations between taxa. The reference values come from
+    sources listed with their citation, DOI and licence by
+    cite_sources(), among them Kremer et al. (2014)
+    <doi:10.1890/14-0603.1>, Dumont et al. (1975) <doi:10.1007/BF00377592>,
+    Moreau et al. (2021) <doi:10.3897/BDJ.9.e70214> and van Leeuwen et al.
+    (2025) <doi:10.1111/fwb.70056>; phytoplankton carbon follows
+    Menden-Deuer and Lessard (2000) <doi:10.4319/lo.2000.45.3.0569>.
+License: MIT + file LICENSE
+URL: https://github.com/STABLE-uv/bmassa
+BugReports: https://github.com/STABLE-uv/bmassa/issues
+Encoding: UTF-8
+Language: en-US
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 3.6.0)
+Imports:
+    stats,
+    withr
+Suggests:
+    curl,
+    jsonlite,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.1.7)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+RoxygenNote: 7.3.1
+LazyData: true

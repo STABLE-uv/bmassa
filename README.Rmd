@@ -1,0 +1,175 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Edit README.Rmd and render it with rmarkdown::render("README.Rmd", output_format = rmarkdown::github_document(html_preview = FALSE)) after installing the package. -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+options(width = 100)
+```
+
+# bmassa
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+bmassa estimates the mean individual mass and the biomass of aquatic
+taxa (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians)
+from abundance data, with prediction intervals. Hierarchical models fitted
+to published compilations and data sets predict each taxon from its own
+reference data or, when it has none, from its closest relatives, and the
+interval widens with the substitution. Masses are in the native currency of
+each group: biovolume (µm³) for phytoplankton, dry mass (mg; without shell
+in molluscs) for invertebrates and wet mass (g) for fish and amphibians.
+
+## Installation
+
+From GitHub, with its dependencies:
+
+```r
+# install.packages("remotes")
+remotes::install_github("STABLE-uv/bmassa", dependencies = TRUE)
+```
+
+bmassa needs R (>= 3.6.0) and the packages stats and withr. curl and
+jsonlite are needed only by `standardize_taxa()`, which queries the
+Catalogue of Life through the GBIF API.
+
+## Example
+
+Two tables: the taxon units (a taxon, or a taxon in one life stage and
+sex, with its classification, its counting unit and its mean length where it
+was measured), and their abundances by site (and date, if any). A third,
+optional table holds lengths measured in particular samples. Constructed
+example data shipped with the package:
+
+```{r data}
+library(bmassa)
+tx <- example_survey$taxa
+ab <- example_survey$abundance
+ln <- example_survey$lengths
+tx[c(1, 8, 19, 20), c("taxon_id", "broad_group", "genus", "species", "life_stage",
+                      "count_unit", "length_mean", "length_unit", "length_type")]
+head(ab, 3)
+ln
+```
+
+For your own list of names, `standardize_taxa()` returns this
+classification and the identifier of each taxon (`col_id`) from the
+Catalogue of Life (COL XR); it needs internet.
+
+Before estimating, the taxonomic level from which each taxon will come, and
+the factor by which the median is divided and multiplied to get its 95 %
+interval:
+
+```{r coverage}
+check_coverage(tx, ln)
+```
+
+The mean individual mass of a population of each taxon and the biomass of
+each row. With lengths, the back-transformation of the length-mass
+relations has to be chosen: `"lognormal"` gives the mean mass of the
+individuals of each length, which biomass needs:
+
+```{r estimate}
+est <- estimate_biomass(ab, tx, ln, bias_correction = "lognormal")
+est
+e <- as.data.frame(est)
+print(e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "ind_lower",
+                          "ind_upper", "unit")], digits = 3)
+```
+
+In another currency, here carbon in µg for all the groups, with the
+uncertainty of the conversion factors (amphibians have too few factors in
+the reference data: they go to dry mass and energy with the values of frogs
+and toads of US EPA 1993, but not to carbon):
+
+```{r carbon}
+est_c <- convert_currency(est, to = "carbon", unit = "ug")
+ec <- as.data.frame(est_c)
+print(ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_lower",
+                            "ind_upper", "unit")], digits = 3)
+```
+
+Totals by site and group, by simulation with shared draws: two taxa
+estimated from the same family, or the same taxon in two sites, have
+correlated errors. Currencies and units are never added together:
+
+```{r totals}
+tot <- summarize_biomass(est_c, by = c("site", "broad_group"), na_rm = TRUE, seed = 1)
+print(tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lower",
+              "biomass_upper", "n_missing")], digits = 3)
+```
+
+The draws themselves, for models that use the biomass of every taxon (such
+as the energy fluxes of a food web): the mean individual mass and the
+biomass of every row in every draw, with the same shared errors as the
+totals. Here all the groups per square metre of each site
+(`convert_abundance()`, from the depth of each site) and in wet mass, so
+that they can be added up, with the populations of each habitat apart
+(`population_by`):
+
+```{r simulate, warning = FALSE}
+sites <- data.frame(site = c("L1", "L2"), depth = c(1.5, 0.8), depth_unit = "m")
+ab_m2 <- convert_abundance(ab, to = "m2", sites = sites)
+ab_m2$habitat <- ifelse(ab_m2$site == "L1", "lake", "spring")
+est_w <- convert_currency(estimate_biomass(ab_m2, tx, ln, bias_correction = "lognormal"),
+                          to = "wet_mass", unit = "mg")
+sim <- simulate(est_w, nsim = 1000, seed = 1, population_by = "habitat")
+d <- as.data.frame(sim, draws = 1:2)
+print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
+                 "biomass_unit")]), digits = 3)
+```
+
+## Methods and decisions
+
+- The models were fitted with lme4 to the reference data (one per domain and
+  kind of data): masses without lengths with nested random effects by
+  taxonomic level, length-mass relations with random intercepts and slopes
+  by level and length type, and conversion factors between currencies with
+  nested random effects. The package predicts from their tables with base R;
+  `get_reference()` returns them.
+- A taxon is matched by its `col_id`, if given, and otherwise by name and
+  rank, from its lowest rank upwards, to the taxonomy of the Catalogue of
+  Life (COL XR) used for the reference.
+- The interval is for the mean individual mass of a population of the taxon:
+  it includes the uncertainty of the model, of the taxonomic substitution and
+  the variation between populations and between sources, but not the error
+  of the abundances.
+- The totals and `simulate()` share the errors of rows estimated from the
+  same node of the reference, of the same population and of the same
+  conversion factors; `simulate()` returns the draws of the totals, row by
+  row.
+- Insects without lengths and without a stage are taken as larvae, and
+  copepods as adults (their copepodites and nauplii are fixed contrasts); fish
+  without lengths, and amphibians without lengths that are not declared
+  adults, are not estimated.
+- Lengths outside those of the reference relations of a taxon use its
+  closest relative that covers them, and are not extrapolated unless
+  `extrapolate = TRUE`.
+- The vignette (`vignette("bmassa")`) goes through the workflow and the
+  decisions; the cross-validation of the intervals is in the source
+  repository (`dev/validacion/validacion_modelos.md`).
+
+## Data sources
+
+```{r sources}
+s <- cite_sources()
+knitr::kable(s[, c("source_id", "citation", "licence")])
+```
+
+## Status
+
+Development version, not on CRAN. In cross-validation, the 95 % intervals
+cover 93-97 % of new populations of species in the reference and 94-98 % of
+species left out. Masses without lengths are much more uncertain (the
+median is divided and multiplied by a factor of about 6 to 40 for the 95 %
+interval of a new population) than masses from lengths (a factor of 1.2 to
+4): measure lengths where possible.

@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+*.Rcheck/
+*.tar.gz
+# The data of data-raw/ (original files, transcriptions, source registry and
+# intermediate tables) are not in this repository: the package holds only
+# the parameters of the fitted models, with the sources to cite.
+data-raw/*
+!data-raw/*.R
+!data-raw/README.md
+dev/*
+!dev/ejemplos_uso.R
+!dev/validacion/
+dev/validacion/*
+!dev/validacion/validacion_modelos.R
+!dev/validacion/validacion_modelos.md

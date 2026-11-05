@@ -1,0 +1,452 @@
+---
+title: "Biomass of aquatic taxa with bmassa"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Biomass of aquatic taxa with bmassa}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(width = 90, digits = 3)
+```
+
+```{r setup}
+library(bmassa)
+```
+
+bmassa estimates the biomass of the taxa of a survey (phytoplankton,
+zooplankton, macroinvertebrates, fish and amphibians) from their
+abundances, with prediction intervals. For each taxon it predicts the mean
+individual mass of a population, from its mean length when there is one and
+from typical masses otherwise, with hierarchical models fitted to published
+compilations and data sets. A taxon without reference data of its own is
+predicted from its closest relatives, and its interval widens accordingly.
+
+Masses are in the native currency of each group: biovolume (µm³) for
+phytoplankton, dry mass (mg; molluscs without shell) for invertebrates and
+wet mass (g) for fish and amphibians. `convert_currency()` expresses them in
+another currency, such as carbon or energy, with the uncertainty of the
+conversion.
+
+The workflow:
+
+1. `standardize_taxa()`: the classification of the taxa in the Catalogue of
+   Life (needs internet).
+2. `check_coverage()`: from which taxonomic level each taxon will be
+   estimated, and how wide its interval will be.
+3. `estimate_biomass()`: mean individual mass and biomass of each row.
+4. `convert_currency()`: another currency, if needed.
+5. `summarize_biomass()`: totals by site or any grouping.
+6. `cite_sources()`: what to cite.
+
+The example data (`example_survey`) are constructed for two sites of a lake;
+they are not field data.
+
+## Input tables
+
+**Taxa**: one row per taxon unit, that is, a taxon or a taxon in one life
+stage and sex (the larvae and the adults of a frog are two units), with its
+broad group and its classification by main ranks (`NA` below the rank
+identified; `species` is the full binomial). Optional columns:
+
+- `col_id`, the identifier of the taxon in the Catalogue of Life (COL XR):
+  when present, the taxon is looked up by it first;
+- `life_stage` and `sex`;
+- `count_unit`, required in phytoplankton: `"cell"` or `"natural_unit"`
+  (colony or filament as counted);
+- the mean length of the unit in all the samples (`length_mean`,
+  `length_unit`, `length_type`), where it was measured, with its spread
+  (`length_sd` or `length_cv`), which corrects the mass of the mean length,
+  smaller than the mean mass.
+
+```{r taxa}
+tx <- example_survey$taxa
+tx[, c("taxon_id", "broad_group", "genus", "species", "life_stage", "count_unit",
+       "length_mean", "length_unit", "length_type")]
+```
+
+**Abundances**: one row per sample and unit: `site` (and `date`, for sites
+sampled on several dates), `taxon_id`, `abundance` and `per`, the unit of
+area or volume of the abundance. A zero is a unit looked for and not seen;
+`NA`, one not counted. Other columns, such as the treatment or the habitat,
+are kept.
+
+```{r abundance}
+ab <- example_survey$abundance
+head(ab)
+ab[ab$site == "L2" & ab$taxon_id %in% c("t05", "t08"), ]
+```
+
+**Lengths of particular samples** (optional): mean lengths measured in a
+site (and date), which take precedence over the length of the unit there.
+Here the chub, measured in each site:
+
+```{r lengths}
+ln <- example_survey$lengths
+ln
+```
+
+## Names and classification
+
+`standardize_taxa()` sends each name to the name-matching service of GBIF
+and returns the classification of the Catalogue of Life eXtended Release,
+the accepted name and its identifier. It replaces synonyms, accepts an
+epithet with another ending (*Chironomus plumosa* for *plumosus*), places
+"Genus sp." and "Genus cf. species" in the genus, and does not correct
+misspelt names: a species it cannot accept is placed in its genus, with the
+closest name in `note`. It needs internet, so it is not run here:
+
+```{r standardize, eval = FALSE}
+my_taxa <- data.frame(taxon_id = c("a", "b", "c", "d"),
+                      broad_group = c("macroinvertebrate", "macroinvertebrate", "zooplankton",
+                                      "macroinvertebrate"),
+                      scientific_name = c("Baetis rhodani", "Ephemerella ignita", "Daphnia magnaa",
+                                          "Chironomus sp."))
+s <- standardize_taxa(my_taxa)
+#> Querying the Catalogue of Life (COL XR) through the GBIF API for 4 names...
+s[, c("scientific_name", "col_name", "genus", "match_type")]
+#>      scientific_name          col_name      genus  match_type
+#> 1     Baetis rhodani    Baetis rhodani     Baetis       exact
+#> 2 Ephemerella ignita Serratella ignita Serratella       exact
+#> 3     Daphnia magnaa           Daphnia    Daphnia higher_rank
+#> 4     Chironomus sp.        Chironomus Chironomus       exact
+s$note[2:3]
+#> [1] "Ephemerella ignita is a synonym of Serratella ignita"
+#> [2] "species not found in the COL XR: placed in its genus; closest name: Daphnia magna (species, not used)"
+```
+
+(Output of a run on 2026-11-02 with the COL26.6 XR.) Check the rows with a
+`note` before going on, and keep the result with your data: a new release of
+the COL XR may change names. Its result is the classification of the taxa
+table; add the counting unit of the phytoplankton and, where they apply, the
+stage, sex and mean length of each unit.
+
+## Before estimating: coverage
+
+`check_coverage()` says, for each taxon and way of estimating it, which node
+of the reference the estimate will come from and the factor by which the
+median is divided and multiplied to get the 95 % interval of a new
+population.
+
+```{r coverage}
+cov <- check_coverage(tx, ln)
+cov
+cv <- as.data.frame(cov)
+cv[cv$taxon_id %in% c("t01", "t03", "t08", "t13", "t16", "t17"),
+   c("taxon_id", "method", "count_unit", "site", "match_level", "match_name", "factor")]
+```
+
+Masses without lengths are much more uncertain than masses at a given
+length: a typical mass says little about a population whose sizes are not
+known. Where lengths can be measured, they narrow the intervals more than a
+finer identification does.
+
+## Mean individual mass and biomass
+
+With lengths, the back-transformation of the length-mass relations has to
+be chosen: `"none"` gives the median mass of the individuals of a given
+length, `"lognormal"` their mean (Sprugel 1983), which is what biomass needs.
+There is no default.
+
+```{r estimate}
+est <- estimate_biomass(ab, tx, ln, bias_correction = "lognormal")
+est
+e <- as.data.frame(est)
+e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "ind_lower",
+                    "ind_upper", "unit")]
+```
+
+The interval is a prediction interval for the mean individual mass of a
+new population of the taxon. It includes the uncertainty of the model
+estimates, of the taxonomic substitution (the levels missing below the node
+used), and the variation between populations and between sources; it does
+not include the error of the abundances. The rows that could not be
+estimated keep `NA`, with the reason:
+
+```{r not-estimated}
+ne <- e[e$status != "estimated", ]
+ne[, c("site", "taxon_id", "life_stage")]
+unique(ne$reason)
+```
+
+Some decisions behind those rows, which you can change through the data:
+
+- Fish need a length: the mean mass of a fish population depends on its
+  sizes, and there are no typical masses that represent it.
+- Insects without a stage are taken as larvae (`stage_used = "larva
+  (assumed)"`); give `life_stage = "adult"` (or `"pupa"`) in `taxa` otherwise.
+- Copepods without a stage are taken as adults (`stage_used =
+  "copepod_adult (assumed)"`); copepodites and nauplii (`life_stage =
+  "copepodite"` or `"nauplius"`) are about 2.7 and 30 times lighter, with
+  fixed contrasts estimated from few records of nauplii, hence their wide
+  intervals. A copepod given as `"juvenile"` is not estimated.
+- Amphibians without lengths are estimated only when declared adults.
+- A length outside the range of the reference relations of the taxon and
+  its relatives is not estimated unless `extrapolate = TRUE`.
+
+The intervals of the animals of site L1, in mg (the masses of fish and
+amphibians, in g, multiplied by 1000):
+
+```{r plot, fig.width = 7, fig.height = 4.5, fig.alt = "Median and 95 % prediction interval of the mean individual mass of each animal taxon at site L1, in mg on a log scale: narrow for the taxa with lengths, wide for those without"}
+l1 <- e[e$site == "L1" & !is.na(e$ind_median) & e$unit != "um3", ]
+to_mg <- ifelse(l1$unit == "g", 1000, 1)
+l1[c("ind_median", "ind_lower", "ind_upper")] <- l1[c("ind_median", "ind_lower", "ind_upper")] * to_mg
+l1 <- l1[order(l1$ind_median), ]
+y <- seq_len(nrow(l1))
+col <- ifelse(l1$method == "length", "black", "grey55")
+op <- par(mar = c(4, 11, 1, 1))
+plot(l1$ind_median, y, log = "x", xlim = range(l1$ind_lower, l1$ind_upper), pch = 19, col = col,
+     yaxt = "n", ylab = "", xlab = "Mean individual mass (mg)")
+segments(l1$ind_lower, y, l1$ind_upper, y, col = col)
+axis(2, at = y, labels = l1$scientific_name, las = 1, cex.axis = 0.75, font = 3)
+legend("topleft", c("from its length", "without length"), col = c("black", "grey55"), pch = 19,
+       lty = 1, bty = "n", cex = 0.8)
+par(op)
+```
+
+## Other currencies
+
+`convert_currency()` converts with hierarchical models of the conversion
+factors (ratios of dry to wet mass, ash-free dry mass to dry mass, carbon to
+dry mass...) fitted to the data of Brey et al. (2010), Hrycik et al.
+(2024), Coughlan et al. (2021), Evans-White et al. (2005) and the CADSES
+data sets. A taxon gets the factor of its closest relatives, and the
+uncertainty of the factor adds to that of the mass. Factors measured on
+animals kept in ethanol or formalin were left out where the source says so:
+preservation changes their wet and dry mass by amounts that depend on the
+preservative, the time and the species (Dermott and Paterson 1974).
+Phytoplankton biovolumes go to wet mass with the density of
+water, 1 g/cm3 (1 mm3/L = 1 mg/L), the convention of EN 16695 and of most
+monitoring programmes; measured densities of algal cells are up to 10 %
+higher (Oliver et al. 1981), an uncertainty not included. Rotifers, which have
+no wet to dry mass factors in the reference data, go to wet mass with the
+convention of US EPA (2016): dry mass 10 % of the wet mass (3.9 % in
+*Asplanchna*, after Dumont et al. 1975). Amphibians, which have too few
+factors in the reference data for a model, go between wet and dry mass with
+the water content of frogs and toads compiled by US EPA (1993; mean of three
+studies): 85 % (SD 4.7), so a dry mass of 15 % of the wet mass on average,
+with that spread among populations and the uncertainty of the mean added to
+the interval (salamanders and newts get it as an extrapolation).
+Phytoplankton cells are converted to carbon with the equations of
+Menden-Deuer and Lessard
+(2000), whose own uncertainty is not known (only that of the biovolume is
+carried). A common unit is needed to compare groups:
+
+```{r carbon}
+est_c <- convert_currency(est, to = "carbon", unit = "ug")
+ec <- as.data.frame(est_c)
+ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_lower", "ind_upper",
+                      "unit", "status")]
+unique(ec$conversion[!is.na(ec$conversion)])[1:4]
+```
+
+Amphibians are not converted to ash-free dry mass or carbon: the reference
+data have too few conversion factors for them. Phytoplankton counted in
+natural units is not converted to carbon: the equation is for single cells, and applied to a colony it would
+underestimate its carbon. Natural units do go to wet mass, which is
+proportional to the biovolume. The habitat of the organisms (`habitat`) is
+unknown by default; its variance is then added.
+
+Energy (J, or `"mJ"`, `"kJ"`, `"MJ"`) comes from models of energy per dry
+mass (invertebrates) and per wet mass (fish) fitted to the energy densities of
+Brey et al. (2010), Cummins and Wuycheck (1971) and other articles, screened
+first: values per ash-free dry mass outside 15-45 J/mg (the combustion energy
+of carbohydrate, protein and lipid sets 17.5-39.5 J/mg; Gnaiger and
+Bitterlich 1984), values inconsistent with another value of the same
+material and values far from those of their class were left out. These are
+gross energies of whole animals, not the energy a consumer assimilates.
+Amphibians take the energy per dry mass of frogs and toads compiled by US
+EPA (1993), 4.6 kcal/g (19.2 J/mg; SD 0.45, three studies); phytoplankton
+is not converted to energy.
+
+```{r energy}
+est_e <- convert_currency(est, to = "energy", unit = "J")
+ee <- as.data.frame(est_e)
+ee[ee$site == "L1" & ee$status == "estimated",
+   c("taxon_id", "converted_from", "ind_median", "ind_lower", "ind_upper", "biomass_unit")]
+```
+
+## Totals
+
+`summarize_biomass()` adds up the biomass by site, broad group or any other
+grouping, never across currencies or units. The interval of a total comes
+from simulations in which the rows that share a node of the reference (two
+species estimated from the same family), a missing taxon, a population or a
+conversion factor share the same draws: their errors are correlated, and the
+totals reflect it.
+
+```{r totals}
+tot <- summarize_biomass(est_c, by = c("site", "broad_group"), na_rm = TRUE, seed = 1)
+tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lower",
+        "biomass_upper", "n_missing")]
+```
+
+- `na_rm = FALSE` (default) leaves a total `NA` when any of its rows has no
+  biomass; with `TRUE` the total is that of the rows estimated (a lower
+  bound), and `n_missing` says how many were left out.
+- `biomass_mean` is exact (the sum of the means of the rows); the median and
+  the limits come from the draws and change slightly with the seed. With the
+  default 1000 draws, the limits of these totals vary by up to about 13 %
+  between seeds; use `n_draws = 10000` for final results.
+- `population_effect = "shared"` (default) takes the variation between
+  populations as common to all the sites (the sites of a study usually share
+  populations and season); `"independent"` draws it per row. It does not
+  change the total of one site, but it does change sums over sites and
+  differences between them. With `population_by`, the populations are shared
+  only within the groups of some columns of the abundance table: habitats
+  stocked from different water bodies, or regions, have their own.
+- `seed` makes the draws reproducible and restores the random state of the
+  session afterwards.
+
+## A common basis
+
+Biomasses per litre and per square metre cannot be added up. To add the
+groups of a site, as the nodes of a food web, `convert_abundance()` puts
+all the abundances on one basis before estimating: per a volume, per an
+area or per whole site. `per` gives the size of each sample (`"L"`,
+`"5 L"`, `"0.25 m2"`...), and a table of sites gives what the conversion
+needs: the depth (or the volume and the area) to go between volumes and
+areas, and the volume or the area to go to the total of a site, as in
+mesocosms. Here everything per square metre, with the mean depth of each
+site:
+
+```{r basis}
+sites <- data.frame(site = c("L1", "L2"), depth = c(1.5, 0.8), depth_unit = "m")
+ab_m2 <- convert_abundance(ab, to = "m2", sites = sites)
+unique(ab_m2[, c("per_original", "per", "per_factor", "per_assumption")])
+```
+
+Going from volume to area takes the density of the sample as that of the
+whole water column; `per_assumption` says so in every row. Counts of
+semi-quantitative samples (sweep nets, artificial substrates) have no area of
+their own: the one given in `per` is an assumption.
+
+## Draws for other models
+
+Models that use the biomass of every taxon, such as the energy fluxes of a
+food web, need the draws themselves: `simulate()` gives, for every row and
+draw, the mean individual mass and the biomass, with the same shared errors
+as the totals (with the same seed, they are the draws behind
+`summarize_biomass()`). Compute the quantity of interest in each draw and
+summarise it over the draws: the correlations between rows are kept, so a
+difference between two sites where a taxon has the same population reflects
+its abundances, not the uncertainty of its mass. Here each habitat has its
+own populations, and all groups are in wet mass in mg per square metre:
+
+```{r simulate, warning = FALSE}
+ab_m2$habitat <- ifelse(ab_m2$site == "L1", "lake", "spring")
+est_w <- convert_currency(estimate_biomass(ab_m2, tx, ln, bias_correction = "lognormal"),
+                          to = "wet_mass", unit = "mg")
+sim <- simulate(est_w, nsim = 1000, seed = 1, population_by = "habitat")
+sim
+d <- as.data.frame(sim, draws = 1:2)
+head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass", "biomass_unit")])
+```
+
+- The long table has one row per row and draw; `draws` takes a subset, and
+  `sim$ind_mass` is the matrix of masses (rows by draws).
+- The abundances are taken as known, and each row has the mean mass of its
+  population: a taxon without lengths has the same distribution of mass in
+  every site and date.
+
+## What to cite
+
+```{r sources}
+knitr::kable(cite_sources(est_c)[, c("source_id", "licence", "n_rows")])
+```
+
+`get_reference()` returns the reference tables themselves: the models, their
+nodes and variance components, the conversion models and the sources.
+
+## How the models were fitted and checked
+
+The models were fitted outside the package with lme4 (REML), one per domain
+and kind of data: masses without lengths with nested random intercepts by
+taxonomic level, crossed with the source; length-mass relations with random
+intercepts and slopes by taxonomic level within each type of length, from
+three points of each equation inside its range of lengths, with effects of
+equation and study; conversion factors with nested random intercepts and
+crossed effects of habitat and source. The package keeps, for each node of
+each model, the estimate of its path from the root and its conditional
+variance (and its covariance with the path of its parent, which the
+simulation of totals needs), and predicts with base R.
+
+In cross-validation (scripts in `dev/validacion/` of the source repository),
+the 95 % intervals covered 93-97 % of new populations of species in the
+reference and 94-98 % of species left out, in the seven models. The median
+width of the interval for a new population of a species of the reference
+was:
+
+| Model | Median 95 % factor (×/÷) |
+|---|---|
+| Fish, length-mass | 1.2 |
+| Amphibians, length-mass | 1.8 |
+| Invertebrates, length-mass | 3.9 |
+| Amphibians, adult masses | 6.4 |
+| Phytoplankton, cell biovolume | 20 |
+| Invertebrates, dry mass without lengths | 28 |
+| Phytoplankton, natural-unit biovolume | 38 |
+
+## From version 0.1.0
+
+The functions and data sets of 0.1.0 (`typical_mass`, `length_mass`,
+`carbon_volume`, `taxonomy`, `example_counts` and `example_lengths`) were
+removed in 0.2.0. What replaces each function:
+
+| 0.1.0 | 0.2.0 |
+|---|---|
+| `match_taxa()` | `check_coverage()` |
+| `estimate_mass_typical()`, `estimate_mass_length()`, `calc_biomass()` | `estimate_biomass()` |
+| `calc_phyto_carbon()`, `convert_currency()` with factors | `convert_currency()` on an estimate |
+| `read_brey_databank()` | not needed: the factors of Brey et al. (2010) are in the conversion models |
+| `summarize_biomass()` of `calc_biomass()` | `summarize_biomass()` of an estimate |
+
+Masses are now in mg (invertebrates) and g (vertebrates), not µg, and come
+from the hierarchical models rather than from the reference values of the
+taxon or its relatives.
+
+## References
+
+- Brey T, Müller-Wiegmann C, Zittier ZMC, Hagen W (2010). Body composition in
+  aquatic organisms - a global data bank of relationships between mass,
+  elemental composition and energy content. *Journal of Sea Research* 64,
+  334-340.
+- CEN (2015). *EN 16695:2015. Water quality - Guidance on the estimation of
+  phytoplankton biovolume*. European Committee for Standardization, Brussels.
+- Coughlan NE, Cunningham EM, Cuthbert RN, et al. (2021). Biometric
+  conversion factors as a unifying platform for comparative assessment of
+  invasive freshwater bivalves. *Journal of Applied Ecology* 58, 1945-1956.
+- Cummins KW, Wuycheck JC (1971). Caloric equivalents for investigations in
+  ecological energetics. *Mitteilungen der Internationalen Vereinigung für
+  Theoretische und Angewandte Limnologie* 18, 1-158.
+- Dermott RM, Paterson CG (1974). Determining dry weight and percentage dry
+  matter of chironomid larvae. *Canadian Journal of Zoology* 52, 1243-1250.
+- Dumont HJ, Van de Velde I, Dumont S (1975). The dry weight estimate of
+  biomass in a selection of Cladocera, Copepoda and Rotifera from the
+  plankton, periphyton and benthos of continental waters. *Oecologia* 19,
+  75-97.
+- Evans-White MA, Stelzer RS, Lamberti GA (2005). Taxonomic and regional
+  patterns in benthic macroinvertebrate elemental composition in streams.
+  *Freshwater Biology* 50, 1786-1799.
+- Gnaiger E, Bitterlich G (1984). Proximate biochemical composition and
+  caloric content calculated from elemental CHN analysis: a stoichiometric
+  concept. *Oecologia* 62, 289-298.
+- Hrycik AR, Burlakova LE, Karatayev AY, et al. (2024). A dataset of
+  individual wet weights of benthic macroinvertebrates. *Limnology and
+  Oceanography Letters* 9, 696-715.
+- Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
+  dinoflagellates, diatoms, and other protist plankton. *Limnology and
+  Oceanography* 45, 569-579.
+- Oliver RL, Kinnear AJ, Ganf GG (1981). Measurements of cell density of three
+  freshwater phytoplankters by density gradient centrifugation. *Limnology and
+  Oceanography* 26, 285-294.
+- Sprugel DG (1983). Correcting for bias in log-transformed allometric
+  equations. *Ecology* 64, 209-210.
+- US EPA (1993). *Wildlife Exposure Factors Handbook*. EPA/600/R-93/187.
+  U.S. Environmental Protection Agency, Washington, DC.
+- US EPA (2016). *Standard Operating Procedure for Zooplankton Analysis*.
+  LG403, Revision 07. U.S. Environmental Protection Agency, Great Lakes
+  National Program Office, Chicago.
+- The other sources of the reference data: `cite_sources()`.
