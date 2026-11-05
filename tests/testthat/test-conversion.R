@@ -290,7 +290,7 @@ test_that("rows that cannot be converted get NA and a reason, with one warning",
   expect_true(all(is.na(e2$converted_from[vert])))
 })
 
-test_that("natural units of phytoplankton are not converted to carbon", {
+test_that("natural units of phytoplankton go to carbon only with cells_per_unit", {
   ab <- data.frame(site = "a", taxon_id = c("t01", "t01n"), abundance = 10, per = "mL")
   e <- estimate_biomass(ab, cells_and_units)
   cv <- suppressWarnings(convert_currency(e, to = "carbon"))
@@ -298,6 +298,52 @@ test_that("natural units of phytoplankton are not converted to carbon", {
   expect_false(is.na(out$ind_median[1]))
   expect_true(is.na(out$ind_median[2]))
   expect_match(out$reason[2], "single cells")
+  # With 8 cells per natural unit: the biovolume of 8 cells, from the model of
+  # cells, with its interval; and the carbon of 8 cells (hand calculation:
+  # ln C = ln10 log10(a) + (1 - b) ln 8 + b ln(8 V) = ln 8 + ln C of one cell).
+  tx8 <- cells_and_units
+  tx8$cells_per_unit <- c(NA, 8)
+  e8 <- estimate_biomass(ab, tx8)
+  d8 <- as.data.frame(e8)
+  expect_equal(d8$ind_median[2], 8 * d8$ind_median[1])
+  expect_equal(d8$ind_upper[2] / d8$ind_median[2], d8$ind_upper[1] / d8$ind_median[1])
+  expect_equal(d8$count_unit[2], "natural_unit")
+  expect_match(d8$note[2], "natural unit of 8 cells")
+  c8 <- as.data.frame(suppressWarnings(convert_currency(e8, to = "carbon")))
+  expect_equal(c8$ind_median[2], 8 * c8$ind_median[1], tolerance = 1e-12)
+  # Colonial genera counted in natural units without cells_per_unit: a note.
+  mic <- transform(ex$taxa[ex$taxa$taxon_id == "t02", ], count_unit = "natural_unit")
+  em <- as.data.frame(estimate_biomass(data.frame(site = "a", taxon_id = "t02", abundance = 1,
+                                                  per = "mL"), mic))
+  expect_match(em$note, "not whole colonies")
+  # cells_per_unit only for phytoplankton in natural units, and at least 1.
+  bad <- cells_and_units
+  bad$cells_per_unit <- c(8, NA)
+  expect_error(estimate_biomass(ab, bad), class = "bmassa_error_input")
+  bad$cells_per_unit <- c(NA, 0.5)
+  expect_error(estimate_biomass(ab, bad), class = "bmassa_error_input")
+})
+
+test_that("phytoplankton cells go to energy through their carbon (hand calculation)", {
+  # Platt and Irwin (1973, p. 309 and Table 3): 11.40 cal/mg C, SD 1.108 among
+  # 10 samples. Lognormal with that mean, as the conventions of amphibians:
+  # variance between populations s2 = ln(1 + CV^2), plus s2/10 for the mean.
+  s2 <- log(1 + (1.108 / 11.40)^2)
+  v <- s2 * (1 + 1 / 10)
+  f <- 11.40 * 4.184e-9 # J per pg of carbon
+  c1 <- as.data.frame(suppressWarnings(convert_currency(est, to = "carbon")))
+  en <- suppressWarnings(convert_currency(est, to = "energy"))
+  j <- as.data.frame(en)
+  i <- row_of("t01")
+  expect_equal(j$ind_mean[i], c1$ind_mean[i] * f)
+  expect_equal(j$ind_median[i], c1$ind_median[i] * f * exp(-v / 2))
+  expect_equal(tau2_of(j, i) - tau2_of(c1, i), v)
+  expect_equal(j$unit[i], "J")
+  expect_match(j$conversion[i], "Platt and Irwin 1973")
+  expect_true(grepl("conversion", j$uncertainty[i]))
+  expect_true("platt1973" %in% cite_sources(en)$source_id)
+  # 1000 um3 of a diatom: 77.98 pg of carbon, 3.72 uJ.
+  expect_equal(77.98 * f * 1e6, 3.720, tolerance = 1e-3)
 })
 
 test_that("units, abundances and repeated conversions", {
@@ -412,7 +458,7 @@ test_that("energy is the mass in ug times the energy density of the taxon (hand 
   expect_true(exp(root$path_intercept) * 1000 > 10 && exp(root$path_intercept) * 1000 < 25)
 })
 
-test_that("energy units rescale every converted row; phytoplankton is not converted", {
+test_that("energy units rescale every converted row", {
   j <- as.data.frame(suppressWarnings(convert_currency(est, to = "energy")))
   kj <- as.data.frame(suppressWarnings(convert_currency(est, to = "energy", unit = "kJ")))
   mj <- as.data.frame(suppressWarnings(convert_currency(est, to = "energy", unit = "mJ")))
@@ -421,8 +467,8 @@ test_that("energy units rescale every converted row; phytoplankton is not conver
   expect_equal(mj$biomass_upper[ok], j$biomass_upper[ok] * 1000)
   expect_true(all(kj$unit[ok] == "kJ"))
   phy <- which(e0$broad_group == "phytoplankton" & !is.na(e0$ind_median))
-  expect_true(all(is.na(j$ind_median[phy])))
-  expect_match(j$reason[phy[1]], "no conversion from biovolume to energy")
+  expect_true(all(kj$unit[phy] == "kJ"))
+  expect_equal(kj$ind_mean[phy], j$ind_mean[phy] / 1000)
   amph <- which(e0$broad_group == "amphibian" & !is.na(e0$ind_median))
   expect_true(all(kj$unit[amph] == "kJ"))
   expect_equal(kj$ind_mean[amph], j$ind_mean[amph] / 1000)

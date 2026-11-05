@@ -79,11 +79,11 @@ and the factor by which the median is divided and multiplied to get its
 check_coverage(tx, ln)
 #> <bmassa_coverage> 20 taxa, 22 rows (14 without lengths, 8 with lengths)
 #>   phytoplankton      typical species 4, genus 1; median factor 12
-#>   zooplankton        typical species 3; median factor 25
+#>   zooplankton        typical species 3; median factor 20
 #>   zooplankton        length  species 1; median factor 3
-#>   macroinvertebrate  typical species 1, genus 1, family 1; median factor 28
+#>   macroinvertebrate  typical species 1, genus 1, family 1; median factor 22
 #>   macroinvertebrate  length  species 2, family 1; median factor 3.5
-#>   fish               typical none, not estimable 2; median factor -
+#>   fish               typical species 1, genus 1; median factor 11
 #>   fish               length  species 1, genus 2; median factor 1.4
 #>   amphibian          typical none, not estimable 1; median factor -
 #>   amphibian          length  species 1; median factor 1.7
@@ -97,16 +97,15 @@ individuals of each length, which biomass needs:
 
 ``` r
 est <- estimate_biomass(ab, tx, ln, bias_correction = "lognormal")
-#> Warning in estimate_biomass(ab, tx, ln, bias_correction = "lognormal"): 5 of 40 rows were not
+#> Warning in estimate_biomass(ab, tx, ln, bias_correction = "lognormal"): 3 of 40 rows were not
 #> estimated; see the `reason` column of the result.
 est
-#> <bmassa_estimate> 40 rows: 35 estimated (13 from lengths, 22 without lengths), 5 not estimated
-#> Lowest level shared with the reference: species 25, genus 6, family 4
+#> <bmassa_estimate> 40 rows: 37 estimated (13 from lengths, 24 without lengths), 3 not estimated
+#> Lowest level shared with the reference: species 27, genus 6, family 4
 #> Interval: prediction 95 %, for the mean individual mass of a population; bias_correction = "lognormal"
 #> Not estimated:
 #>     1  abundance is missing
 #>     2  amphibian larvae and juveniles have no reference masses without lengths
-#>     2  fish need a length: the reference has no masses of fish without lengths (the mean mass of a population depends on its sizes)
 #> Use as.data.frame() for the table and summarize_biomass() for totals.
 e <- as.data.frame(est)
 print(e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "ind_lower",
@@ -117,19 +116,19 @@ print(e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "in
 #> 3       t03 typical       genus   1.00e+03  4.76e+01  2.12e+04  um3
 #> 4       t04 typical     species   5.48e+01  4.49e+00  6.68e+02  um3
 #> 5       t05 typical     species   1.01e+02  8.43e+00  1.21e+03  um3
-#> 6       t06 typical     species   9.65e-05  3.94e-06  2.36e-03   mg
-#> 7       t07 typical     species   3.47e-04  1.41e-05  8.50e-03   mg
+#> 6       t06 typical     species   5.36e-05  2.73e-06  1.05e-03   mg
+#> 7       t07 typical     species   1.84e-04  9.33e-06  3.61e-03   mg
 #> 8       t08  length     species   5.71e-02  1.87e-02  1.74e-01   mg
-#> 9       t09 typical     species   3.27e-03  1.33e-04  8.05e-02   mg
+#> 9       t09 typical     species   3.81e-03  1.96e-04  7.37e-02   mg
 #> 10      t10  length     species   5.19e-01  1.68e-01  1.61e+00   mg
 #> 11      t11  length     species   6.07e-01  1.74e-01  2.12e+00   mg
 #> 12      t12  length      family   1.39e+01  2.97e+00  6.54e+01   mg
-#> 13      t13 typical       genus   7.11e-01  2.56e-02  1.97e+01   mg
-#> 14      t14 typical      family   6.15e-01  1.06e-02  3.56e+01   mg
-#> 15      t15 typical     species   2.90e-01  1.09e-02  7.70e+00   mg
+#> 13      t13 typical       genus   8.15e-01  3.73e-02  1.78e+01   mg
+#> 14      t14 typical      family   7.06e-01  1.48e-02  3.38e+01   mg
+#> 15      t15 typical     species   3.27e-01  1.57e-02  6.83e+00   mg
 #> 16      t16  length     species   5.55e+01  4.56e+01  6.76e+01    g
 #> 17      t17  length       genus   2.14e+01  1.48e+01  3.10e+01    g
-#> 18      t18 typical        <NA>         NA        NA        NA <NA>
+#> 18      t18 typical     species   7.14e-01  5.55e-02  9.18e+00    g
 #> 19      t19  length     species   2.31e+01  1.33e+01  3.99e+01    g
 #> 20      t20 typical        <NA>         NA        NA        NA <NA>
 ```
@@ -152,19 +151,19 @@ print(ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_low
 #> 3       t03      biovolume   1.42e-04  8.13e-06  2.49e-03   ug
 #> 4       t04      biovolume   9.28e-06  8.86e-07  9.71e-05   ug
 #> 5       t05      biovolume   1.65e-05  1.60e-06  1.69e-04   ug
-#> 6       t06       dry_mass   3.66e-02  1.42e-03  9.44e-01   ug
-#> 7       t07       dry_mass   1.24e-01  4.92e-03  3.13e+00   ug
+#> 6       t06       dry_mass   2.04e-02  9.80e-04  4.23e-01   ug
+#> 7       t07       dry_mass   6.57e-02  3.24e-03  1.33e+00   ug
 #> 8       t08       dry_mass   2.60e+01  7.83e+00  8.62e+01   ug
-#> 9       t09       dry_mass   1.52e+00  5.93e-02  3.92e+01   ug
+#> 9       t09       dry_mass   1.77e+00  8.73e-02  3.61e+01   ug
 #> 10      t10       dry_mass   2.30e+02  6.89e+01  7.69e+02   ug
 #> 11      t11       dry_mass   2.81e+02  7.20e+01  1.10e+03   ug
 #> 12      t12       dry_mass   6.38e+03  1.17e+03  3.47e+04   ug
-#> 13      t13       dry_mass   2.60e+02  9.06e+00  7.45e+03   ug
-#> 14      t14       dry_mass   2.58e+02  4.35e+00  1.52e+04   ug
-#> 15      t15       dry_mass   1.20e+02  3.74e+00  3.83e+03   ug
+#> 13      t13       dry_mass   2.98e+02  1.32e+01  6.74e+03   ug
+#> 14      t14       dry_mass   2.95e+02  6.03e+00  1.45e+04   ug
+#> 15      t15       dry_mass   1.35e+02  5.29e+00  3.44e+03   ug
 #> 16      t16       wet_mass   5.86e+06  3.45e+06  9.94e+06   ug
 #> 17      t17       wet_mass   2.21e+06  1.16e+06  4.20e+06   ug
-#> 18      t18           <NA>         NA        NA        NA <NA>
+#> 18      t18       wet_mass   8.26e+04  6.00e+03  1.14e+06   ug
 #> 19      t19           <NA>         NA        NA        NA <NA>
 #> 20      t20           <NA>         NA        NA        NA <NA>
 ```
@@ -179,15 +178,15 @@ print(tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lo
               "biomass_upper", "n_missing")], digits = 3)
 #>    site       broad_group biomass_unit biomass_mean biomass_lower biomass_upper n_missing
 #> 1    L1         amphibian         <NA>           NA            NA            NA         2
-#> 2    L1              fish    ug/100 m2     4.62e+07      2.85e+07      6.84e+07         1
-#> 3    L1 macroinvertebrate        ug/m2     5.66e+05      1.21e+05      2.59e+06         0
-#> 4    L1     phytoplankton        ug/mL     1.71e+00      2.63e-01      5.43e+00         0
-#> 5    L1       zooplankton         ug/L     3.84e+02      6.33e+01      1.56e+03         0
+#> 2    L1              fish    ug/100 m2     5.43e+07      3.18e+07      9.59e+07         0
+#> 3    L1 macroinvertebrate        ug/m2     5.44e+05      1.30e+05      1.74e+06         0
+#> 4    L1     phytoplankton        ug/mL     1.71e+00      2.78e-01      6.31e+00         0
+#> 5    L1       zooplankton         ug/L     3.19e+02      6.24e+01      1.26e+03         0
 #> 6    L2         amphibian         <NA>           NA            NA            NA         2
-#> 7    L2              fish    ug/100 m2     3.87e+07      2.44e+07      5.81e+07         1
-#> 8    L2 macroinvertebrate        ug/m2     6.95e+05      8.74e+04      4.20e+06         0
-#> 9    L2     phytoplankton        ug/mL     1.98e+00      2.49e-01      6.65e+00         0
-#> 10   L2       zooplankton         ug/L     2.57e+02      6.17e+00      1.45e+03         1
+#> 7    L2              fish    ug/100 m2     5.18e+07      2.83e+07      1.13e+08         0
+#> 8    L2 macroinvertebrate        ug/m2     6.57e+05      1.01e+05      2.62e+06         0
+#> 9    L2     phytoplankton        ug/mL     1.98e+00      2.61e-01      8.25e+00         0
+#> 10   L2       zooplankton         ug/L     1.52e+02      6.21e+00      8.36e+02         1
 ```
 
 The draws themselves, for models that use the biomass of every taxon
@@ -209,12 +208,12 @@ d <- as.data.frame(sim, draws = 1:2)
 print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
                  "biomass_unit")]), digits = 3)
 #>   draw site taxon_id habitat ind_mass biomass biomass_unit
-#> 1    1   L1      t01    lake 5.67e-06 15296.6        mg/m2
-#> 2    1   L1      t02    lake 1.17e-07  4404.5        mg/m2
-#> 3    1   L1      t03    lake 4.29e-07   193.0        mg/m2
-#> 4    1   L1      t04    lake 1.51e-08   204.2        mg/m2
-#> 5    1   L1      t05    lake 3.84e-08    34.6        mg/m2
-#> 6    1   L1      t06    lake 1.98e-04   103.8        mg/m2
+#> 1    1   L1      t01    lake 1.39e-06  3754.3        mg/m2
+#> 2    1   L1      t02    lake 2.20e-08   823.3        mg/m2
+#> 3    1   L1      t03    lake 3.62e-07   162.9        mg/m2
+#> 4    1   L1      t04    lake 1.37e-08   185.4        mg/m2
+#> 5    1   L1      t05    lake 2.59e-08    23.3        mg/m2
+#> 6    1   L1      t06    lake 8.39e-03  4403.6        mg/m2
 ```
 
 ## Methods and decisions
@@ -238,8 +237,13 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
   by row.
 - Insects without lengths and without a stage are taken as larvae, and
   copepods as adults (their copepodites and nauplii are fixed
-  contrasts); fish without lengths, and amphibians without lengths that
-  are not declared adults, are not estimated.
+  contrasts); fish without lengths are estimated as whole populations
+  (all sizes), with wide intervals; amphibians only after metamorphosis
+  (larvae are not estimated), and without lengths only when declared
+  adults.
+- Phytoplankton counted in natural units takes the natural units of the
+  reference, often single cells or small groups in colonial genera; give
+  `cells_per_unit` for colonies counted whole.
 - Lengths outside those of the reference relations of a taxon use its
   closest relative that covers them, and are not extrapolated unless
   `extrapolate = TRUE`.
@@ -277,6 +281,7 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 | mccauley1984       | McCauley E (1984). The estimation of the abundance and biomass of zooplankton in samples. In: Downing JA, Rigler FH (eds), A Manual on Methods for the Assessment of Secondary Productivity in Fresh Waters, 2nd edn, IBP Handbook 17. Blackwell Scientific Publications, Oxford, pp. 228-265. ISBN 0-632-00616-1.                      | Values transcribed from the book chapter                                                                                                |
 | mdl2000            | Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for dinoflagellates, diatoms, and other protist plankton. Limnology and Oceanography 45, 569-579.                                                                                                                                                                     | Values transcribed from the paper                                                                                                       |
 | moreau2021         | Moreau A, Dupuy C, Bocher P, Farau S (2021). Morphological, calorific and nutritive characteristics of 656 freshwater invertebrates taxa. Biodiversity Data Journal 9, e70214.                                                                                                                                                          | CC0 1.0 (Dryad)                                                                                                                         |
+| platt1973          | Platt T, Irwin B (1973). Caloric content of phytoplankton. Limnology and Oceanography 18, 306-310.                                                                                                                                                                                                                                      | Values transcribed from the paper                                                                                                       |
 | rimet2018          | Rimet F, Druart J-C (2018). A trait database for Phytoplankton of temperate lakes. Annales de Limnologie - International Journal of Limnology 54, 18.                                                                                                                                                                                   | CC BY 4.0 (Zenodo)                                                                                                                      |
 | santini2018        | Santini L, Benítez-López A, Ficetola GF, Huijbregts MAJ (2018). Length–mass allometries in amphibians. Integrative Zoology 13, 36-45.                                                                                                                                                                                                   | Publisher copyright (article: (c) 2017 ISZS, IOZ CAS and John Wiley & Sons Australia); no licence stated for the supplementary material |
 | theilacker1971     | Theilacker GH, McMaster MF (1971). Mass culture of the rotifer Brachionus plicatilis and its evaluation as a food for larval anchovies. Marine Biology 10, 183-188.                                                                                                                                                                     | Values transcribed from the paper                                                                                                       |
@@ -288,9 +293,9 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 
 ## Status
 
-Development version, not on CRAN. In cross-validation, the 95 %
-intervals cover 93-97 % of new populations of species in the reference
-and 94-98 % of species left out. Masses without lengths are much more
-uncertain (the median is divided and multiplied by a factor of about 6
-to 40 for the 95 % interval of a new population) than masses from
-lengths (a factor of 1.2 to 4): measure lengths where possible.
+Version 0.2.0, not on CRAN. In cross-validation, the 95 % intervals
+cover 93-97 % of new populations of species in the reference and 91-97 %
+of species left out. Masses without lengths are much more uncertain (the
+median is divided and multiplied by a factor of about 6 to 40 for the 95
+% interval of a new population) than masses from lengths (a factor of
+1.2 to 4): measure lengths where possible.

@@ -490,6 +490,75 @@ if (use_source("bottrell1976", reg)) {
   say("")
 }
 
+# 5e. Fish without lengths (decision of 2026-11-05): mean individual wet mass
+# (g) of each population with at least `min_fish` individuals weighed. Arranz
+# et al. (2022): species and site of the electrofishing survey of Iberian
+# streams (all sizes caught; masses to 0.1 g). Koning et al. (2024): species
+# in the catch of the 'dai' bag-net fishery of the Tonle Sap River in
+# 2020-2021, one population each (the file with total lengths; the one with
+# standard lengths has the same fish). The mean of a population depends on
+# the sizes caught, which the model takes as variation between populations
+# and sources.
+min_fish <- 5
+fish_means <- function(taxon, site, mass, length) {
+  ok <- is.finite(mass) & mass > 0
+  key <- paste(taxon, site, sep = "\r")[ok]
+  g <- split(which(ok), factor(key, levels = unique(key)))
+  n <- lengths(g)
+  g <- g[n >= min_fish]
+  first <- vapply(g, `[`, integer(1), 1)
+  data.frame(taxon = taxon[first], site = site[first], n = lengths(g),
+             mean = vapply(g, function(i) mean(mass[i]), numeric(1)),
+             median = vapply(g, function(i) stats::median(mass[i]), numeric(1)),
+             sd = vapply(g, function(i) stats::sd(mass[i]), numeric(1)),
+             min = vapply(g, function(i) min(mass[i]), numeric(1)),
+             max = vapply(g, function(i) max(mass[i]), numeric(1)),
+             length_mean = vapply(g, function(i) mean(length[i], na.rm = TRUE), numeric(1)),
+             stringsAsFactors = FALSE, row.names = NULL)
+}
+if (use_source("arranz2022", reg)) {
+  say("## Arranz et al. (2022): mean mass of fish populations")
+  say("")
+  path <- source_files("arranz2022", reg)
+  x <- read.delim(path[1], fileEncoding = "latin1", stringsAsFactors = FALSE)
+  m <- fish_means(x$Scientific_name, as.character(x$Code_ID), x$Mass_g, x$Length_mm)
+  tl_sp <- c("Anguilla anguilla", "Gambusia holbrooki", "Salaria fluviatilis", "Silurus glanis",
+             "Ameiurus melas")
+  records$arranz <- std(
+    source_id = "arranz2022", taxon = m$taxon, name_as_given = m$taxon,
+    identified_to = "species", life_stage = NA_character_, count_unit = "individual",
+    currency = "wet_mass", unit = "g", shell_included = FALSE, preservation = "fresh",
+    mean = m$mean, median = m$median, sd = m$sd, min = m$min, max = m$max, n = m$n,
+    n_unit = "individuals", scope = "population", site = m$site, country = "Spain",
+    length_type = ifelse(m$taxon %in% tl_sp, "total_length", "fork_length"),
+    length_mean = m$length_mean, length_unit = "mm", use_in_model = TRUE,
+    note = "mean of the individuals of the species at the site (electrofishing)")
+  say("- %d populations (species and site) with at least %d individuals, of %d species at %d sites (%d individuals); population means from %.2f to %.0f g (median %.1f).",
+      nrow(m), min_fish, length(unique(m$taxon)), length(unique(m$site)), sum(m$n),
+      min(m$mean), max(m$mean), stats::median(m$mean))
+  say("")
+}
+if (use_source("koning2024", reg)) {
+  say("## Koning et al. (2024): mean mass of fish in the catch")
+  say("")
+  path <- source_files("koning2024", reg)
+  tl <- read.csv(path["Koning2024/Dai_2020_2021_TL.csv"], fileEncoding = "UTF-8-BOM",
+                 stringsAsFactors = FALSE)
+  sp <- gsub("_", " ", tl$Genus_species)
+  m <- fish_means(sp, rep("Tonle Sap River, dai fishery", length(sp)), tl$W.g, 10 * tl$tl.cm)
+  records$koning <- std(
+    source_id = "koning2024", taxon = m$taxon, name_as_given = m$taxon,
+    identified_to = "species", life_stage = NA_character_, count_unit = "individual",
+    currency = "wet_mass", unit = "g", shell_included = FALSE, preservation = "fresh",
+    mean = m$mean, median = m$median, sd = m$sd, min = m$min, max = m$max, n = m$n,
+    n_unit = "individuals", scope = "population", site = m$site, country = "Cambodia",
+    length_type = "total_length", length_mean = m$length_mean, length_unit = "mm",
+    use_in_model = TRUE, note = "mean of the individuals of the species in the catch of 2020-2021")
+  say("- %d species with at least %d individuals (%d individuals); means from %.1f to %.0f g (median %.1f).",
+      nrow(m), min_fish, sum(m$n), min(m$mean), max(m$mean), stats::median(m$mean))
+  say("")
+}
+
 # Output -------------------------------------------------------------------------
 
 rec <- do.call(rbind, records)

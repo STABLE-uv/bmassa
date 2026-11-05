@@ -20,6 +20,14 @@ amphibian_dry_wet_sd <- 0.047
 amphibian_energy_dry <- 4.6 * 4.184e-3
 amphibian_energy_dry_sd <- 0.45 * 4.184e-3
 amphibian_n_studies <- 3
+# Energy of phytoplankton from its carbon: the general factor of Platt and
+# Irwin (1973, p. 309), 11.40 cal/mg C, the mean of their Table 3 (10 samples
+# of net phytoplankton of a marine spring bloom, gross energy by bomb
+# calorimetry; SD 1.108 cal/mg C, computed from the table), source
+# "platt1973", in J per pg of carbon (4.184 J/cal).
+phyto_energy_carbon <- 11.40 * 4.184e-9
+phyto_energy_carbon_sd <- 1.108 * 4.184e-9
+phyto_energy_n <- 10
 habitat_levels <- c("freshwater", "marine", "transitional")
 # Classes of diatoms (carbon-volume equation of Menden-Deuer and Lessard 2000
 # for diatoms; the protist one for the rest).
@@ -45,8 +53,10 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' energy with the values of frogs and toads compiled by US EPA (1993): dry
 #' mass 15 % (SD 4.7) of the wet mass and 4.6 kcal/g (SD 0.45) of dry mass.
 #' Phytoplankton biovolumes are converted to wet mass with the conventional
-#' density of 1 g/cm3 (EN 16695) and, for single cells, to carbon with the
-#' carbon-volume equations of Menden-Deuer and Lessard (2000).
+#' density of 1 g/cm3 (EN 16695) and, for single cells (or natural units with
+#' a known number of cells), to carbon with the carbon-volume equations of
+#' Menden-Deuer and Lessard (2000), and from carbon to energy with the factor
+#' of Platt and Irwin (1973), 11.40 cal/mg C (SD 1.108).
 #'
 #' @param data Result of [estimate_biomass()] (or of `convert_currency()` on
 #'   it).
@@ -162,15 +172,29 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' and \eqn{b} but not their covariance nor the residual variance; the rows
 #' say so in `note`. Cyanobacteria use the equation of protists, marked as an
 #' extrapolation (the authors note that two cyanobacterial values fall close
-#' to it).
+#' to it). A natural unit of k cells (`cells_per_unit` in the `taxa` of
+#' [estimate_biomass()]) has the carbon of k cells of its biovolume divided
+#' by k: \eqn{\ln C = \ln 10 \log_{10} a + (1 - b) \ln k + b \ln V}{ln C = ln(10) log10(a) + (1 - b) ln k + b ln V}.
+#'
+#' **Phytoplankton energy.** From the carbon, with the general factor of
+#' Platt and Irwin (1973, p. 309), 11.40 cal (47.7 J) per mg of carbon, the
+#' mean of the 10 samples of their Table 3 (SD 1.108 cal/mg C, computed from
+#' the table; coefficient of variation 10 %, half that of the energy per dry
+#' mass). It is lognormal with that mean, as the conventions of amphibians:
+#' variance between populations \eqn{\ln(1 + CV^2)}{ln(1 + CV^2)} plus a tenth
+#' of it for the mean of the 10 samples. The samples were net phytoplankton
+#' (mesh 76 um) of the spring bloom of 1969 in St. Margaret's Bay (Nova
+#' Scotia), a marine coastal bay, and the energy is gross energy by bomb
+#' calorimetry: its use for freshwater phytoplankton is an extrapolation (the
+#' rows say so in `note`).
 #'
 #' @section Missing values and zeros:
 #' Rows without an estimate stay `NA`. Rows that cannot be converted get
 #' `NA`: amphibians to AFDM or carbon (the reference data have too few
-#' conversion factors for them), phytoplankton to dry mass, AFDM or energy
-#' (no factors from biovolume),
-#' phytoplankton counted in natural units to carbon (the equation is for single
-#' cells, and with \eqn{b < 1} it would underestimate the carbon of a colony),
+#' conversion factors for them), phytoplankton to dry mass or AFDM (no
+#' factors from biovolume), phytoplankton counted in natural units without
+#' `cells_per_unit` to carbon or energy (the equation is for single cells,
+#' and with \eqn{b < 1} it would underestimate the carbon of a colony),
 #' and taxa that match no node of the conversion model (a phylum without
 #' factors in it). An abundance of 0 keeps a biomass of 0.
 #'
@@ -236,6 +260,9 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' Oliver RL, Kinnear AJ, Ganf GG (1981). Measurements of cell density of three
 #' freshwater phytoplankters by density gradient centrifugation. *Limnology
 #' and Oceanography*, 26, 285-294. \doi{10.4319/lo.1981.26.2.0285}
+#'
+#' Platt T, Irwin B (1973). Caloric content of phytoplankton. *Limnology and
+#' Oceanography*, 18, 306-310. \doi{10.4319/lo.1973.18.2.0306}
 #'
 #' US EPA (1993). *Wildlife Exposure Factors Handbook*. EPA/600/R-93/187.
 #' U.S. Environmental Protection Agency, Washington, DC.
@@ -423,13 +450,13 @@ plan_conversions <- function(native, simulation, reference, to, habitat, unit) {
         missing_keys[[length(missing_keys) + 1L]] <- character(0)
         next
       }
-      if (to != "carbon") {
+      if (!to %in% c("carbon", "energy")) {
         reason[i] <- sprintf("no conversion from biovolume to %s in the reference", gsub("_", " ", to))
         next
       }
       if (!identical(sim$model[i], "phytoplankton_cell")) {
         reason[i] <- paste("the carbon-volume equation is for single cells: rows counted in",
-                           "natural units are not converted")
+                           "natural units are converted only with `cells_per_unit` in `taxa`")
         next
       }
       li <- lin[i, ]
@@ -439,7 +466,10 @@ plan_conversions <- function(native, simulation, reference, to, habitat, unit) {
         next
       }
       eq <- ce[ce$equation_id == if (diatom) "mdl2000_diatoms" else "mdl2000_protist", ]
-      shift[i] <- log(10) * eq$log10_a
+      # Per cell; a natural unit of k cells has k times the carbon of a cell of
+      # its biovolume divided by k: ln C = ln10 log10(a) + (1 - b) ln k + b ln V.
+      k <- if (!is.null(sim$cells_per_unit) && !is.na(sim$cells_per_unit[i])) sim$cells_per_unit[i] else 1
+      shift[i] <- log(10) * eq$log10_a + (1 - eq$b) * log(k)
       slope[i] <- eq$b
       new_unit[i] <- "pg"
       converted[i] <- TRUE
@@ -455,6 +485,25 @@ plan_conversions <- function(native, simulation, reference, to, habitat, unit) {
         eta = NA_real_, v_population = 0, v_source = 0, v_habitat = 0, habitat_node = NA_integer_,
         stringsAsFactors = FALSE)
       missing_keys[[length(missing_keys) + 1L]] <- character(0)
+      if (to == "energy") {
+        # Energy from the carbon, lognormal (convention_lognormal()).
+        cv <- convention_lognormal(phyto_energy_carbon, phyto_energy_carbon_sd, phyto_energy_n)
+        shift[i] <- shift[i] + cv$eta
+        v_add[i] <- v_add[i] + cv$v_population + cv$v_mean
+        new_unit[i] <- "J"
+        quantified[i] <- TRUE
+        label[i] <- paste0(label[i], "; carbon->energy: 11.40 cal/mg C (SD 1.11; Platt and Irwin 1973)")
+        csrc[i] <- paste(eq$source_id, "platt1973", sep = ";")
+        note[i] <- paste("energy from carbon with the factor of marine net phytoplankton of Platt",
+                         "and Irwin (1973), extrapolated; gross energy; uncertainty of the",
+                         "carbon-volume equation not quantified")
+        steps[[length(steps) + 1L]] <- data.frame(
+          row = i, type = "convention", model = "phytoplankton carbon_to_energy convention",
+          node = NA_integer_, sign = 1, eta = cv$eta, v_population = cv$v_population,
+          v_source = cv$v_mean, v_habitat = 0, habitat_node = NA_integer_,
+          stringsAsFactors = FALSE)
+        missing_keys[[length(missing_keys) + 1L]] <- character(0)
+      }
       next
     }
     if (dom == "invertebrate" && lin$phylum[i] %in% "Rotifera" &&

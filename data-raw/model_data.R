@@ -137,6 +137,15 @@ typ$zoo <- data.frame(record_id = tr$record_id[k], source_id = tr$source_id[k], 
                       n = tr$n[k],
                       converted_from = ifelse(tr$currency[k] == "wet_mass", "wet_mass (rotifer)", NA),
                       stringsAsFactors = FALSE)
+# Fish without lengths (decision of 2026-11-05; data-raw/typical_records.R):
+# mean wet mass (g) of the populations of Arranz et al. (2022) and of the
+# species in the catch of Koning et al. (2024).
+k <- tr$source_id %in% c("arranz2022", "koning2024") & tr$use_in_model &
+  tr$count_unit == "individual"
+stopifnot(all(tr$currency[k] == "wet_mass"), all(tr$unit[k] == "g"))
+typ$fish <- data.frame(record_id = tr$record_id[k], source_id = tr$source_id[k], taxon = tr$taxon[k],
+                       model = "fish_individual", life_stage = NA_character_, stage = "unspecified",
+                       value = tr$mean[k], unit = "g", n = tr$n[k], stringsAsFactors = FALSE)
 for (j in setdiff(names(typ), c("hrycik", "zoo"))) typ[[j]]$converted_from <- NA_character_
 typ <- do.call(rbind, typ)
 rownames(typ) <- NULL
@@ -159,6 +168,16 @@ typ$stage[hi] <- "larva"
 typ$contrast <- NA_character_
 cop <- typ$model == "invertebrate_individual" & typ$class %in% "Copepoda"
 typ$contrast[cop] <- copepod_contrast(typ$life_stage[cop])
+# Method of the masses of rotifers (decision of 2026-11-05, after the test with
+# Tuesday Lake, dev/validacion/tuesday_lake.md): direct weighings (Dumont et
+# al. 1975, Table 8; Bottrell et al. 1976, Table VIII, weighings compiled from
+# several studies) are several times the dry masses from calculated volumes
+# (Bottrell et al. 1976, Table IX; Ejsmont-Karabin 1998) with the convention
+# of 10 % (3.9 % in Asplanchna). The weighings get a fixed contrast, and the
+# model predicts for volumes, the usual method of field studies.
+rw <- typ$model == "invertebrate_individual" & typ$phylum %in% "Rotifera" &
+  typ$source_id %in% c("dumont1975", "bottrell1976") & is.na(typ$converted_from)
+typ$contrast[rw] <- "rotifer_weighing"
 ni <- typ$model == "invertebrate_individual" & typ$class != "Insecta"
 typ$stage[ni] <- "non_insect"
 typ$conversion_ln <- NA_real_
@@ -207,9 +226,10 @@ for (m in unique(typ$model)) {
       m, nrow(s), length(unique(s$species)), sum(table(s$species) > 1), length(unique(s$genus)),
       length(unique(s$family)), paste(sprintf("%s %d", names(table(s$stage)), as.integer(table(s$stage))), collapse = ", "))
   if (any(!is.na(s$contrast))) {
-    say("  Fixed contrasts of stage: %s (copepods: %d records; those of adults or without a stage, %d, are the baseline).",
+    say("  Fixed contrasts: %s (copepods: %d records, those of adults or without a stage, %d, the baseline; rotifers: %d records, the masses from volumes, %d, the baseline).",
         paste(sprintf("%s %d", names(table(s$contrast)), as.integer(table(s$contrast))), collapse = ", "),
-        sum(s$class %in% "Copepoda"), sum(s$class %in% "Copepoda" & is.na(s$contrast)))
+        sum(s$class %in% "Copepoda"), sum(s$class %in% "Copepoda" & is.na(s$contrast)),
+        sum(s$phylum %in% "Rotifera"), sum(s$phylum %in% "Rotifera" & is.na(s$contrast)))
   }
 }
 say("")

@@ -3,7 +3,8 @@
 # scripts of version 0.2.0 (taxonomy_colxr.R and model_data.R):
 #   data-raw/derived/taxonomy_0.1.0.csv, typical_mass_0.1.0.csv and
 #   length_mass_0.1.0.csv (numbers written with 17 significant digits, so
-#   that they are read back exactly)
+#   that they are read back exactly), and kremer_colonial_genera.csv (the
+#   colonial genera of Kremer et al. 2014, read by model_tables.R)
 #
 # Run from the package root:  Rscript data-raw/references.R
 # Packages used only here: readxl.
@@ -766,3 +767,8 @@ write_csv_exact <- function(x, file) {
 for (obj in c("taxonomy", "typical_mass", "length_mass")) {
   write_csv_exact(get(obj), file.path("data-raw/derived", paste0(obj, "_0.1.0.csv")))
 }
+# Colonial genera of Kremer et al. (2014), read by model_tables.R: the package
+# warns that the natural units of these genera in the reference are those of
+# its sources (often single cells or small groups), not whole colonies.
+write.csv(data.frame(genus = colonial_genera), "data-raw/derived/kremer_colonial_genera.csv",
+          row.names = FALSE, fileEncoding = "UTF-8")

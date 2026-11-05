@@ -144,13 +144,43 @@ test_that("lengths outside the reference move up the tree, or are not estimated"
   expect_match(ex$note, "estimated from Coenagrionidae")
 })
 
+test_that("fish without length: mean mass of a population (hand calculation)", {
+  ab <- data.frame(site = "s", taxon_id = c("f1", "f2"), abundance = 2, per = "m2")
+  mudminnow <- taxon("f2", "fish",
+                     c(kingdom = "Animalia", phylum = "Chordata", class = "Teleostei",
+                       order = "Esociformes", family = "Umbridae", genus = "Umbra",
+                       species = "Umbra limi"))
+  e <- as.data.frame(estimate_biomass(ab, rbind(trout, mudminnow)))
+  expect_equal(e$status, c("estimated", "estimated"))
+  expect_equal(e$method, c("typical", "typical"))
+  expect_equal(e$unit, c("g", "g"))
+  expect_match(e$note[1], "fish without length")
+  # The trout from its node of the fish model: path, its variance, the
+  # variation between populations and that of a new source.
+  m <- "fish_individual"
+  nd <- ref$nodes[ref$nodes$model == m & ref$nodes$node == e$match_name[1] &
+                    ref$nodes$level == e$match_level[1], ]
+  tau2 <- nd$path_var + comp(m, "residual", "intercept") + comp(m, "source", "intercept")
+  lv <- strsplit(ref$models$levels[ref$models$model == m], ",")[[1]]
+  miss <- lv[seq_along(lv) > match(e$match_level[1], lv)]
+  for (l in miss) tau2 <- tau2 + comp(m, l, "intercept")
+  expect_equal(e$ind_median[1], exp(nd$path_intercept))
+  expect_equal(e$ind_upper[1], exp(nd$path_intercept + stats::qnorm(0.975) * sqrt(tau2)))
+  expect_equal(e$biomass_median[1], 2 * e$ind_median[1])
+  # An order absent from the reference: from all the fish, with the variances
+  # of all the levels.
+  expect_equal(e$match_level[2], "root")
+  expect_match(e$note[2], "order not in the reference")
+  expect_gt(e$ind_upper[2] / e$ind_median[2], e$ind_upper[1] / e$ind_median[1])
+})
+
 test_that("rows that cannot be estimated say why, with one warning", {
   ab <- data.frame(site = "s", taxon_id = c("f1", "w1"), abundance = 1, per = "m2")
-  tx <- rbind(trout, limno)
+  tx <- rbind(transform(trout, life_stage = "juvenile"), transform(limno, life_stage = NA))
   expect_warning(est <- estimate_biomass(ab, tx), class = "bmassa_warning_not_estimable")
   e <- as.data.frame(est)
   expect_equal(e$status, c("not_estimated", "estimated"))
-  expect_match(e$reason[1], "fish need a length")
+  expect_match(e$reason[1], "whole populations")
   frog <- taxon("a1", "amphibian", c(kingdom = "Animalia", phylum = "Chordata", class = "Amphibia",
                                      order = "Anura", family = "Ranidae", genus = "Rana",
                                      species = "Rana temporaria"))

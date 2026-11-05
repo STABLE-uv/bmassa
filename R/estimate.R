@@ -88,6 +88,9 @@ estimate_biomass_columns <- c(
 #'   * `count_unit`: `"cell"` or `"natural_unit"` (colony or filament as
 #'     counted) for phytoplankton, where it is required; `"individual"` or
 #'     `NA` for animals.
+#'   * `cells_per_unit` (>= 1): for phytoplankton counted in natural units,
+#'     the mean number of cells of a unit, where it was counted; the unit is
+#'     then estimated as that many cells (see Details). `NA` otherwise.
 #'   * `length_mean` (> 0), `length_unit` (`"um"`, `"mm"` or `"cm"`) and
 #'     `length_type` (`"body_length"`, `"shell_length"`, `"shell_height"`,
 #'     `"fork_length"`, `"total_length"`, `"standard_length"` or
@@ -187,6 +190,25 @@ estimate_biomass_columns <- c(
 #' `"nauplius_body_length"`, used for rows of copepods with `life_stage =
 #' "nauplius"` and `length_type = "body_length"`).
 #'
+#' **Natural units of phytoplankton.** Without `cells_per_unit`, a natural
+#' unit is predicted from the natural units of the reference, which are
+#' those of its sources: in colonial genera often single cells or small
+#' groups, not whole colonies (a note says so). With `cells_per_unit` = k, the
+#' biovolume of the unit is that of a cell of the taxon times k:
+#' \eqn{\eta}{eta} of the model of cells plus \eqn{\ln k}{ln k}, with the
+#' variances of the cell (k is taken as known).
+#'
+#' **Fish without lengths.** The model of fish without lengths is fitted to
+#' the mean wet mass of whole populations (all the sizes caught): species and
+#' site of an electrofishing survey of Iberian streams (Arranz et al. 2022)
+#' and species in the catch of a river fishery (Koning et al. 2024). The mean
+#' of a population depends on its size structure, which the variation between
+#' populations takes up, so the intervals are wide; a mean length gives a
+#' closer estimate. A fish of an order absent from these data is predicted
+#' from all their fish (the root of the model), with the variances of all the
+#' levels; a fish with `life_stage` or `sex` is not estimated without a
+#' length.
+#'
 #' **Matching.** A taxon with a `col_id` is first looked for by it (the
 #' identifier follows a taxon whose name or genus changed). Otherwise, from
 #' the lowest rank of the taxon upwards, the first node of the model with the
@@ -205,9 +227,10 @@ estimate_biomass_columns <- c(
 #' missing abundance gives a missing biomass (`status = "not_estimated"`,
 #' `reason = "abundance is missing"`) but the individual mass is kept. Rows
 #' without an estimate keep `NA`, with the reason, and one warning reports how
-#' many there are. Fish without lengths, and amphibians without lengths that
-#' are not declared adults, are not estimated: the reference has no masses
-#' for them.
+#' many there are. Amphibians given as larvae or juveniles (with or without
+#' lengths), amphibians without lengths that are not declared adults, and
+#' fish without lengths given a life stage or a sex, are not estimated: the
+#' reference has no masses for them.
 #'
 #' @section Assumptions:
 #' The interval is for the mean individual mass of a population, not for one
@@ -220,16 +243,26 @@ estimate_biomass_columns <- c(
 #' lengths vary much more between populations than masses at a given length:
 #' in cross-validation, the median 95 % interval of a new population of a
 #' species of the reference spans a factor of 6 to 38 either way without
-#' lengths, against 1.2 to 3.9 with them (`dev/validacion` in the source
+#' lengths, against 1.2 to 3.7 with them (`dev/validacion` in the source
 #' repository): measure lengths where possible. Insects without lengths and
 #' without a stage are taken as larvae, and copepods as adults. The
 #' length-mass relations of insects come mostly from larvae. The masses of
-#' rotifers come from direct weighings (dry mass) and from volumes (wet mass,
-#' converted to dry mass with the convention of 10 %, 3.9 % in
-#' *Asplanchna*), which differ by a factor of about 7 for the same species:
-#' the difference is part of the variation between sources.
+#' rotifers come from direct weighings of dry mass (Dumont et al. 1975;
+#' Bottrell et al. 1976, Table VIII) and from volumes (wet mass, converted to
+#' dry mass with the convention of 10 %, 3.9 % in *Asplanchna*). The weighings
+#' are a fixed contrast in the model (about twice the masses from volumes),
+#' and rotifers are predicted as from volumes, the usual method of field
+#' studies.
 #'
 #' @references
+#' Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
+#' length dataset for over 12,000 fish from Iberian streams. *Data in Brief*,
+#' 108248. \doi{10.1016/j.dib.2022.108248}
+#'
+#' Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
+#' for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
+#' \doi{10.5061/dryad.dr7sqvb5h}
+#'
 #' Sprugel DG (1983). Correcting for bias in log-transformed allometric
 #' equations. *Ecology*, 64, 209-210.
 #'
@@ -391,6 +424,21 @@ check_taxa_table <- function(taxa, require_count_unit = TRUE, call = sys.call(-1
                         format_rows(bad)), rows = bad, call = call)
   }
   tx$count_unit[!phyto] <- "individual"
+  # Cells per natural unit (colonies, filaments), when they were counted.
+  if ("cells_per_unit" %in% names(tx)) {
+    check_numeric_column(tx, "cells_per_unit", lower = 1, allow_na = TRUE, arg = "taxa",
+                         call = call)
+    bad <- which(!is.na(tx$cells_per_unit) & !(phyto & tx$count_unit %in% "natural_unit"))
+    if (length(bad) > 0L) {
+      abort_input(sprintf(paste(
+        "Column 'cells_per_unit' of `taxa` is for phytoplankton counted in natural units",
+        "(`count_unit` \"natural_unit\"); give NA in %s."), format_rows(bad)),
+        rows = bad, call = call)
+    }
+    tx$cells_per_unit <- as.numeric(tx$cells_per_unit)
+  } else {
+    tx$cells_per_unit <- rep(NA_real_, nrow(tx))
+  }
   if (any(length_input_columns %in% names(tx))) {
     check_length_columns(tx, "taxa", required = FALSE, call = call)
   }
@@ -528,7 +576,7 @@ resolve_rows <- function(ab, tx, ln) {
   domain <- unname(broad_group_domain[tx$broad_group[ti]])
   rows <- data.frame(row = seq_len(n), taxon_id = as_text(ab$taxon_id), ti = ti,
                      site = as_text(ab$site), domain = domain,
-                     count_unit = tx$count_unit[ti],
+                     count_unit = tx$count_unit[ti], cells_per_unit = tx$cells_per_unit[ti],
                      stage = unit_stage(tx$life_stage, tx$sex)[ti],
                      length_mm = rep(NA_real_, n), length_type = rep(NA_character_, n),
                      length_cv = rep(NA_real_, n), stringsAsFactors = FALSE)
@@ -574,7 +622,7 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
   int <- rep(NA_integer_, n)
   pr <- data.frame(model = chr, method = chr, stage_used = chr, length_status = chr, node = int,
                    stage_node = int, contrast = chr, match_level = chr, match_name = chr, n_reference = int,
-                   sources = chr, xc = rep(0, n), eta = num, v_param = num, v_missing = num,
+                   sources = chr, xc = rep(0, n), offset = rep(0, n), eta = num, v_param = num, v_missing = num,
                    v_population = num, v_source = num, corrections = chr, uncertainty = chr,
                    status = rep("not_estimated", n), reason = chr, note = chr,
                    stringsAsFactors = FALSE)
@@ -588,6 +636,8 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
   }
   insect <- tx$class[rows$ti] %in% "Insecta"
   copepod <- tx$class[rows$ti] %in% "Copepoda" | tx$order[rows$ti] %in% copepod_orders
+  cells <- if ("cells_per_unit" %in% names(rows)) rows$cells_per_unit else rep(NA_real_, n)
+  colonial <- tx$genus[rows$ti] %in% reference$colonial_genera
   # Length type of the model: the body length of copepod nauplii has its own
   # relations (their shape differs from that of copepodites and adults).
   lt_m <- rows$length_type
@@ -612,7 +662,22 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     }
     pr$method[i] <- "typical"
     if (d == "phytoplankton") {
-      pr$model[i] <- paste0("phytoplankton_", rows$count_unit[i])
+      if (rows$count_unit[i] == "natural_unit" && !is.na(cells[i])) {
+        # A natural unit of known cells: the biovolume of a cell times the cells.
+        pr$model[i] <- "phytoplankton_cell"
+        pr$offset[i] <- log(cells[i])
+        pr$note[i] <- append_note(pr$note[i], sprintf(
+          "natural unit of %s cells: the biovolume of one cell times the number of cells",
+          format(signif(cells[i], 4))))
+      } else {
+        pr$model[i] <- paste0("phytoplankton_", rows$count_unit[i])
+        if (rows$count_unit[i] == "natural_unit" && colonial[i]) {
+          pr$note[i] <- append_note(pr$note[i], paste(
+            "colonial genus counted in natural units: the reference has the natural units of",
+            "its sources (often single cells or small groups), not whole colonies; give",
+            "cells_per_unit for colonies counted whole"))
+        }
+      }
     } else if (d == "invertebrate") {
       pr$model[i] <- "invertebrate_individual"
       if (insect[i]) {
@@ -633,9 +698,18 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
         if (!is.na(st)) pr$note[i] <- "life stage not modelled for animals other than insects"
       }
     } else if (d == "fish") {
-      pr$reason[i] <- paste(
-        "fish need a length: the reference has no masses of fish without lengths (the mean",
-        "mass of a population depends on its sizes)")
+      if (is.na(st)) {
+        pr$model[i] <- "fish_individual"
+        pr$note[i] <- append_note(pr$note[i], paste(
+          "fish without length: mean mass of a population of all the sizes caught in the",
+          "reference (electrofishing of streams, a river fishery), which may differ from the",
+          "sizes of this population; a mean length gives a closer estimate"))
+      } else {
+        pr$reason[i] <- paste(
+          "fish without length are estimated as whole populations (all the sizes caught in",
+          "the reference), not by life stage or sex: give a length, or leave life_stage and",
+          "sex empty")
+      }
     } else if (d == "amphibian") {
       if (st %in% c("adult", "female", "female_ovigerous", "male")) {
         pr$model[i] <- "amphibian_adult"
@@ -661,12 +735,25 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
                     (is.na(nodes$length_type) | nodes$length_type %in% lt_m[i]))
     lin <- unlist(tx[rows$ti[i], main_ranks])
     mt <- match_lineage(lin, nodes[cand, ], lv, col_id = tx$col_id[rows$ti[i]])
-    if (is.null(mt$row)) {
+    root <- if (is.null(mt$row) && m == "fish_individual") {
+      which(nodes$model == m & nodes$level == "root")
+    } else {
+      integer(0)
+    }
+    if (is.null(mt$row) && length(root) != 1L) {
       pr$reason[idx] <- sprintf("no taxon of the reference model %s matches the classification%s",
                                 m, if (is.na(mt$note)) "" else paste0(" (", mt$note, ")"))
       next
     }
-    j <- cand[mt$row]
+    if (is.null(mt$row)) {
+      # Fish without length of an order absent from the reference: the mean of
+      # all its fish, with the variances of all the levels.
+      j <- root
+      mt$note <- append_note(mt$note, paste("order not in the reference: estimated from all",
+                                            "the fish of the reference"))
+    } else {
+      j <- cand[mt$row]
+    }
     for (i in idx) {
       jj <- j
       if (pr$method[i] == "length") {
@@ -705,7 +792,7 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     lt_row <- if (lwr) reference$lwr_types[reference$lwr_types$model == m &
                                               reference$lwr_types$length_type == lt_m[i], ]
     xc <- if (lwr) log(rows$length_mm[i]) - lt_row$centre else 0
-    eta <- nodes$path_intercept[j]
+    eta <- nodes$path_intercept[j] + pr$offset[i]
     vp <- nodes$path_var[j]
     if (lwr) {
       eta <- eta + nodes$path_slope[j] * xc
@@ -943,8 +1030,8 @@ new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, setti
   sim <- data.frame(row = rows$row, taxon_id = rows$taxon_id, site = rows$site,
                     stage_used = pr$stage_used, model = pr$model, method = pr$method,
                     length_type = rows$length_type, node = pr$node, stage_node = pr$stage_node,
-                    contrast = pr$contrast,
-                    xc = pr$xc, eta = pr$eta, v_param = pr$v_param, v_missing = pr$v_missing,
+                    contrast = pr$contrast, cells_per_unit = rows$cells_per_unit,
+                    xc = pr$xc, offset = pr$offset, eta = pr$eta, v_param = pr$v_param, v_missing = pr$v_missing,
                     v_population = pr$v_population, v_source = pr$v_source,
                     stringsAsFactors = FALSE)
   st <- estimates$status

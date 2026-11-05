@@ -23,6 +23,9 @@ XR), used first to find it in the reference.
 \item \code{count_unit}: \code{"cell"} or \code{"natural_unit"} (colony or filament as
 counted) for phytoplankton, where it is required; \code{"individual"} or
 \code{NA} for animals.
+\item \code{cells_per_unit} (>= 1): for phytoplankton counted in natural units,
+the mean number of cells of a unit, where it was counted; the unit is
+then estimated as that many cells (see Details). \code{NA} otherwise.
 \item \code{length_mean} (> 0), \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and
 \code{length_type} (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"},
 \code{"fork_length"}, \code{"total_length"}, \code{"standard_length"} or

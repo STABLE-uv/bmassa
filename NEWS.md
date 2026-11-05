@@ -27,7 +27,7 @@
   seed, its medians and intervals can change within the Monte Carlo error
   when such rows bring nodes or populations of their own (not in the example
   data). Its result has a new column, `population_by`.
-* The zooplankton of the reference gains six sources (phase 4k): stage
+* The zooplankton of the reference gains six sources: stage
   weights and length-dry mass regressions of copepods and cladocerans of
   Culver et al. (1985); length-dry mass regressions compiled by Bottrell et
   al. (1976) and McCauley (1984), each equation once (from its original
@@ -38,11 +38,16 @@
   mass of 139 freshwater cladocerans and copepods from their typical lengths
   (Hébert et al. 2016). Masses without lengths change: copepod nauplii and
   copepodites no longer take the mass of adults (nauplii of Copepoda, 9.8 to
-  0.22 ug of dry mass), rotifers are mostly 1.1 to 3 times lighter (direct
-  weighings of Dumont et al. 1975 are about seven times the masses from
-  volumes for the same species; the model takes the difference as variation
-  between sources), and more rotifers and cladocerans are estimated from
+  0.22 ug of dry mass), and more rotifers and cladocerans are estimated from
   their own species.
+* Rotifers are predicted as from volumes, the usual method of field studies:
+  direct weighings of their dry mass (Dumont et al. 1975; Bottrell et al.
+  1976, Table VIII) are a fixed contrast in the model (`c_rotifer_weighing`,
+  about twice the masses from volumes), not variation between sources. Their
+  masses without lengths are about half of what the weighings would give, and
+  the intervals of all the invertebrates without lengths are narrower (the
+  variation between sources is smaller). A test with the fresh masses of
+  Tuesday Lake (Jonsson et al. 2005) prompted the change.
 * Copepods without lengths have stages: copepodites and nauplii are fixed
   contrasts against the adults in the model of invertebrates (`stage_used`
   `"copepod_adult"`, `"copepod_copepodite"`, `"copepod_nauplius"`); a
@@ -109,8 +114,26 @@
   carbohydrate, protein and lipid; Gnaiger and Bitterlich 1984), values
   inconsistent with another value of the same material, and values far from
   those of their class or from the fitted model are left out. There is no
-  model of energy per carbon; amphibians use the convention above, and
-  phytoplankton is not converted to energy.
+  model of energy per carbon of animals; amphibians use the convention
+  above, and phytoplankton the factor of Platt and Irwin (1973, below).
+* Fish without lengths are estimated as whole populations (model
+  `fish_individual`), from the mean wet mass of the populations of an
+  electrofishing survey of Iberian streams (Arranz et al. 2022) and of the
+  catch of a river fishery (Koning et al. 2024), all sizes together; the
+  intervals are wide (the mean mass of a population depends on its sizes). A
+  fish of an order absent from those data takes the mean of all of them; a
+  fish given a life stage or a sex still needs a length.
+* `cells_per_unit` in the `taxa` of `estimate_biomass()` and
+  `check_coverage()`: for phytoplankton counted in natural units, the number
+  of cells of a unit, which is then estimated as that many cells (and goes to
+  carbon and energy). Without it, natural units of colonial genera get a
+  note: in the reference they are those of its sources, often single cells or
+  small groups, not whole colonies.
+* `convert_currency(to = "energy")` converts phytoplankton cells (and natural
+  units with `cells_per_unit`) from their carbon with the factor of Platt and
+  Irwin (1973), 11.40 cal per mg of carbon (SD 1.1 among their 10 samples of
+  marine net phytoplankton), an extrapolation for freshwater that the rows
+  note.
 * `standardize_taxa()`: classification and identifier (`col_id`) of a list of
   taxa in the Catalogue of Life (COL XR), through the GBIF API. Needs the
   suggested packages curl and jsonlite, and internet; when the service cannot

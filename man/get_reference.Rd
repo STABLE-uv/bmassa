@@ -37,7 +37,8 @@ with the path of the parent (\code{parent_cov}, \code{parent_cov_is},
 (\code{effect}, \code{effect_slope}; \code{effect_var} for stage effects), and, in
 the model of invertebrates without lengths, the covariance of the path
 with the fixed contrasts of copepodites and nauplii
-(\code{contrast_cov_copepod_copepodite}, \code{contrast_cov_copepod_nauplius}).
+(\code{contrast_cov_copepod_copepodite}, \code{contrast_cov_copepod_nauplius};
+also \code{contrast_cov_rotifer_weighing}, not used in predictions).
 \item \code{components}: variance components (\code{value}, natural logs) by \code{model},
 \code{level} (taxonomic levels, \code{"equation"}, \code{"study"}, \code{"source"},
 \code{"stage"}, \code{"residual"}) and \code{parameter} (\code{"intercept"}, \code{"slope"},
@@ -45,7 +46,9 @@ with the fixed contrasts of copepodites and nauplii
 \item \code{fixed}: fixed effects by model, with standard errors and covariances
 (intercepts and slopes by length type; in the model of invertebrates
 without lengths, the contrasts \code{c_copepod_copepodite} and
-\code{c_copepod_nauplius} against adult copepods).
+\code{c_copepod_nauplius} against adult copepods, and \code{c_rotifer_weighing},
+direct weighings of rotifers against masses from volumes, which are the
+ones predicted).
 \item \code{conversion_models}: one row per model of the conversion factors (ln
 of the ratio between two currencies of the same organisms), with
 \code{model}, \code{domain} (\code{"invertebrate"} or \code{"fish"}), \code{from} and \code{to}
@@ -57,6 +60,10 @@ nodes of level \code{"habitat"} hold the habitat effects.
 \item \code{carbon_equations}: the carbon-volume equations of Menden-Deuer and
 Lessard (2000, Table 4) for diatoms and the other protists, with the
 95 \% confidence intervals of their coefficients.
+\item \code{colonial_genera}: genera of phytoplankton that Kremer et al. (2014)
+found counted in colonies or filaments in their data sources; their
+natural units in the reference are often single cells or small groups,
+which \code{\link[=estimate_biomass]{estimate_biomass()}} notes.
 \item \code{sources}: \code{source_id}, \code{citation}, \code{doi}, \code{licence}.
 \item \code{info}: versions (\code{data_version}, \code{col_release} of the Catalogue of
 Life eXtended Release used for the taxonomy, \code{fitted_on},

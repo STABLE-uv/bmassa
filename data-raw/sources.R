@@ -4,7 +4,7 @@
 # Original files are read from the folder given by the environment variable
 # BMASSA_DATABASES (default "data-raw/databases"), with one subfolder per
 # source as in the `files` column of the registry, e.g.
-#   Sys.setenv(BMASSA_DATABASES = "E:/biomassa/databases")
+#   Sys.setenv(BMASSA_DATABASES = "path/to/databases")
 #
 # Permission states (column `permission`):
 #   not_needed     the licence allows redistribution under CC BY 4.0 or MIT

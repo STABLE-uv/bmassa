@@ -78,6 +78,8 @@ check_coverage <- function(taxa, lengths = NULL, level = 0.95, reference = get_r
   stage <- unit_stage(tx$life_stage, tx$sex)
   rows <- data.frame(row = seq_len(nrow(base)), taxon_id = tx$taxon_id[base$ti], ti = base$ti,
                      site = base$site, domain = dom[base$ti], count_unit = base$count_unit,
+                     cells_per_unit = ifelse(base$count_unit %in% "natural_unit",
+                                             tx$cells_per_unit[base$ti], NA_real_),
                      stage = stage[base$ti], length_mm = base$length_mm,
                      length_type = base$length_type, length_cv = base$length_cv,
                      stringsAsFactors = FALSE)

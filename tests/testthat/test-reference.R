@@ -6,7 +6,8 @@ test_that("the reference has its tables and versions", {
   expect_s3_class(ref, "bmassa_reference")
   expect_named(ref, c("models", "lwr_types", "nodes", "components", "fixed", "conversion_models",
                       "conversion_nodes", "conversion_components", "conversion_fixed",
-                      "carbon_equations", "sources", "info"))
+                      "carbon_equations", "colonial_genera", "sources", "info"))
+  expect_true(all(c("Microcystis", "Dinobryon") %in% ref$colonial_genera))
   expect_setequal(ref$conversion_models$domain, c("invertebrate", "fish"))
   expect_true(all(c(ref$conversion_models$from, ref$conversion_models$to) %in%
                     c("wet_mass", "dry_mass", "afdm", "carbon", "energy")))

@@ -8,7 +8,8 @@ test_that("one row per taxon unit, plus one per length of a sample", {
   expect_equal(nrow(d), nrow(ex$taxa) + nrow(ex$lengths))
   expect_s3_class(cov, "bmassa_coverage")
   expect_false(inherits(d, "bmassa_coverage"))
-  expect_equal(d$status[d$taxon_id == "t18" & d$method == "typical"], "not_estimable")
+  # A fish without length: mean mass of a population of all sizes.
+  expect_equal(d$status[d$taxon_id == "t18" & d$method == "typical"], "estimable")
   expect_true(all(d$factor[d$status == "estimable"] > 1))
   # Units with a length are checked with it; the lengths of a sample say where.
   expect_equal(d$method[d$taxon_id == "t08"], "length")

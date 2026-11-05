@@ -148,9 +148,13 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
   conversion factors; `simulate()` returns the draws of the totals, row by
   row.
 - Insects without lengths and without a stage are taken as larvae, and
-  copepods as adults (their copepodites and nauplii are fixed contrasts); fish
-  without lengths, and amphibians without lengths that are not declared
-  adults, are not estimated.
+  copepods as adults (their copepodites and nauplii are fixed contrasts);
+  fish without lengths are estimated as whole populations (all sizes), with
+  wide intervals; amphibians only after metamorphosis (larvae are not
+  estimated), and without lengths only when declared adults.
+- Phytoplankton counted in natural units takes the natural units of the
+  reference, often single cells or small groups in colonial genera; give
+  `cells_per_unit` for colonies counted whole.
 - Lengths outside those of the reference relations of a taxon use its
   closest relative that covers them, and are not extrapolated unless
   `extrapolate = TRUE`.
@@ -167,8 +171,8 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 
 ## Status
 
-Development version, not on CRAN. In cross-validation, the 95 % intervals
-cover 93-97 % of new populations of species in the reference and 94-98 % of
+Version 0.2.0, not on CRAN. In cross-validation, the 95 % intervals cover
+93-97 % of new populations of species in the reference and 91-97 % of
 species left out. Masses without lengths are much more uncertain (the
 median is divided and multiplied by a factor of about 6 to 40 for the 95 %
 interval of a new population) than masses from lengths (a factor of 1.2 to

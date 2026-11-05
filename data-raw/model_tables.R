@@ -251,11 +251,12 @@ stopifnot(all(is.finite(lwr_types$sigma_ind)))
 # Sources ---------------------------------------------------------------------------------
 # Conventions of R/conversion.R: cen2015 (density of 1 g/cm3 for the wet mass of
 # phytoplankton), usepa2016 and dumont1975 (dry to wet mass of rotifers),
-# usepa1993 (dry to wet mass and energy of amphibians).
+# usepa1993 (dry to wet mass and energy of amphibians), platt1973 (energy per
+# carbon of phytoplankton).
 used_src <- sort(unique(c(unlist(strsplit(nodes$sources[!is.na(nodes$sources)], ";")),
                           unlist(strsplit(conversion_nodes$sources[!is.na(conversion_nodes$sources)], ";")),
                           carbon_equations$source_id, "cen2015", "usepa2016", "dumont1975",
-                          "usepa1993")))
+                          "usepa1993", "platt1973")))
 sources <- src[src$source_id %in% used_src, c("source_id", "citation", "doi", "licence")]
 rownames(sources) <- NULL
 stopifnot(setequal(sources$source_id, used_src))
@@ -272,11 +273,19 @@ info <- list(
   lme4 = as.character(utils::packageVersion("lme4")))
 stopifnot(!anyNA(unlist(info)))
 
+# Colonial genera of Kremer et al. (2014; data-raw/references.R): their natural
+# units in the reference are those of the data sources, often single cells or
+# small groups, not whole colonies (test with Tuesday Lake, 2026-11-05).
+colonial_genera <- read.csv(file.path(out_dir, "kremer_colonial_genera.csv"),
+                            stringsAsFactors = FALSE)$genus
+stopifnot(length(colonial_genera) > 0, !anyNA(colonial_genera))
+
 ref_tables <- list(models = models, lwr_types = lwr_types, nodes = nodes,
                    components = components, fixed = fixed,
                    conversion_models = conversion_models, conversion_nodes = conversion_nodes,
                    conversion_components = cc, conversion_fixed = cf,
-                   carbon_equations = carbon_equations, sources = sources, info = info)
+                   carbon_equations = carbon_equations, colonial_genera = colonial_genera,
+                   sources = sources, info = info)
 usethis::use_data(ref_tables, internal = TRUE, overwrite = TRUE, compress = "xz")
 cat(sprintf("nodes with col_id: %d of %d (models), %d of %d (conversions)\n",
             sum(!is.na(nodes$col_id)), sum(nodes$level %in% levels_all),

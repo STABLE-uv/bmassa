@@ -201,9 +201,9 @@ test_that("population_by narrows sums over groups and is reported", {
   expect_identical(s_hb$biomass_mean, s_sh$biomass_mean)
   expect_identical(s_hb$population_by, "habitat")
   expect_true(is.na(s_sh$population_by))
-  # One site alone does not change.
-  one_sh <- summarize_biomass(est3, by = "site", n_draws = 4000, seed = 5)
-  one_hb <- summarize_biomass(est3, by = "site", n_draws = 4000, seed = 5, population_by = "habitat")
+  # One site alone does not change (up to the Monte Carlo error).
+  one_sh <- summarize_biomass(est3, by = "site", n_draws = 20000, seed = 5)
+  one_hb <- summarize_biomass(est3, by = "site", n_draws = 20000, seed = 5, population_by = "habitat")
   expect_equal(one_hb$biomass_upper / one_hb$biomass_lower,
                one_sh$biomass_upper / one_sh$biomass_lower, tolerance = 0.15)
 })

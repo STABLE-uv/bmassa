@@ -61,8 +61,10 @@ mass, 3.9 \% in \emph{Asplanchna}. Amphibians go between wet and dry mass and to
 energy with the values of frogs and toads compiled by US EPA (1993): dry
 mass 15 \% (SD 4.7) of the wet mass and 4.6 kcal/g (SD 0.45) of dry mass.
 Phytoplankton biovolumes are converted to wet mass with the conventional
-density of 1 g/cm3 (EN 16695) and, for single cells, to carbon with the
-carbon-volume equations of Menden-Deuer and Lessard (2000).
+density of 1 g/cm3 (EN 16695) and, for single cells (or natural units with
+a known number of cells), to carbon with the carbon-volume equations of
+Menden-Deuer and Lessard (2000), and from carbon to energy with the factor
+of Platt and Irwin (1973), 11.40 cal/mg C (SD 1.108).
 }
 \details{
 \strong{Factors.} For a row whose log mass in its own currency \eqn{A} is
@@ -148,16 +150,30 @@ is not included: Table 4 gives confidence intervals for \eqn{\log_{10} a}
 and \eqn{b} but not their covariance nor the residual variance; the rows
 say so in \code{note}. Cyanobacteria use the equation of protists, marked as an
 extrapolation (the authors note that two cyanobacterial values fall close
-to it).
+to it). A natural unit of k cells (\code{cells_per_unit} in the \code{taxa} of
+\code{\link[=estimate_biomass]{estimate_biomass()}}) has the carbon of k cells of its biovolume divided
+by k: \eqn{\ln C = \ln 10 \log_{10} a + (1 - b) \ln k + b \ln V}{ln C = ln(10) log10(a) + (1 - b) ln k + b ln V}.
+
+\strong{Phytoplankton energy.} From the carbon, with the general factor of
+Platt and Irwin (1973, p. 309), 11.40 cal (47.7 J) per mg of carbon, the
+mean of the 10 samples of their Table 3 (SD 1.108 cal/mg C, computed from
+the table; coefficient of variation 10 \%, half that of the energy per dry
+mass). It is lognormal with that mean, as the conventions of amphibians:
+variance between populations \eqn{\ln(1 + CV^2)}{ln(1 + CV^2)} plus a tenth
+of it for the mean of the 10 samples. The samples were net phytoplankton
+(mesh 76 um) of the spring bloom of 1969 in St. Margaret's Bay (Nova
+Scotia), a marine coastal bay, and the energy is gross energy by bomb
+calorimetry: its use for freshwater phytoplankton is an extrapolation (the
+rows say so in \code{note}).
 }
 \section{Missing values and zeros}{
 
 Rows without an estimate stay \code{NA}. Rows that cannot be converted get
 \code{NA}: amphibians to AFDM or carbon (the reference data have too few
-conversion factors for them), phytoplankton to dry mass, AFDM or energy
-(no factors from biovolume),
-phytoplankton counted in natural units to carbon (the equation is for single
-cells, and with \eqn{b < 1} it would underestimate the carbon of a colony),
+conversion factors for them), phytoplankton to dry mass or AFDM (no
+factors from biovolume), phytoplankton counted in natural units without
+\code{cells_per_unit} to carbon or energy (the equation is for single cells,
+and with \eqn{b < 1} it would underestimate the carbon of a colony),
 and taxa that match no node of the conversion model (a phylum without
 factors in it). An abundance of 0 keeps a biomass of 0.
 }
@@ -244,6 +260,9 @@ Oceanography}, 45, 569-579. \doi{10.4319/lo.2000.45.3.0569}
 Oliver RL, Kinnear AJ, Ganf GG (1981). Measurements of cell density of three
 freshwater phytoplankters by density gradient centrifugation. \emph{Limnology
 and Oceanography}, 26, 285-294. \doi{10.4319/lo.1981.26.2.0285}
+
+Platt T, Irwin B (1973). Caloric content of phytoplankton. \emph{Limnology and
+Oceanography}, 18, 306-310. \doi{10.4319/lo.1973.18.2.0306}
 
 US EPA (1993). \emph{Wildlife Exposure Factors Handbook}. EPA/600/R-93/187.
 U.S. Environmental Protection Agency, Washington, DC.

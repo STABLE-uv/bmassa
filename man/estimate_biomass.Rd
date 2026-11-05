@@ -48,6 +48,9 @@ XR), used first to find it in the reference.
 \item \code{count_unit}: \code{"cell"} or \code{"natural_unit"} (colony or filament as
 counted) for phytoplankton, where it is required; \code{"individual"} or
 \code{NA} for animals.
+\item \code{cells_per_unit} (>= 1): for phytoplankton counted in natural units,
+the mean number of cells of a unit, where it was counted; the unit is
+then estimated as that many cells (see Details). \code{NA} otherwise.
 \item \code{length_mean} (> 0), \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and
 \code{length_type} (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"},
 \code{"fork_length"}, \code{"total_length"}, \code{"standard_length"} or
@@ -166,6 +169,25 @@ is wide. With lengths there is no stage effect, but the body length of
 copepod nauplii has relations of its own (length type
 \code{"nauplius_body_length"}, used for rows of copepods with \code{life_stage = "nauplius"} and \code{length_type = "body_length"}).
 
+\strong{Natural units of phytoplankton.} Without \code{cells_per_unit}, a natural
+unit is predicted from the natural units of the reference, which are
+those of its sources: in colonial genera often single cells or small
+groups, not whole colonies (a note says so). With \code{cells_per_unit} = k, the
+biovolume of the unit is that of a cell of the taxon times k:
+\eqn{\eta}{eta} of the model of cells plus \eqn{\ln k}{ln k}, with the
+variances of the cell (k is taken as known).
+
+\strong{Fish without lengths.} The model of fish without lengths is fitted to
+the mean wet mass of whole populations (all the sizes caught): species and
+site of an electrofishing survey of Iberian streams (Arranz et al. 2022)
+and species in the catch of a river fishery (Koning et al. 2024). The mean
+of a population depends on its size structure, which the variation between
+populations takes up, so the intervals are wide; a mean length gives a
+closer estimate. A fish of an order absent from these data is predicted
+from all their fish (the root of the model), with the variances of all the
+levels; a fish with \code{life_stage} or \code{sex} is not estimated without a
+length.
+
 \strong{Matching.} A taxon with a \code{col_id} is first looked for by it (the
 identifier follows a taxon whose name or genus changed). Otherwise, from
 the lowest rank of the taxon upwards, the first node of the model with the
@@ -185,9 +207,10 @@ An abundance of 0 gives a biomass of 0 when the mass is estimated; a
 missing abundance gives a missing biomass (\code{status = "not_estimated"},
 \code{reason = "abundance is missing"}) but the individual mass is kept. Rows
 without an estimate keep \code{NA}, with the reason, and one warning reports how
-many there are. Fish without lengths, and amphibians without lengths that
-are not declared adults, are not estimated: the reference has no masses
-for them.
+many there are. Amphibians given as larvae or juveniles (with or without
+lengths), amphibians without lengths that are not declared adults, and
+fish without lengths given a life stage or a sex, are not estimated: the
+reference has no masses for them.
 }
 
 \section{Assumptions}{
@@ -202,14 +225,16 @@ central values were used). Masses without
 lengths vary much more between populations than masses at a given length:
 in cross-validation, the median 95 \% interval of a new population of a
 species of the reference spans a factor of 6 to 38 either way without
-lengths, against 1.2 to 3.9 with them (\code{dev/validacion} in the source
+lengths, against 1.2 to 3.7 with them (\code{dev/validacion} in the source
 repository): measure lengths where possible. Insects without lengths and
 without a stage are taken as larvae, and copepods as adults. The
 length-mass relations of insects come mostly from larvae. The masses of
-rotifers come from direct weighings (dry mass) and from volumes (wet mass,
-converted to dry mass with the convention of 10 \%, 3.9 \% in
-\emph{Asplanchna}), which differ by a factor of about 7 for the same species:
-the difference is part of the variation between sources.
+rotifers come from direct weighings of dry mass (Dumont et al. 1975;
+Bottrell et al. 1976, Table VIII) and from volumes (wet mass, converted to
+dry mass with the convention of 10 \%, 3.9 \% in \emph{Asplanchna}). The weighings
+are a fixed contrast in the model (about twice the masses from volumes),
+and rotifers are predicted as from volumes, the usual method of field
+studies.
 }
 
 \examples{
@@ -220,6 +245,14 @@ head(as.data.frame(est)[, c("site", "taxon_id", "method", "match_level",
                             "ind_median", "ind_lower", "ind_upper", "unit")])
 }
 \references{
+Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
+length dataset for over 12,000 fish from Iberian streams. \emph{Data in Brief},
+108248. \doi{10.1016/j.dib.2022.108248}
+
+Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
+for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
+\doi{10.5061/dryad.dr7sqvb5h}
+
 Sprugel DG (1983). Correcting for bias in log-transformed allometric
 equations. \emph{Ecology}, 64, 209-210.
 

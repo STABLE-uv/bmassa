@@ -37,7 +37,8 @@
 #'     (`effect`, `effect_slope`; `effect_var` for stage effects), and, in
 #'     the model of invertebrates without lengths, the covariance of the path
 #'     with the fixed contrasts of copepodites and nauplii
-#'     (`contrast_cov_copepod_copepodite`, `contrast_cov_copepod_nauplius`).
+#'     (`contrast_cov_copepod_copepodite`, `contrast_cov_copepod_nauplius`;
+#'     also `contrast_cov_rotifer_weighing`, not used in predictions).
 #'   * `components`: variance components (`value`, natural logs) by `model`,
 #'     `level` (taxonomic levels, `"equation"`, `"study"`, `"source"`,
 #'     `"stage"`, `"residual"`) and `parameter` (`"intercept"`, `"slope"`,
@@ -45,7 +46,9 @@
 #'   * `fixed`: fixed effects by model, with standard errors and covariances
 #'     (intercepts and slopes by length type; in the model of invertebrates
 #'     without lengths, the contrasts `c_copepod_copepodite` and
-#'     `c_copepod_nauplius` against adult copepods).
+#'     `c_copepod_nauplius` against adult copepods, and `c_rotifer_weighing`,
+#'     direct weighings of rotifers against masses from volumes, which are the
+#'     ones predicted).
 #'   * `conversion_models`: one row per model of the conversion factors (ln
 #'     of the ratio between two currencies of the same organisms), with
 #'     `model`, `domain` (`"invertebrate"` or `"fish"`), `from` and `to`
@@ -57,6 +60,10 @@
 #'   * `carbon_equations`: the carbon-volume equations of Menden-Deuer and
 #'     Lessard (2000, Table 4) for diatoms and the other protists, with the
 #'     95 % confidence intervals of their coefficients.
+#'   * `colonial_genera`: genera of phytoplankton that Kremer et al. (2014)
+#'     found counted in colonies or filaments in their data sources; their
+#'     natural units in the reference are often single cells or small groups,
+#'     which [estimate_biomass()] notes.
 #'   * `sources`: `source_id`, `citation`, `doi`, `licence`.
 #'   * `info`: versions (`data_version`, `col_release` of the Catalogue of
 #'     Life eXtended Release used for the taxonomy, `fitted_on`,

@@ -1,6 +1,6 @@
 # Validación cruzada de los modelos jerárquicos (versión 0.2.0)
 
-Generado por `dev/validacion/validacion_modelos.R` el 2026-11-02 (R version 4.3.3 (2024-02-29), lme4 1.1.35.1; semilla 20261102).
+Generado por `dev/validacion/validacion_modelos.R` el 2026-11-05 (R version 4.3.3 (2024-02-29), lme4 1.1.35.1; semilla 20261102).
 
 Esquemas: `unit`, población nueva de una especie de la referencia (10 grupos de registros o ecuaciones); `species`, especie nueva (10 grupos de especies); `source`, fuente o estudio nuevo (cada uno fuera por turno). Para las ecuaciones se evalúa el centro de su rango de tallas. `cob50`, `cob90`, `cob95`: proporción de valores observados dentro de los intervalos de predicción del 50, 90 y 95 %; `z_de`: desviación típica de z (1 si la varianza está bien calibrada); `sesgo` y `eam`: media de y − η y mediana de |y − η| (ln); `factor95`: mediana del factor ×/÷ del intervalo del 95 %.
 
@@ -14,15 +14,18 @@ Esquemas: `unit`, población nueva de una especie de la referencia (10 grupos de
 | amphibian_lwr | source |   55 | 42 % | 76 % | 87 % | -0.11 | 1.55 | -0.07 | 0.25 | 1.8 |
 | amphibian_lwr | species |  298 | 55 % | 89 % | 94 % | 0.00 | 1.04 | -0.01 | 0.20 | 1.9 |
 | amphibian_lwr | unit |  298 | 57 % | 90 % | 95 % | -0.01 | 1.04 | -0.01 | 0.18 | 1.8 |
+| fish_individual | source |   36 | 89 % | 100 % | 100 % | -0.16 | 0.46 | -0.34 | 0.76 | 49.5 |
+| fish_individual | species |  421 | 48 % | 89 % | 91 % | 0.09 | 1.13 | 0.14 | 1.07 | 20.3 |
+| fish_individual | unit |  421 | 60 % | 91 % | 94 % | 0.01 | 1.00 | 0.01 | 0.61 | 8.9 |
 | fish_lwr | source |   44 | 66 % | 95 % | 98 % | 0.26 | 0.83 | 0.25 | 0.48 | 7.9 |
 | fish_lwr | species |  355 | 72 % | 92 % | 96 % | -0.15 | 0.79 | -0.02 | 0.12 | 1.6 |
 | fish_lwr | unit |  355 | 57 % | 93 % | 97 % | -0.00 | 0.91 | -0.00 | 0.07 | 1.2 |
-| invertebrate_individual | source |  458 | 40 % | 87 % | 93 % | -0.29 | 1.05 | -0.47 | 2.43 | 471.4 |
-| invertebrate_individual | species |  529 | 63 % | 95 % | 98 % | 0.05 | 0.81 | 0.12 | 0.95 | 38.6 |
-| invertebrate_individual | unit |  529 | 63 % | 95 % | 97 % | 0.03 | 0.86 | 0.04 | 0.86 | 28.1 |
-| invertebrate_lwr | source |  807 | 62 % | 92 % | 95 % | -0.01 | 0.94 | -0.01 | 0.38 | 4.1 |
-| invertebrate_lwr | species |  807 | 62 % | 92 % | 96 % | -0.01 | 0.91 | 0.00 | 0.39 | 4.4 |
-| invertebrate_lwr | unit |  807 | 62 % | 93 % | 95 % | -0.04 | 0.92 | -0.03 | 0.36 | 3.9 |
+| invertebrate_individual | source |  904 | 47 % | 85 % | 88 % | -0.02 | 1.21 | 0.13 | 1.45 | 35.0 |
+| invertebrate_individual | species |  992 | 61 % | 94 % | 97 % | 0.03 | 0.84 | 0.08 | 0.88 | 26.0 |
+| invertebrate_individual | unit |  992 | 62 % | 95 % | 97 % | 0.01 | 0.87 | 0.02 | 0.82 | 22.0 |
+| invertebrate_lwr | source | 1107 | 58 % | 93 % | 96 % | -0.13 | 0.94 | -0.22 | 0.46 | 4.1 |
+| invertebrate_lwr | species | 1107 | 64 % | 94 % | 96 % | -0.04 | 0.88 | -0.03 | 0.35 | 4.4 |
+| invertebrate_lwr | unit | 1107 | 64 % | 93 % | 96 % | -0.06 | 0.90 | -0.06 | 0.34 | 3.7 |
 | phytoplankton_cell | source | 1530 | 42 % | 82 % | 88 % | 0.24 | 1.27 | 0.39 | 1.11 | 16.4 |
 | phytoplankton_cell | species | 1530 | 55 % | 92 % | 96 % | 0.11 | 0.94 | 0.17 | 0.94 | 21.7 |
 | phytoplankton_cell | unit | 1530 | 57 % | 92 % | 96 % | 0.14 | 0.93 | 0.21 | 0.82 | 20.4 |
@@ -56,6 +59,18 @@ Esquemas: `unit`, población nueva de una especie de la referencia (10 grupos de
 | amphibian_lwr | unit | family |   40 | 48 % | 85 % | 95 % | -0.02 | 1.23 | -0.01 | 0.32 | 2.0 |
 | amphibian_lwr | unit | genus |  109 | 58 % | 89 % | 95 % | 0.04 | 0.98 | 0.01 | 0.18 | 1.9 |
 | amphibian_lwr | unit | species |  143 | 58 % | 92 % | 94 % | -0.01 | 1.02 | -0.00 | 0.16 | 1.7 |
+| fish_individual | source | root |    8 | 62 % | 100 % | 100 % | -0.21 | 0.70 | -0.51 | 0.98 | 117.3 |
+| fish_individual | source | order |   10 | 100 % | 100 % | 100 % | -0.19 | 0.40 | -0.38 | 0.91 | 66.6 |
+| fish_individual | source | family |   18 | 94 % | 100 % | 100 % | -0.13 | 0.37 | -0.24 | 0.49 | 34.1 |
+| fish_individual | species | root |   54 | 46 % | 96 % | 100 % | 0.54 | 0.68 | 1.15 | 1.51 | 65.0 |
+| fish_individual | species | order |   73 | 73 % | 100 % | 100 % | -0.27 | 0.55 | -0.46 | 0.67 | 24.6 |
+| fish_individual | species | family |  245 | 37 % | 82 % | 84 % | 0.07 | 1.36 | 0.08 | 1.22 | 14.2 |
+| fish_individual | species | genus |   49 | 71 % | 98 % | 100 % | 0.21 | 0.60 | 0.26 | 0.59 | 10.7 |
+| fish_individual | unit | root |    2 | 50 % | 100 % | 100 % | 0.82 | 0.22 | 1.78 | 1.78 | 69.6 |
+| fish_individual | unit | order |    7 | 86 % | 100 % | 100 % | 0.14 | 0.61 | 0.24 | 0.84 | 32.4 |
+| fish_individual | unit | family |   17 | 65 % | 100 % | 100 % | -0.07 | 0.56 | -0.12 | 0.53 | 19.4 |
+| fish_individual | unit | genus |   14 | 71 % | 100 % | 100 % | -0.11 | 0.63 | -0.14 | 0.47 | 12.4 |
+| fish_individual | unit | species |  381 | 59 % | 90 % | 93 % | 0.01 | 1.04 | 0.01 | 0.60 | 8.8 |
 | fish_lwr | source | root |   34 | 65 % | 94 % | 97 % | 0.42 | 0.77 | 0.36 | 0.52 | 8.2 |
 | fish_lwr | source | order |    7 | 86 % | 100 % | 100 % | -0.07 | 0.54 | -0.06 | 0.15 | 3.3 |
 | fish_lwr | source | family |    3 | 33 % | 100 % | 100 % | -0.89 | 1.14 | -0.23 | 0.43 | 1.7 |
@@ -68,46 +83,46 @@ Esquemas: `unit`, población nueva de una especie de la referencia (10 grupos de
 | fish_lwr | unit | family |   27 | 52 % | 89 % | 93 % | 0.21 | 1.03 | 0.06 | 0.17 | 1.6 |
 | fish_lwr | unit | genus |   27 | 63 % | 96 % | 96 % | -0.12 | 0.81 | -0.02 | 0.11 | 1.5 |
 | fish_lwr | unit | species |  281 | 58 % | 94 % | 97 % | 0.00 | 0.88 | 0.00 | 0.05 | 1.2 |
-| invertebrate_individual | source | root |   42 | 2 % | 5 % | 38 % | -1.95 | 0.45 | -6.13 | 6.36 | 471.4 |
-| invertebrate_individual | source | phylum |   26 | 62 % | 100 % | 100 % | 0.09 | 0.68 | 0.38 | 2.51 | 2894.7 |
-| invertebrate_individual | source | class |  183 | 35 % | 96 % | 98 % | -0.28 | 0.96 | -0.46 | 2.67 | 250.1 |
-| invertebrate_individual | source | order |   60 | 40 % | 93 % | 100 % | 0.61 | 0.79 | 2.54 | 3.20 | 3031.9 |
-| invertebrate_individual | source | family |  111 | 50 % | 94 % | 99 % | -0.33 | 0.91 | -0.37 | 1.78 | 70.9 |
-| invertebrate_individual | source | genus |   32 | 59 % | 97 % | 100 % | -0.00 | 0.80 | 0.30 | 1.22 | 56.8 |
-| invertebrate_individual | source | species |    4 | 100 % | 100 % | 100 % | -0.05 | 0.37 | -0.32 | 0.66 | 56.8 |
-| invertebrate_individual | species | root |    2 | 50 % | 100 % | 100 % | -0.14 | 0.78 | -0.53 | 2.05 | 1474.6 |
-| invertebrate_individual | species | phylum |    3 | 67 % | 100 % | 100 % | -0.63 | 0.47 | -2.09 | 1.71 | 932.9 |
-| invertebrate_individual | species | class |   20 | 45 % | 85 % | 90 % | -0.10 | 1.16 | -0.29 | 1.88 | 168.0 |
-| invertebrate_individual | species | order |   93 | 48 % | 94 % | 96 % | 0.41 | 0.93 | 0.97 | 1.71 | 91.3 |
-| invertebrate_individual | species | family |  275 | 65 % | 95 % | 98 % | -0.05 | 0.79 | -0.10 | 0.89 | 38.6 |
-| invertebrate_individual | species | genus |  136 | 73 % | 99 % | 100 % | 0.05 | 0.63 | 0.09 | 0.77 | 27.8 |
-| invertebrate_individual | unit | root |    2 | 100 % | 100 % | 100 % | -0.11 | 0.69 | -0.43 | 1.91 | 2208.8 |
-| invertebrate_individual | unit | phylum |    3 | 67 % | 100 % | 100 % | -0.69 | 0.51 | -2.31 | 1.96 | 1023.9 |
-| invertebrate_individual | unit | class |    9 | 56 % | 89 % | 89 % | 0.20 | 1.04 | 0.51 | 1.46 | 207.9 |
-| invertebrate_individual | unit | order |   39 | 62 % | 100 % | 100 % | 0.05 | 0.75 | 0.11 | 1.19 | 94.3 |
-| invertebrate_individual | unit | family |   98 | 47 % | 89 % | 95 % | -0.10 | 1.02 | -0.14 | 1.24 | 35.2 |
-| invertebrate_individual | unit | genus |   64 | 69 % | 97 % | 100 % | -0.10 | 0.70 | -0.15 | 0.81 | 25.2 |
-| invertebrate_individual | unit | species |  314 | 67 % | 96 % | 96 % | 0.09 | 0.84 | 0.14 | 0.72 | 25.4 |
-| invertebrate_lwr | source | root |    4 | 25 % | 100 % | 100 % | 0.34 | 1.37 | 0.77 | 3.36 | 185.6 |
-| invertebrate_lwr | source | phylum |    7 | 100 % | 100 % | 100 % | -0.16 | 0.27 | -0.23 | 0.15 | 12.5 |
-| invertebrate_lwr | source | class |   58 | 76 % | 98 % | 100 % | -0.05 | 0.62 | -0.02 | 0.44 | 10.3 |
-| invertebrate_lwr | source | order |   73 | 62 % | 86 % | 92 % | -0.09 | 1.14 | -0.08 | 0.53 | 6.3 |
-| invertebrate_lwr | source | family |  195 | 54 % | 88 % | 93 % | 0.01 | 1.05 | 0.00 | 0.46 | 4.6 |
-| invertebrate_lwr | source | genus |  145 | 63 % | 96 % | 97 % | -0.03 | 0.82 | -0.02 | 0.31 | 3.9 |
-| invertebrate_lwr | source | species |  325 | 64 % | 93 % | 95 % | 0.00 | 0.92 | -0.00 | 0.35 | 3.7 |
-| invertebrate_lwr | species | root |    4 | 0 % | 75 % | 100 % | 0.47 | 1.49 | 1.39 | 4.04 | 250.7 |
-| invertebrate_lwr | species | phylum |    2 | 100 % | 100 % | 100 % | -0.47 | 0.05 | -0.63 | 0.63 | 14.1 |
-| invertebrate_lwr | species | class |   31 | 58 % | 97 % | 100 % | -0.30 | 0.79 | -0.31 | 0.62 | 8.4 |
-| invertebrate_lwr | species | order |  122 | 60 % | 91 % | 93 % | -0.02 | 1.01 | -0.02 | 0.49 | 5.7 |
-| invertebrate_lwr | species | family |  342 | 62 % | 90 % | 95 % | 0.02 | 0.95 | 0.02 | 0.40 | 4.6 |
-| invertebrate_lwr | species | genus |  306 | 63 % | 95 % | 97 % | -0.01 | 0.82 | 0.00 | 0.32 | 3.8 |
-| invertebrate_lwr | unit | root |    2 | 50 % | 50 % | 100 % | -0.65 | 1.54 | -1.68 | 3.05 | 328.0 |
-| invertebrate_lwr | unit | phylum |    2 | 100 % | 100 % | 100 % | -0.45 | 0.03 | -0.61 | 0.61 | 14.4 |
-| invertebrate_lwr | unit | class |   16 | 69 % | 100 % | 100 % | -0.19 | 0.56 | -0.20 | 0.36 | 8.4 |
-| invertebrate_lwr | unit | order |   52 | 50 % | 92 % | 92 % | -0.21 | 1.09 | -0.18 | 0.66 | 5.6 |
-| invertebrate_lwr | unit | family |  185 | 60 % | 88 % | 92 % | 0.03 | 1.01 | 0.02 | 0.41 | 4.5 |
-| invertebrate_lwr | unit | genus |  114 | 62 % | 94 % | 95 % | 0.01 | 0.90 | 0.01 | 0.27 | 3.8 |
-| invertebrate_lwr | unit | species |  436 | 64 % | 94 % | 97 % | -0.05 | 0.87 | -0.03 | 0.34 | 3.6 |
+| invertebrate_individual | source | root |    2 | 100 % | 100 % | 100 % | -0.09 | 0.55 | -0.45 | 1.91 | 16641.4 |
+| invertebrate_individual | source | phylum |   25 | 52 % | 92 % | 92 % | 0.30 | 0.97 | 0.79 | 2.64 | 3253.5 |
+| invertebrate_individual | source | class |  172 | 41 % | 78 % | 79 % | 0.25 | 1.47 | 0.55 | 2.34 | 237.5 |
+| invertebrate_individual | source | order |  124 | 32 % | 73 % | 77 % | 0.49 | 1.47 | 1.39 | 2.36 | 88.2 |
+| invertebrate_individual | source | family |  159 | 46 % | 89 % | 94 % | -0.23 | 1.05 | -0.27 | 1.36 | 38.6 |
+| invertebrate_individual | source | genus |  235 | 47 % | 83 % | 89 % | -0.34 | 1.11 | -0.49 | 1.14 | 25.7 |
+| invertebrate_individual | source | species |  187 | 61 % | 95 % | 97 % | -0.06 | 0.82 | -0.08 | 0.85 | 19.3 |
+| invertebrate_individual | species | root |    2 | 100 % | 100 % | 100 % | 0.02 | 0.79 | 0.01 | 2.32 | 3491.6 |
+| invertebrate_individual | species | phylum |    2 | 50 % | 100 % | 100 % | -0.86 | 0.50 | -2.77 | 2.77 | 770.9 |
+| invertebrate_individual | species | class |   32 | 66 % | 91 % | 94 % | 0.10 | 0.97 | 0.25 | 0.85 | 145.5 |
+| invertebrate_individual | species | order |   91 | 42 % | 84 % | 92 % | 0.55 | 1.02 | 1.22 | 1.87 | 69.2 |
+| invertebrate_individual | species | family |  267 | 57 % | 91 % | 96 % | 0.08 | 0.92 | 0.14 | 1.06 | 31.5 |
+| invertebrate_individual | species | genus |  598 | 65 % | 98 % | 99 % | -0.08 | 0.73 | -0.12 | 0.78 | 22.2 |
+| invertebrate_individual | unit | root |    2 | 100 % | 100 % | 100 % | -0.00 | 0.71 | -0.00 | 2.08 | 3417.5 |
+| invertebrate_individual | unit | phylum |    2 | 50 % | 100 % | 100 % | -0.85 | 0.51 | -2.75 | 2.75 | 780.6 |
+| invertebrate_individual | unit | class |    7 | 57 % | 86 % | 86 % | 0.50 | 1.25 | 1.22 | 1.75 | 152.7 |
+| invertebrate_individual | unit | order |   48 | 65 % | 96 % | 98 % | 0.02 | 0.78 | 0.02 | 0.97 | 69.6 |
+| invertebrate_individual | unit | family |  128 | 49 % | 89 % | 96 % | 0.01 | 1.02 | 0.03 | 1.11 | 31.7 |
+| invertebrate_individual | unit | genus |  359 | 63 % | 98 % | 99 % | -0.17 | 0.73 | -0.27 | 0.81 | 21.7 |
+| invertebrate_individual | unit | species |  446 | 64 % | 94 % | 96 % | 0.16 | 0.91 | 0.24 | 0.78 | 21.1 |
+| invertebrate_lwr | source | root |    4 | 25 % | 75 % | 100 % | 0.35 | 1.49 | 0.68 | 3.30 | 105.7 |
+| invertebrate_lwr | source | phylum |    2 | 100 % | 100 % | 100 % | -0.52 | 0.09 | -0.73 | 0.73 | 15.8 |
+| invertebrate_lwr | source | class |   41 | 49 % | 98 % | 100 % | -0.30 | 0.77 | -0.49 | 1.00 | 12.7 |
+| invertebrate_lwr | source | order |  257 | 46 % | 95 % | 98 % | -0.55 | 0.79 | -0.86 | 1.06 | 18.2 |
+| invertebrate_lwr | source | family |  239 | 59 % | 90 % | 94 % | -0.03 | 1.00 | -0.06 | 0.45 | 4.6 |
+| invertebrate_lwr | source | genus |  175 | 65 % | 97 % | 97 % | -0.00 | 0.84 | -0.01 | 0.32 | 3.5 |
+| invertebrate_lwr | source | species |  389 | 63 % | 91 % | 95 % | 0.05 | 0.96 | 0.03 | 0.33 | 3.3 |
+| invertebrate_lwr | species | root |    4 | 25 % | 75 % | 100 % | 0.30 | 1.56 | 0.90 | 3.59 | 177.4 |
+| invertebrate_lwr | species | phylum |    2 | 100 % | 100 % | 100 % | -0.42 | 0.04 | -0.58 | 0.58 | 14.9 |
+| invertebrate_lwr | species | class |   28 | 64 % | 96 % | 100 % | -0.13 | 0.77 | -0.13 | 0.41 | 8.9 |
+| invertebrate_lwr | species | order |  135 | 60 % | 92 % | 93 % | -0.04 | 1.05 | -0.04 | 0.50 | 5.7 |
+| invertebrate_lwr | species | family |  365 | 62 % | 91 % | 94 % | 0.03 | 0.96 | 0.02 | 0.40 | 4.4 |
+| invertebrate_lwr | species | genus |  573 | 66 % | 97 % | 98 % | -0.07 | 0.79 | -0.06 | 0.30 | 3.7 |
+| invertebrate_lwr | unit | root |    2 | 50 % | 50 % | 50 % | -0.81 | 1.80 | -1.49 | 2.81 | 164.9 |
+| invertebrate_lwr | unit | phylum |    2 | 100 % | 100 % | 100 % | -0.42 | 0.08 | -0.58 | 0.58 | 15.7 |
+| invertebrate_lwr | unit | class |    9 | 78 % | 100 % | 100 % | -0.02 | 0.62 | -0.03 | 0.42 | 8.7 |
+| invertebrate_lwr | unit | order |   60 | 55 % | 95 % | 95 % | -0.10 | 1.00 | -0.10 | 0.62 | 6.0 |
+| invertebrate_lwr | unit | family |  209 | 59 % | 89 % | 93 % | 0.00 | 1.00 | -0.00 | 0.46 | 4.4 |
+| invertebrate_lwr | unit | genus |  327 | 71 % | 96 % | 98 % | -0.18 | 0.75 | -0.14 | 0.28 | 4.8 |
+| invertebrate_lwr | unit | species |  498 | 62 % | 93 % | 96 % | -0.01 | 0.93 | -0.01 | 0.32 | 3.3 |
 | phytoplankton_cell | source | root |    1 | 100 % | 100 % | 100 % | -0.25 | NA | -0.76 | 0.76 | 386.8 |
 | phytoplankton_cell | source | kingdom |   26 | 69 % | 100 % | 100 % | -0.43 | 0.51 | -1.00 | 0.95 | 101.7 |
 | phytoplankton_cell | source | phylum |   39 | 59 % | 100 % | 100 % | 0.01 | 0.73 | 0.02 | 1.04 | 54.0 |
@@ -157,11 +172,13 @@ Esquemas: `unit`, población nueva de una especie de la referencia (10 grupos de
 - `unit` y `species` miden lo que el modelo promete: una población nueva de una especie conocida y una especie nueva de un taxón superior conocido. La cobertura del 95 % debe quedar entre el 90 y el 97 %.
 - `source` es más exigente de lo que será el uso real: con dos fuentes (fitoplancton, anfibios, peces), al apartar una no queda varianza entre fuentes que estimar, de modo que los intervalos no la incluyen; en invertebrados las fuentes cubren grupos distintos (zooplancton de Dumont, bentos de Hrycik y Moreau) y apartar una obliga a predecir desde clases o filos con otra composición de tamaños. En el modelo completo la varianza entre fuentes sí entra en la predicción.
 
-## Unidades sin predicción (383)
+## Unidades sin predicción (385)
 
 | model | scheme | fold | motivo | n |
 |---|---|---|---|---|
 | amphibian_lwr | source | santini2018 | ajuste imposible: number of levels of each grouping factor must be < number of observations (problems: equation_id) |   1 |
+| fish_individual | source | arranz2022 | ajuste imposible: number of levels of each grouping factor must be < number of observations (problems: g_species) |   1 |
 | fish_lwr | source | arranz2022 | tipo de longitud sin datos en el ajuste | 276 |
 | fish_lwr | source | koning2024 | tipo de longitud sin datos en el ajuste |  35 |
+| invertebrate_individual | source | culver1985 | ajuste imposible: nrow(fx) == 1L is not TRUE |   1 |
 | invertebrate_individual | source | moreau2021 | estadio sin datos en el ajuste |  71 |

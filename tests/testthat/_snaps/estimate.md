@@ -11,12 +11,11 @@
     Code
       print(est)
     Output
-      <bmassa_estimate> 40 rows: 35 estimated (13 from lengths, 22 without lengths), 5 not estimated
-      Lowest level shared with the reference: species 25, genus 6, family 4
+      <bmassa_estimate> 40 rows: 37 estimated (13 from lengths, 24 without lengths), 3 not estimated
+      Lowest level shared with the reference: species 27, genus 6, family 4
       Interval: prediction 95 %, for the mean individual mass of a population; bias_correction = "lognormal"
       Not estimated:
           1  abundance is missing
           2  amphibian larvae and juveniles have no reference masses without lengths
-          2  fish need a length: the reference has no masses of fish without lengths (the mean mass of a population depends on its sizes)
       Use as.data.frame() for the table and summarize_biomass() for totals.
 

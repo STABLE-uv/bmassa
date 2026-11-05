@@ -10,9 +10,9 @@ test_that("taxa and lengths -> coverage -> estimates -> carbon -> totals -> sour
                  class = "bmassa_warning_not_estimable")
   e <- as.data.frame(est)
   expect_equal(nrow(e), nrow(ab))
-  expect_equal(sum(e$status == "not_estimated"), 5L)
-  # Fish without lengths, amphibian larvae and a missing abundance.
-  expect_setequal(e$taxon_id[e$status == "not_estimated"], c("t18", "t20", "t08"))
+  expect_equal(sum(e$status == "not_estimated"), 3L)
+  # Amphibian larvae without lengths and a missing abundance.
+  expect_setequal(e$taxon_id[e$status == "not_estimated"], c("t20", "t08"))
   # Carbon in a common unit; amphibians are not converted.
   expect_warning(est_c <- convert_currency(est, to = "carbon", unit = "ug"),
                  class = "bmassa_warning_not_estimable")

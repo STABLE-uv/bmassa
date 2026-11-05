@@ -173,13 +173,26 @@ unique(ne$reason)
 
 Some decisions behind those rows, which you can change through the data:
 
-- Fish need a length: the mean mass of a fish population depends on its
-  sizes, and there are no typical masses that represent it.
+- Fish without lengths are estimated as whole populations: the model is
+  fitted to the mean mass of the populations of an electrofishing survey of
+  Iberian streams (Arranz et al. 2022) and of the catch of a river fishery
+  (Koning et al. 2024), all sizes together, so its intervals are wide; a mean
+  length gives a much closer estimate. A fish of an order absent from those
+  data takes the mean of all of them, and a fish given a life stage or a sex
+  is not estimated without a length.
+- Phytoplankton counted in natural units (colonies, filaments) takes the
+  natural units of the reference, which in colonial genera are often single
+  cells or small groups of their sources, not whole colonies (a note says
+  so); give `cells_per_unit` in `taxa` when the cells of a unit were
+  counted, and the unit is estimated as that many cells.
+- Rotifers are predicted as from volumes, the usual method of field studies;
+  direct weighings of their dry mass, about twice as heavy, enter the model
+  as a fixed contrast.
 - Insects without a stage are taken as larvae (`stage_used = "larva
   (assumed)"`); give `life_stage = "adult"` (or `"pupa"`) in `taxa` otherwise.
 - Copepods without a stage are taken as adults (`stage_used =
   "copepod_adult (assumed)"`); copepodites and nauplii (`life_stage =
-  "copepodite"` or `"nauplius"`) are about 2.7 and 30 times lighter, with
+  "copepodite"` or `"nauplius"`) are about 2.7 and 33 times lighter, with
   fixed contrasts estimated from few records of nauplii, hence their wide
   intervals. A copepod given as `"juvenile"` is not estimated.
 - Amphibians without lengths are estimated only when declared adults.
@@ -229,10 +242,10 @@ the water content of frogs and toads compiled by US EPA (1993; mean of three
 studies): 85 % (SD 4.7), so a dry mass of 15 % of the wet mass on average,
 with that spread among populations and the uncertainty of the mean added to
 the interval (salamanders and newts get it as an extrapolation).
-Phytoplankton cells are converted to carbon with the equations of
-Menden-Deuer and Lessard
-(2000), whose own uncertainty is not known (only that of the biovolume is
-carried). A common unit is needed to compare groups:
+Phytoplankton cells (and natural units with `cells_per_unit`) are converted
+to carbon with the equations of Menden-Deuer and Lessard (2000), whose own
+uncertainty is not known (only that of the biovolume is carried). A common
+unit is needed to compare groups:
 
 ```{r carbon}
 est_c <- convert_currency(est, to = "carbon", unit = "ug")
@@ -244,8 +257,9 @@ unique(ec$conversion[!is.na(ec$conversion)])[1:4]
 
 Amphibians are not converted to ash-free dry mass or carbon: the reference
 data have too few conversion factors for them. Phytoplankton counted in
-natural units is not converted to carbon: the equation is for single cells, and applied to a colony it would
-underestimate its carbon. Natural units do go to wet mass, which is
+natural units is not converted to carbon unless `taxa` gives its
+`cells_per_unit`: the equation is for single cells, and applied to a colony
+it would underestimate its carbon. Natural units do go to wet mass, which is
 proportional to the biovolume. The habitat of the organisms (`habitat`) is
 unknown by default; its variance is then added.
 
@@ -258,8 +272,11 @@ Bitterlich 1984), values inconsistent with another value of the same
 material and values far from those of their class were left out. These are
 gross energies of whole animals, not the energy a consumer assimilates.
 Amphibians take the energy per dry mass of frogs and toads compiled by US
-EPA (1993), 4.6 kcal/g (19.2 J/mg; SD 0.45, three studies); phytoplankton
-is not converted to energy.
+EPA (1993), 4.6 kcal/g (19.2 J/mg; SD 0.45, three studies). Phytoplankton
+goes to energy from its carbon with the general factor of Platt and Irwin
+(1973), 11.40 cal (47.7 J) per mg of carbon (SD 1.1 among their 10 samples),
+measured on marine net phytoplankton of a spring bloom: for freshwater
+phytoplankton it is an extrapolation, which the rows note.
 
 ```{r energy}
 est_e <- convert_currency(est, to = "energy", unit = "J")
@@ -375,7 +392,7 @@ simulation of totals needs), and predicts with base R.
 
 In cross-validation (scripts in `dev/validacion/` of the source repository),
 the 95 % intervals covered 93-97 % of new populations of species in the
-reference and 94-98 % of species left out, in the seven models. The median
+reference and 91-97 % of species left out, in the eight models. The median
 width of the interval for a new population of a species of the reference
 was:
 
@@ -383,10 +400,11 @@ was:
 |---|---|
 | Fish, length-mass | 1.2 |
 | Amphibians, length-mass | 1.8 |
-| Invertebrates, length-mass | 3.9 |
+| Invertebrates, length-mass | 3.7 |
 | Amphibians, adult masses | 6.4 |
+| Fish, mean mass of populations without lengths | 8.9 |
 | Phytoplankton, cell biovolume | 20 |
-| Invertebrates, dry mass without lengths | 28 |
+| Invertebrates, dry mass without lengths | 22 |
 | Phytoplankton, natural-unit biovolume | 38 |
 
 ## From version 0.1.0
@@ -433,15 +451,22 @@ taxon or its relatives.
 - Gnaiger E, Bitterlich G (1984). Proximate biochemical composition and
   caloric content calculated from elemental CHN analysis: a stoichiometric
   concept. *Oecologia* 62, 289-298.
+- Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
+  length dataset for over 12,000 fish from Iberian streams. *Data in Brief*,
+  108248.
 - Hrycik AR, Burlakova LE, Karatayev AY, et al. (2024). A dataset of
   individual wet weights of benthic macroinvertebrates. *Limnology and
   Oceanography Letters* 9, 696-715.
+- Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
+  for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
 - Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
   dinoflagellates, diatoms, and other protist plankton. *Limnology and
   Oceanography* 45, 569-579.
 - Oliver RL, Kinnear AJ, Ganf GG (1981). Measurements of cell density of three
   freshwater phytoplankters by density gradient centrifugation. *Limnology and
   Oceanography* 26, 285-294.
+- Platt T, Irwin B (1973). Caloric content of phytoplankton. *Limnology and
+  Oceanography* 18, 306-310.
 - Sprugel DG (1983). Correcting for bias in log-transformed allometric
   equations. *Ecology* 64, 209-210.
 - US EPA (1993). *Wildlife Exposure Factors Handbook*. EPA/600/R-93/187.
