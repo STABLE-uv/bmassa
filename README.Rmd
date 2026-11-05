@@ -18,6 +18,7 @@ options(width = 100)
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
 bmassa estimates the mean individual mass and the biomass of aquatic
@@ -177,3 +178,24 @@ species left out. Masses without lengths are much more uncertain (the
 median is divided and multiplied by a factor of about 6 to 40 for the 95 %
 interval of a new population) than masses from lengths (a factor of 1.2 to
 4): measure lengths where possible.
+
+## Known limitations
+
+- Source effects: the models of masses without lengths include the
+  variation between sources and predict for a new source, so taxa whose
+  reference data come from a single source move towards the average
+  source. Rotifers come out about 2 to 4 times heavier than the masses from
+  volumes of Ejsmont-Karabin (1998) and Bottrell et al. (1976), and
+  invertebrates known only from Moreau et al. (2021) about 3 times lighter
+  than those data. The intervals include this variation, but the central
+  estimates of these groups may change in the next version.
+- Phytoplankton counted in natural units goes to carbon and energy only
+  with `cells_per_unit`; without it, it stays in biovolume and wet mass.
+- Amphibian larvae are not estimated, with or without lengths.
+- Fish without lengths: the mean masses of populations come from Iberian
+  streams (Arranz et al. 2022) and the Mekong (Koning et al. 2024); orders
+  absent from them take the mean of all fish.
+- There is no dry mass or AFDM of phytoplankton, no AFDM or carbon of
+  amphibians, and no energy of masses with shell.
+- Detritus, periphyton and macrophytes are outside the scope of the
+  package.
