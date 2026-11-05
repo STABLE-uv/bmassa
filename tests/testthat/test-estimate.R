@@ -48,7 +48,8 @@ test_that("a species matched in the reference is predicted from its path (hand c
   expect_equal(e$biomass_mean, 10 * e$ind_mean)
   expect_equal(e$biomass_unit, "mg/m2")
   expect_equal(e$stage_used, "non_insect")
-  expect_equal(e$uncertainty, "parameter; between_population; between_source")
+  # The model of invertebrates without lengths has no effect of source.
+  expect_equal(e$uncertainty, "parameter; between_population")
 })
 
 test_that("a species missing from the reference adds the variance of its level at its length", {

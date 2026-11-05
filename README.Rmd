@@ -172,7 +172,7 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 
 ## Status
 
-Version 0.2.0, not on CRAN. In cross-validation, the 95 % intervals cover
+Version 0.3.0, not on CRAN. In cross-validation, the 95 % intervals cover
 93-97 % of new populations of species in the reference and 91-97 % of
 species left out. Masses without lengths are much more uncertain (the
 median is divided and multiplied by a factor of about 6 to 40 for the 95 %
@@ -181,14 +181,12 @@ interval of a new population) than masses from lengths (a factor of 1.2 to
 
 ## Known limitations
 
-- Source effects: the models of masses without lengths include the
-  variation between sources and predict for a new source, so taxa whose
-  reference data come from a single source move towards the average
-  source. Rotifers come out about 2 to 4 times heavier than the masses from
-  volumes of Ejsmont-Karabin (1998) and Bottrell et al. (1976), and
-  invertebrates known only from Moreau et al. (2021) about 3 times lighter
-  than those data. The intervals include this variation, but the central
-  estimates of these groups may change in the next version.
+- Benthic invertebrates without lengths are predicted as population means:
+  the masses of individual prey of Moreau et al. (2021) are corrected by a
+  factor of about 6 estimated from the few families they share with the
+  population means of Hrycik et al. (2024), so the estimates of benthic taxa
+  measured only by Moreau depend on that correction (95 % interval 3.6 to
+  11).
 - Phytoplankton counted in natural units goes to carbon and energy only
   with `cells_per_unit`; without it, it stays in biovolume and wet mass.
 - Amphibian larvae are not estimated, with or without lengths.

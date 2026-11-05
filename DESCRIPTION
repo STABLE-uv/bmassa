@@ -1,6 +1,6 @@
 Package: bmassa
 Title: Biomass of Aquatic Taxa from Abundances and Body Sizes
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Pablo", "Amador Crespo", email = "pamadorc@gmail.com",
            role = c("aut", "cre", "cph"),

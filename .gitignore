@@ -15,3 +15,5 @@ dev/*
 dev/validacion/*
 !dev/validacion/validacion_modelos.R
 !dev/validacion/validacion_modelos.md
+!dev/validacion/efecto_fuente.R
+!dev/validacion/efecto_fuente.md

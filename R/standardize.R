@@ -62,7 +62,11 @@ synonym_status <- c("SYNONYM", "HETEROTYPIC_SYNONYM", "HOMOTYPIC_SYNONYM", "PROP
 #' identification is uncertain beyond it. The broad group gives hints
 #' (Animalia for animals; Chordata for fish and amphibians; Amphibia for
 #' amphibians) and the answer must agree with it (phytoplankton outside
-#' Animalia).
+#' Animalia). Among homonyms, the taxa expected in the broad group come first:
+#' in the zooplankton, rotifers, branchiopods, copepods and ostracods, then
+#' other arthropods (the cladoceran *Latona*, not the bivalve); in the
+#' macroinvertebrates, the phyla of freshwater invertebrates. The other taxa
+#' with the same name are listed in `note`.
 #'
 #' An answer is accepted when it carries the same name (or the same epithet
 #' with another ending, a matter of grammatical gender) at the rank the name
@@ -401,7 +405,8 @@ accept_colxr <- function(parsed, target, form, group) {
                  c(list(parsed$main), parsed$alternatives))
   if (!length(cand)) return(NULL)
   rk <- vapply(cand, function(a) a$rank, character(1))
-  cand <- cand[order(rk == "SUBGENUS")]
+  tier <- vapply(cand, preference_tier, integer(1), group = group)
+  cand <- cand[order(tier, rk == "SUBGENUS")]
   best <- cand[[1]]
   where <- function(a) paste(a$classification[c("KINGDOM", "CLASS", "ORDER")], collapse = "|")
   other <- Filter(function(a) where(a) != where(best) && !identical(a$rank, "SUBGENUS"), cand[-1])
@@ -414,6 +419,25 @@ accept_colxr <- function(parsed, target, form, group) {
     NA_character_
   }
   best
+}
+
+# Order of preference among acceptable homonyms, by the taxa expected in the
+# broad group (lower first; ties keep the order of the service): in the
+# zooplankton, rotifers, branchiopods, copepods and ostracods, then other
+# arthropods (the cladoceran Latona, not the bivalve); in the
+# macroinvertebrates, the phyla of freshwater invertebrates.
+preference_tier <- function(a, group) {
+  cls <- a$classification
+  phylum <- cls[["PHYLUM"]]
+  switch(group,
+    zooplankton = if (phylum %in% "Rotifera" || cls[["CLASS"]] %in%
+                        c("Branchiopoda", "Copepoda", "Ostracoda", "Hexanauplia", "Maxillopoda")) {
+      1L
+    } else if (phylum %in% "Arthropoda") 2L else 3L,
+    macroinvertebrate = if (phylum %in% c("Annelida", "Arthropoda", "Mollusca", "Platyhelminthes",
+                                          "Nematoda", "Nematomorpha", "Nemertea", "Cnidaria",
+                                          "Porifera", "Bryozoa")) 1L else 2L,
+    1L)
 }
 
 # Genus of a species not accepted, from the classification of an answer to the
@@ -444,9 +468,10 @@ usage_acceptable <- function(a, target, form, group) {
     if (!identical(a$rank, "SPECIES")) return(FALSE)
   } else if (form == "genus_of_species") {
     if (!identical(a$rank, "GENUS")) return(FALSE)
-  } else if (identical(a$rank, "GENUS") && is.na(cls[["FAMILY"]])) {
-    # A one-word name is not taken as a genus without family: the COL XR has
-    # placeholder genera named after higher taxa (Oligochaeta).
+  } else if (identical(a$rank, "GENUS") && is.na(cls[["FAMILY"]]) && is.na(cls[["ORDER"]])) {
+    # A one-word name is not taken as a genus without family or order: the COL
+    # XR has placeholder genera named after higher taxa (Oligochaeta). Genera
+    # with an order and no family (the cladocerans Latona and Sida) are kept.
     return(FALSE)
   }
   k <- cls[["KINGDOM"]]

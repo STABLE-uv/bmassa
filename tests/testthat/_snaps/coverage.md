@@ -5,9 +5,9 @@
     Output
       <bmassa_coverage> 20 taxa, 22 rows (14 without lengths, 8 with lengths)
         phytoplankton      typical species 4, genus 1; median factor 12
-        zooplankton        typical species 3; median factor 20
+        zooplankton        typical species 3; median factor 12
         zooplankton        length  species 1; median factor 3
-        macroinvertebrate  typical species 1, genus 1, family 1; median factor 22
+        macroinvertebrate  typical species 1, genus 1, family 1; median factor 14
         macroinvertebrate  length  species 2, family 1; median factor 3.5
         fish               typical species 1, genus 1; median factor 11
         fish               length  species 1, genus 2; median factor 1.4

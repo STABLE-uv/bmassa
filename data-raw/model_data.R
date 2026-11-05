@@ -178,6 +178,18 @@ typ$contrast[cop] <- copepod_contrast(typ$life_stage[cop])
 rw <- typ$model == "invertebrate_individual" & typ$phylum %in% "Rotifera" &
   typ$source_id %in% c("dumont1975", "bottrell1976") & is.na(typ$converted_from)
 typ$contrast[rw] <- "rotifer_weighing"
+# Kind of value of the benthic invertebrates of Moreau et al. (2021) (decision
+# of 2026-11-05): masses of individual prey compiled from studies of the diet
+# of birds and fish and of calorimetry (Driver et al. 1974; Driver 1981;
+# Kaminski and Prince 1981; Boreham 1994; Pizzul et al. 2009, among others),
+# often of large or adult animals, against the means of all the individuals of
+# field samples of Hrycik et al. (2024), the quantity a biomass needs. For the
+# same taxa they are about six times heavier (dev/validacion/efecto_fuente.md).
+# They get a fixed contrast, and the model predicts for population means.
+mb <- typ$model == "invertebrate_individual" & typ$source_id %in% "moreau2021" &
+  !typ$phylum %in% "Rotifera" & !typ$class %in% c("Branchiopoda", "Copepoda", "Ostracoda") &
+  is.na(typ$contrast)
+typ$contrast[mb] <- "moreau_benthos"
 ni <- typ$model == "invertebrate_individual" & typ$class != "Insecta"
 typ$stage[ni] <- "non_insect"
 typ$conversion_ln <- NA_real_

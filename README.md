@@ -81,9 +81,9 @@ and the factor by which the median is divided and multiplied to get its
 check_coverage(tx, ln)
 #> <bmassa_coverage> 20 taxa, 22 rows (14 without lengths, 8 with lengths)
 #>   phytoplankton      typical species 4, genus 1; median factor 12
-#>   zooplankton        typical species 3; median factor 20
+#>   zooplankton        typical species 3; median factor 12
 #>   zooplankton        length  species 1; median factor 3
-#>   macroinvertebrate  typical species 1, genus 1, family 1; median factor 22
+#>   macroinvertebrate  typical species 1, genus 1, family 1; median factor 14
 #>   macroinvertebrate  length  species 2, family 1; median factor 3.5
 #>   fish               typical species 1, genus 1; median factor 11
 #>   fish               length  species 1, genus 2; median factor 1.4
@@ -118,16 +118,16 @@ print(e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "in
 #> 3       t03 typical       genus   1.00e+03  4.76e+01  2.12e+04  um3
 #> 4       t04 typical     species   5.48e+01  4.49e+00  6.68e+02  um3
 #> 5       t05 typical     species   1.01e+02  8.43e+00  1.21e+03  um3
-#> 6       t06 typical     species   5.36e-05  2.73e-06  1.05e-03   mg
-#> 7       t07 typical     species   1.84e-04  9.33e-06  3.61e-03   mg
+#> 6       t06 typical     species   2.18e-05  1.87e-06  2.54e-04   mg
+#> 7       t07 typical     species   8.53e-05  7.25e-06  1.00e-03   mg
 #> 8       t08  length     species   5.71e-02  1.87e-02  1.74e-01   mg
-#> 9       t09 typical     species   3.81e-03  1.96e-04  7.37e-02   mg
+#> 9       t09 typical     species   6.35e-03  5.35e-04  7.54e-02   mg
 #> 10      t10  length     species   5.19e-01  1.68e-01  1.61e+00   mg
 #> 11      t11  length     species   6.07e-01  1.74e-01  2.12e+00   mg
 #> 12      t12  length      family   1.39e+01  2.97e+00  6.54e+01   mg
-#> 13      t13 typical       genus   8.15e-01  3.73e-02  1.78e+01   mg
-#> 14      t14 typical      family   7.06e-01  1.48e-02  3.38e+01   mg
-#> 15      t15 typical     species   3.27e-01  1.57e-02  6.83e+00   mg
+#> 13      t13 typical       genus   4.34e-01  3.21e-02  5.86e+00   mg
+#> 14      t14 typical      family   4.00e-01  1.22e-02  1.31e+01   mg
+#> 15      t15 typical     species   1.90e-01  1.55e-02  2.33e+00   mg
 #> 16      t16  length     species   5.55e+01  4.56e+01  6.76e+01    g
 #> 17      t17  length       genus   2.14e+01  1.48e+01  3.10e+01    g
 #> 18      t18 typical     species   7.14e-01  5.55e-02  9.18e+00    g
@@ -153,16 +153,16 @@ print(ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_low
 #> 3       t03      biovolume   1.42e-04  8.13e-06  2.49e-03   ug
 #> 4       t04      biovolume   9.28e-06  8.86e-07  9.71e-05   ug
 #> 5       t05      biovolume   1.65e-05  1.60e-06  1.69e-04   ug
-#> 6       t06       dry_mass   2.04e-02  9.80e-04  4.23e-01   ug
-#> 7       t07       dry_mass   6.57e-02  3.24e-03  1.33e+00   ug
+#> 6       t06       dry_mass   8.28e-03  6.64e-04  1.03e-01   ug
+#> 7       t07       dry_mass   3.05e-02  2.50e-03  3.72e-01   ug
 #> 8       t08       dry_mass   2.60e+01  7.83e+00  8.62e+01   ug
-#> 9       t09       dry_mass   1.77e+00  8.73e-02  3.61e+01   ug
+#> 9       t09       dry_mass   2.96e+00  2.36e-01  3.72e+01   ug
 #> 10      t10       dry_mass   2.30e+02  6.89e+01  7.69e+02   ug
 #> 11      t11       dry_mass   2.81e+02  7.20e+01  1.10e+03   ug
 #> 12      t12       dry_mass   6.38e+03  1.17e+03  3.47e+04   ug
-#> 13      t13       dry_mass   2.98e+02  1.32e+01  6.74e+03   ug
-#> 14      t14       dry_mass   2.95e+02  6.03e+00  1.45e+04   ug
-#> 15      t15       dry_mass   1.35e+02  5.29e+00  3.44e+03   ug
+#> 13      t13       dry_mass   1.58e+02  1.12e+01  2.23e+03   ug
+#> 14      t14       dry_mass   1.67e+02  4.98e+00  5.62e+03   ug
+#> 15      t15       dry_mass   7.84e+01  5.02e+00  1.23e+03   ug
 #> 16      t16       wet_mass   5.86e+06  3.45e+06  9.94e+06   ug
 #> 17      t17       wet_mass   2.21e+06  1.16e+06  4.20e+06   ug
 #> 18      t18       wet_mass   8.26e+04  6.00e+03  1.14e+06   ug
@@ -180,15 +180,15 @@ print(tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lo
               "biomass_upper", "n_missing")], digits = 3)
 #>    site       broad_group biomass_unit biomass_mean biomass_lower biomass_upper n_missing
 #> 1    L1         amphibian         <NA>           NA            NA            NA         2
-#> 2    L1              fish    ug/100 m2     5.43e+07      3.18e+07      9.59e+07         0
-#> 3    L1 macroinvertebrate        ug/m2     5.44e+05      1.30e+05      1.74e+06         0
+#> 2    L1              fish    ug/100 m2     5.43e+07      3.22e+07      9.54e+07         0
+#> 3    L1 macroinvertebrate        ug/m2     3.63e+05      1.17e+05      9.88e+05         0
 #> 4    L1     phytoplankton        ug/mL     1.71e+00      2.78e-01      6.31e+00         0
-#> 5    L1       zooplankton         ug/L     3.19e+02      6.24e+01      1.26e+03         0
+#> 5    L1       zooplankton         ug/L     3.11e+02      6.52e+01      1.11e+03         0
 #> 6    L2         amphibian         <NA>           NA            NA            NA         2
-#> 7    L2              fish    ug/100 m2     5.18e+07      2.83e+07      1.13e+08         0
-#> 8    L2 macroinvertebrate        ug/m2     6.57e+05      1.01e+05      2.62e+06         0
+#> 7    L2              fish    ug/100 m2     5.18e+07      2.81e+07      1.13e+08         0
+#> 8    L2 macroinvertebrate        ug/m2     3.40e+05      8.86e+04      1.16e+06         0
 #> 9    L2     phytoplankton        ug/mL     1.98e+00      2.61e-01      8.25e+00         0
-#> 10   L2       zooplankton         ug/L     1.52e+02      6.21e+00      8.36e+02         1
+#> 10   L2       zooplankton         ug/L     1.08e+02      8.83e+00      4.86e+02         1
 ```
 
 The draws themselves, for models that use the biomass of every taxon
@@ -215,7 +215,7 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
 #> 3    1   L1      t03    lake 3.62e-07   162.9        mg/m2
 #> 4    1   L1      t04    lake 1.37e-08   185.4        mg/m2
 #> 5    1   L1      t05    lake 2.59e-08    23.3        mg/m2
-#> 6    1   L1      t06    lake 8.39e-03  4403.6        mg/m2
+#> 6    1   L1      t06    lake 1.44e-03   757.2        mg/m2
 ```
 
 ## Methods and decisions
@@ -295,7 +295,7 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 
 ## Status
 
-Version 0.2.0, not on CRAN. In cross-validation, the 95 % intervals
+Version 0.3.0, not on CRAN. In cross-validation, the 95 % intervals
 cover 93-97 % of new populations of species in the reference and 91-97 %
 of species left out. Masses without lengths are much more uncertain (the
 median is divided and multiplied by a factor of about 6 to 40 for the 95
@@ -304,14 +304,12 @@ median is divided and multiplied by a factor of about 6 to 40 for the 95
 
 ## Known limitations
 
-- Source effects: the models of masses without lengths include the
-  variation between sources and predict for a new source, so taxa whose
-  reference data come from a single source move towards the average
-  source. Rotifers come out about 2 to 4 times heavier than the masses
-  from volumes of Ejsmont-Karabin (1998) and Bottrell et al. (1976), and
-  invertebrates known only from Moreau et al. (2021) about 3 times
-  lighter than those data. The intervals include this variation, but the
-  central estimates of these groups may change in the next version.
+- Benthic invertebrates without lengths are predicted as population
+  means: the masses of individual prey of Moreau et al. (2021) are
+  corrected by a factor of about 6 estimated from the few families they
+  share with the population means of Hrycik et al. (2024), so the
+  estimates of benthic taxa measured only by Moreau depend on that
+  correction (95 % interval 3.6 to 11).
 - Phytoplankton counted in natural units goes to carbon and energy only
   with `cells_per_unit`; without it, it stays in biovolume and wet mass.
 - Amphibian larvae are not estimated, with or without lengths.

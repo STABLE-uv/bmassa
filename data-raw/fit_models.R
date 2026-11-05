@@ -23,9 +23,10 @@
 #   each nested taxonomic level that splits the data; random intercepts of
 #   stage group (invertebrates) or habitat (conversion factors), and of
 #   source, when the model has two or more sources (a user's data are a new
-#   source: what each source takes as the typical mass differs); the residual
-#   is the variation between records of the same species and source
-#   (populations, varieties, size classes).
+#   source: what each source takes as the typical mass differs), except in the
+#   model of invertebrates (model_options()); the residual is the variation
+#   between records of the same species and source (populations, varieties,
+#   size classes).
 # - Length-mass relations, one model per domain: three points per equation, at
 #   the centres of the thirds of its log length range, and one point per
 #   population mean (amphibians); x = ln length centred by length type; fixed
@@ -146,7 +147,19 @@ model_options <- function(d, type) {
   context <- character(0)
   if ("stage" %in% names(d) && length(unique(d$stage)) > 1) context <- c(context, "stage")
   if ("habitat" %in% names(d) && sum(table(d$habitat) >= 10) >= 2) context <- c(context, "habitat")
-  list(study = FALSE, source = length(unique(d$source_id)) >= 2, context = context)
+  # Source: in the models with two or more sources, except that of
+  # invertebrates (decision of 2026-11-05). Its sources specialise in groups of
+  # taxa and differ by method (weighings and volumes of rotifers; Moreau et al.
+  # 2021 and Hrycik et al. 2024 in the benthos), and a source effect, crossed or
+  # within groups of taxa, moved whole groups away from their own data (the
+  # rotifers 2 to 4 times above, the species of Moreau 3 to 5 times below)
+  # without better intervals. Without it each species keeps the level of its
+  # data, the weighings of rotifers are corrected by their contrast, and the
+  # cross-validation keeps its coverage with narrower intervals
+  # (dev/validacion/efecto_fuente.md).
+  no_source <- "invertebrate_individual"
+  list(study = FALSE, source = length(unique(d$source_id)) >= 2 && !any(d$model %in% no_source),
+       context = context)
 }
 model_formula <- function(d, type, levels, opt) {
   if (type == "lwr") {

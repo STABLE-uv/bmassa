@@ -5,7 +5,7 @@ skip_if_not_installed("curl")
 
 test_that("each kind of name gets its COL XR taxon (recorded answers)", {
   fx <- local_colxr_answers()
-  expect_warning(s <- standardize_taxa(fx$names, quiet = TRUE), "2 of 16 names were not found",
+  expect_warning(s <- standardize_taxa(fx$names, quiet = TRUE), "2 of 18 names were not found",
                  class = "bmassa_warning_not_estimable")
   row <- function(name) s[s$scientific_name == name, ]
   # Exact species.
@@ -51,6 +51,16 @@ test_that("each kind of name gets its COL XR taxon (recorded answers)", {
   cl <- row("Cladocera")
   expect_equal(cl$col_name, "Cladoceromorpha")
   expect_match(cl$note, "other taxa with this name in the COL XR: Cladocera \\(genus, Insecta")
+  # Zooplankton homonyms (issue #3): the cladoceran Latona, not the bivalve
+  # the service gives first, and the cladoceran Sida, a genus without family
+  # in the COL XR that is not a placeholder (it has an order).
+  la <- row("Latona")
+  expect_equal(unlist(la[c("class", "order", "genus", "col_rank")], use.names = FALSE),
+               c("Branchiopoda", "Diplostraca", "Latona", "genus"))
+  expect_match(la$note, "Latona \\(genus, Bivalvia, Cardiida, Donacidae\\)")
+  si <- row("Sida")
+  expect_equal(unlist(si[c("class", "order", "genus", "match_type")], use.names = FALSE),
+               c("Branchiopoda", "Diplostraca", "Sida", "exact"))
   # Not found: classification as given, and the closest name if any.
   h <- row("Hirudinea")
   expect_equal(h$match_type, "none")

@@ -38,7 +38,8 @@ with the path of the parent (\code{parent_cov}, \code{parent_cov_is},
 the model of invertebrates without lengths, the covariance of the path
 with the fixed contrasts of copepodites and nauplii
 (\code{contrast_cov_copepod_copepodite}, \code{contrast_cov_copepod_nauplius};
-also \code{contrast_cov_rotifer_weighing}, not used in predictions).
+also \code{contrast_cov_rotifer_weighing} and \code{contrast_cov_moreau_benthos},
+not used in predictions).
 \item \code{components}: variance components (\code{value}, natural logs) by \code{model},
 \code{level} (taxonomic levels, \code{"equation"}, \code{"study"}, \code{"source"},
 \code{"stage"}, \code{"residual"}) and \code{parameter} (\code{"intercept"}, \code{"slope"},
@@ -46,9 +47,11 @@ also \code{contrast_cov_rotifer_weighing}, not used in predictions).
 \item \code{fixed}: fixed effects by model, with standard errors and covariances
 (intercepts and slopes by length type; in the model of invertebrates
 without lengths, the contrasts \code{c_copepod_copepodite} and
-\code{c_copepod_nauplius} against adult copepods, and \code{c_rotifer_weighing},
-direct weighings of rotifers against masses from volumes, which are the
-ones predicted).
+\code{c_copepod_nauplius} against adult copepods, \code{c_rotifer_weighing},
+direct weighings of rotifers against masses from volumes, and
+\code{c_moreau_benthos}, the benthic records of Moreau et al. (2021), masses
+of individual prey, against means of field populations; the masses
+from volumes and the population means are the ones predicted).
 \item \code{conversion_models}: one row per model of the conversion factors (ln
 of the ratio between two currencies of the same organisms), with
 \code{model}, \code{domain} (\code{"invertebrate"} or \code{"fish"}), \code{from} and \code{to}

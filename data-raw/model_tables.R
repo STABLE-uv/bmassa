@@ -266,7 +266,7 @@ fitted_on <- regmatches(fit_log, regexpr("[0-9]{4}-[0-9]{2}-[0-9]{2}", fit_log))
 conv_log <- readLines(file.path(out_dir, "conversion_fit_log.md"), encoding = "UTF-8")
 conversions_fitted_on <- regmatches(conv_log, regexpr("[0-9]{4}-[0-9]{2}-[0-9]{2}", conv_log))[1]
 info <- list(
-  data_version = "0.2.0",
+  data_version = unname(read.dcf("DESCRIPTION", fields = "Version")[1, 1]),
   col_release = colv$dataset_alias[1], col_dataset_key = as.character(colv$clb_dataset_key[1]),
   col_index_built = colv$index_built[1], col_checked_on = colv$checked_on[1],
   fitted_on = fitted_on, conversions_fitted_on = conversions_fitted_on,

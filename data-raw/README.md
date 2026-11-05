@@ -194,7 +194,10 @@ shell of the CADSES molluscs are converted with the models of
 relatives (genus, family or order).
 
 `fit_models.R` fits one model per domain and kind of data with lme4 (REML):
-typical masses with nested random intercepts by taxonomic level, and
+typical masses with nested random intercepts by taxonomic level and a crossed
+random intercept of source (not in the model of invertebrates, whose sources
+measure different groups by different methods; see
+`dev/validacion/efecto_fuente.md`), and
 length–mass relations from three points per equation within its length range,
 with random intercepts and slopes by taxonomic level within length type and
 random effects of equation (populations) and study. For each node of the

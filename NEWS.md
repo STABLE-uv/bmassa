@@ -1,3 +1,40 @@
+# bmassa 0.3.0
+
+## Changes that alter results
+
+* The model of the masses of invertebrates without lengths has no effect of
+  source. Its sources measure different groups of taxa by different methods,
+  and the effect of source, which predicted for an average source, moved
+  whole groups away from their own data: rotifers 2 to 4 times above their
+  masses from volumes, benthic species measured only by Moreau et al. (2021)
+  3 to 5 times below them. Comparing the sources only within rotifers,
+  microcrustaceans and the other invertebrates did not remove the shift. Each
+  taxon now keeps the level of the sources that measured it, the weighings of
+  rotifers are corrected by their contrast (`c_rotifer_weighing`, now about
+  four times the masses from volumes), and in cross-validation the 95 %
+  intervals keep their coverage and are narrower. Masses without lengths
+  change by group (median for species measured by a single source): rotifers
+  about ×0.5, cladocerans and copepods ×1.3 to 1.7, and benthic species
+  measured only by Hrycik et al. (2024) about ×0.6.
+* The benthic records of Moreau et al. (2021) are a fixed contrast in the
+  model of invertebrates without lengths (`c_moreau_benthos`): they are
+  masses of individual prey compiled from studies of diet and calorimetry,
+  often of large or adult animals, and weigh about 6 times (95 % interval
+  3.6 to 11) the means of all the individuals of field samples of Hrycik et
+  al. (2024) for the same taxa. Benthic invertebrates are predicted as
+  population means, so benthic species measured only by Moreau et al. (2021)
+  are about 0.4 times their mass in 0.2.0. In the test with Tuesday Lake,
+  *Chaoborus* goes from 4.2 to 1.9 times the measured mass.
+
+## Bug fixes
+
+* `standardize_taxa()` prefers, among homonyms, the taxa expected in the
+  broad group: in the zooplankton, rotifers, branchiopods, copepods and
+  ostracods, then other arthropods; in the macroinvertebrates, the phyla of
+  freshwater invertebrates. The zooplankton genus *Latona* was taken as the
+  homonymous bivalve. A genus without family in the COL XR is now accepted
+  when it has an order (the cladoceran *Sida* was not found).
+
 # bmassa 0.2.0
 
 ## Changes that alter results

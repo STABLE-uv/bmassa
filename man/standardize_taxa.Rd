@@ -54,7 +54,11 @@ spp." and names with "cf." or "aff." are looked up as the genus: the
 identification is uncertain beyond it. The broad group gives hints
 (Animalia for animals; Chordata for fish and amphibians; Amphibia for
 amphibians) and the answer must agree with it (phytoplankton outside
-Animalia).
+Animalia). Among homonyms, the taxa expected in the broad group come first:
+in the zooplankton, rotifers, branchiopods, copepods and ostracods, then
+other arthropods (the cladoceran \emph{Latona}, not the bivalve); in the
+macroinvertebrates, the phyla of freshwater invertebrates. The other taxa
+with the same name are listed in \code{note}.
 
 An answer is accepted when it carries the same name (or the same epithet
 with another ending, a matter of grammatical gender) at the rank the name

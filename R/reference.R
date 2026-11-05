@@ -38,7 +38,8 @@
 #'     the model of invertebrates without lengths, the covariance of the path
 #'     with the fixed contrasts of copepodites and nauplii
 #'     (`contrast_cov_copepod_copepodite`, `contrast_cov_copepod_nauplius`;
-#'     also `contrast_cov_rotifer_weighing`, not used in predictions).
+#'     also `contrast_cov_rotifer_weighing` and `contrast_cov_moreau_benthos`,
+#'     not used in predictions).
 #'   * `components`: variance components (`value`, natural logs) by `model`,
 #'     `level` (taxonomic levels, `"equation"`, `"study"`, `"source"`,
 #'     `"stage"`, `"residual"`) and `parameter` (`"intercept"`, `"slope"`,
@@ -46,9 +47,11 @@
 #'   * `fixed`: fixed effects by model, with standard errors and covariances
 #'     (intercepts and slopes by length type; in the model of invertebrates
 #'     without lengths, the contrasts `c_copepod_copepodite` and
-#'     `c_copepod_nauplius` against adult copepods, and `c_rotifer_weighing`,
-#'     direct weighings of rotifers against masses from volumes, which are the
-#'     ones predicted).
+#'     `c_copepod_nauplius` against adult copepods, `c_rotifer_weighing`,
+#'     direct weighings of rotifers against masses from volumes, and
+#'     `c_moreau_benthos`, the benthic records of Moreau et al. (2021), masses
+#'     of individual prey, against means of field populations; the masses
+#'     from volumes and the population means are the ones predicted).
 #'   * `conversion_models`: one row per model of the conversion factors (ln
 #'     of the ratio between two currencies of the same organisms), with
 #'     `model`, `domain` (`"invertebrate"` or `"fish"`), `from` and `to`

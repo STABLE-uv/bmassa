@@ -186,8 +186,12 @@ Some decisions behind those rows, which you can change through the data:
   so); give `cells_per_unit` in `taxa` when the cells of a unit were
   counted, and the unit is estimated as that many cells.
 - Rotifers are predicted as from volumes, the usual method of field studies;
-  direct weighings of their dry mass, about twice as heavy, enter the model
-  as a fixed contrast.
+  direct weighings of their dry mass, about four times as heavy, enter the
+  model as a fixed contrast.
+- Benthic invertebrates are predicted as means of field populations (Hrycik
+  et al. 2024); the masses of individual prey compiled by Moreau et al.
+  (2021), about six times as heavy for the same taxa, enter the model as a
+  fixed contrast.
 - Insects without a stage are taken as larvae (`stage_used = "larva
   (assumed)"`); give `life_stage = "adult"` (or `"pupa"`) in `taxa` otherwise.
 - Copepods without a stage are taken as adults (`stage_used =
@@ -381,7 +385,10 @@ nodes and variance components, the conversion models and the sources.
 
 The models were fitted outside the package with lme4 (REML), one per domain
 and kind of data: masses without lengths with nested random intercepts by
-taxonomic level, crossed with the source; length-mass relations with random
+taxonomic level, crossed with the source (except in invertebrates, whose
+sources measure different groups of taxa by different methods, so that each
+taxon keeps the level of the sources that measured it); length-mass
+relations with random
 intercepts and slopes by taxonomic level within each type of length, from
 three points of each equation inside its range of lengths, with effects of
 equation and study; conversion factors with nested random intercepts and
@@ -403,8 +410,8 @@ was:
 | Invertebrates, length-mass | 3.7 |
 | Amphibians, adult masses | 6.4 |
 | Fish, mean mass of populations without lengths | 8.9 |
+| Invertebrates, dry mass without lengths | 14 |
 | Phytoplankton, cell biovolume | 20 |
-| Invertebrates, dry mass without lengths | 22 |
 | Phytoplankton, natural-unit biovolume | 38 |
 
 ## From version 0.1.0

@@ -171,7 +171,9 @@ estimate_biomass_columns <- c(
 #' are not in the reference), \eqn{\sigma^2_{pop}} is the variation between
 #' populations (records or equations of the same species) and
 #' \eqn{\sigma^2_{source}} that between sources or studies (a user's data are a
-#' new one). With a length \eqn{L} (mm), \eqn{\eta_j = \alpha_j + \beta_j (\ln L -
+#' new one; the model of invertebrates without lengths has no effect of source,
+#' so there the variation between sources is part of that between
+#' populations). With a length \eqn{L} (mm), \eqn{\eta_j = \alpha_j + \beta_j (\ln L -
 #' c)}{eta_j = alpha_j + beta_j (ln L - c)} and the variances are evaluated at
 #' \eqn{\ln L}. The median is \eqn{\exp(\eta)}{exp(eta)}, the mean
 #' \eqn{\exp(\eta + \tau^2/2)}{exp(eta + tau^2/2)} and the interval
@@ -250,9 +252,17 @@ estimate_biomass_columns <- c(
 #' rotifers come from direct weighings of dry mass (Dumont et al. 1975;
 #' Bottrell et al. 1976, Table VIII) and from volumes (wet mass, converted to
 #' dry mass with the convention of 10 %, 3.9 % in *Asplanchna*). The weighings
-#' are a fixed contrast in the model (about twice the masses from volumes),
-#' and rotifers are predicted as from volumes, the usual method of field
-#' studies.
+#' are a fixed contrast in the model (about four times the masses from
+#' volumes), and rotifers are predicted as from volumes, the usual method of
+#' field studies. The model of invertebrates without lengths has no effect of
+#' source: its sources measure different groups of taxa by different methods,
+#' and each taxon keeps the level of the sources that measured it, except for
+#' one difference of method. The benthic invertebrates of Moreau et al.
+#' (2021) are masses of individual prey compiled from studies of diet and
+#' calorimetry, often of large or adult animals, and weigh about 6 times
+#' (95 % interval 3.6-11) the means of all the individuals of field samples of
+#' Hrycik et al. (2024) for the same taxa; they are a fixed contrast in the
+#' model, and benthic invertebrates are predicted as population means.
 #'
 #' @references
 #' Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
