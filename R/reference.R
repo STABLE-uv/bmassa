@@ -42,8 +42,13 @@
 #'     not used in predictions).
 #'   * `components`: variance components (`value`, natural logs) by `model`,
 #'     `level` (taxonomic levels, `"equation"`, `"study"`, `"source"`,
-#'     `"stage"`, `"residual"`) and `parameter` (`"intercept"`, `"slope"`,
-#'     `"intercept_slope"`).
+#'     `"population"` (fish without lengths: between populations, the
+#'     residual being between samplings of a population), `"stage"`,
+#'     `"residual"`) and `parameter` (`"intercept"`, `"slope"`,
+#'     `"intercept_slope"`). In the length-mass model of invertebrates,
+#'     `"study"` is the variance of a new study, from a second fit with an
+#'     effect of study, and `"equation"` the rest of the variance between
+#'     equations of the fit without it (the paths come from that fit).
 #'   * `fixed`: fixed effects by model, with standard errors and covariances
 #'     (intercepts and slopes by length type; in the model of invertebrates
 #'     without lengths, the contrasts `c_copepod_copepodite` and
@@ -55,8 +60,8 @@
 #'   * `conversion_models`: one row per model of the conversion factors (ln
 #'     of the ratio between two currencies of the same organisms), with
 #'     `model`, `domain` (`"invertebrate"` or `"fish"`), `from` and `to`
-#'     (currencies), `levels` and `context` (crossed effects: `habitat`,
-#'     `source`).
+#'     (currencies), `levels` and `context` (`"habitat"` when the model has a
+#'     crossed effect of habitat, otherwise empty).
 #'   * `conversion_nodes`, `conversion_components`, `conversion_fixed`: as
 #'     `nodes`, `components` and `fixed`, for the conversion models; the
 #'     nodes of level `"habitat"` hold the habitat effects.

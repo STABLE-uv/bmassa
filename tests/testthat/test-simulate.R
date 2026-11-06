@@ -70,6 +70,40 @@ test_that("a shared population effect widens sums over sites", {
                one_ind$biomass_upper / one_ind$biomass_lower, tolerance = 0.15)
 })
 
+test_that("the share of a new study is drawn once for the invertebrates with lengths", {
+  # An oligochaete and an insect with lengths: the length-mass model of
+  # invertebrates keeps the variance of a new study apart from that between
+  # populations, and the totals share it.
+  tx <- data.frame(taxon_id = c("w1", "c1"), broad_group = "macroinvertebrate",
+                   kingdom = "Animalia", phylum = c("Annelida", "Arthropoda"),
+                   class = c("Clitellata", "Insecta"), order = c("Tubificida", "Diptera"),
+                   family = c("Naididae", "Chironomidae"), genus = c("Limnodrilus", "Chironomus"),
+                   species = c("Limnodrilus hoffmeisteri", "Chironomus plumosus"),
+                   length_mean = c(20, 12), length_unit = "mm", length_type = "body_length")
+  ab <- data.frame(site = "s", taxon_id = c("w1", "c1"), abundance = c(50, 50), per = "m2")
+  e <- estimate_biomass(ab, tx, bias_correction = "none")
+  sim <- e$simulation$rows
+  cc <- get_reference()$components
+  v_study <- cc$value[cc$model == "invertebrate_lwr" & cc$level == "study"]
+  expect_length(v_study, 1L)
+  expect_gt(v_study, 0)
+  expect_equal(sim$model, rep("invertebrate_lwr", 2))
+  expect_equal(sim$v_source, rep(v_study, 2))
+  expect_match(as.data.frame(e)$uncertainty, "between_study")
+  # The same per-row variances with that share drawn row by row instead:
+  # a narrower total.
+  e_ind <- e
+  e_ind$simulation$rows$v_population <- sim$v_population + sim$v_source
+  e_ind$simulation$rows$v_source <- 0
+  ld <- withr::with_seed(8, draw_log_mass(e, 1:2, 20000, "shared"))
+  ld_ind <- withr::with_seed(8, draw_log_mass(e_ind, 1:2, 20000, "shared"))
+  expect_equal(apply(ld, 2, stats::var), apply(ld_ind, 2, stats::var), tolerance = 0.05)
+  expect_gt(stats::cov(ld)[1, 2] - stats::cov(ld_ind)[1, 2], 0.7 * v_study)
+  s <- summarize_biomass(e, by = "site", n_draws = 4000, seed = 6)
+  s_ind <- summarize_biomass(e_ind, by = "site", n_draws = 4000, seed = 6)
+  expect_gt(log(s$biomass_upper / s$biomass_lower), log(s_ind$biomass_upper / s_ind$biomass_lower))
+})
+
 test_that("a seed gives the same draws and restores the random state", {
   set.seed(42)
   before <- .Random.seed

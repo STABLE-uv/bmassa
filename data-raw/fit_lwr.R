@@ -352,6 +352,39 @@ if (use_source("koning2024", reg)) {
   }
 }
 
+# 3b. NEON: fish of North American streams and lakes --------------------------
+# Total length (mm) and fresh mass (g) of the fish measured one by one in
+# 2016-2024 (RELEASE-2026), read with data-raw/neon.R. Only the fish longer
+# than the length at which the floor of the weights (0.3 or 0.5 g recorded
+# for lighter fish) stops mattering for their species enter, so that the
+# floor does not bend the equations; their length ranges start there.
+
+if (use_source("neon_fish", reg)) {
+  say("")
+  say("## NEON")
+  say("")
+  source("data-raw/neon.R")
+  path <- source_files("neon_fish", reg)
+  nf <- read_neon_fish(path[1])
+  cn <- nf$counts
+  x <- nf$fish[nf$fish$for_lwr, ]
+  d <- data.frame(source_id = "neon_fish", taxon = x$taxon, length_type = "total_length",
+                  length_unit = "mm", mass_currency = "wet_mass", mass_unit = "g",
+                  shell_included = FALSE, preservation = "fresh", life_stage = NA_character_,
+                  site = x$site, country = "United States", L = x$length, M = x$weight,
+                  stringsAsFactors = FALSE)
+  say("- %d fish measured, %d of RELEASE-2026, %d of them identified to species and weighed; %d weights of %.1f g or less (%d of %.1f g), the minimum of the scale (censored: lighter than %.2f g); %d gross errors left out (data-raw/neon.R).",
+      cn[["all"]], cn[["release"]], cn[["weighed"]], cn[["censored"]], neon_settings$floor_max,
+      cn[["at_0.3"]], 0.3, neon_settings$limit, cn[["gross_uncensored"]] + cn[["gross_censored"]])
+  fl <- nf$equations$floor_length
+  say("- %d fish of %d species from %d sites, longer than the floor length of their species (the length at which it weighs %.1f g; median %.0f mm, range %.0f-%.0f mm, %d species), enter the equations.",
+      nrow(d), length(unique(d$taxon)), length(unique(d$site)), 2 * neon_settings$limit,
+      stats::median(fl), min(fl), max(fl), length(fl))
+  f <- fit_dataset(d)
+  report_fits(f, "neon_fish")
+  all_fits[["neon_fish"]] <- f
+}
+
 # 4. Bagley et al. (2022): Central American fishes -----------------------------
 # Standard length (mm) and mass (g) of specimens preserved in 95% ethanol;
 # total length for some.

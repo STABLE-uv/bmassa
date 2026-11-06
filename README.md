@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Edit README.Rmd and render it with rmarkdown::render("README.Rmd", output_format = rmarkdown::github_document(html_preview = FALSE)) after installing the package. -->
 
-# bmassa
+# bmassa <img src="man/figures/logo.png" align="right" height="139" alt="bmassa logo" />
 
 <!-- badges: start -->
 
@@ -82,10 +82,10 @@ check_coverage(tx, ln)
 #> <bmassa_coverage> 20 taxa, 22 rows (14 without lengths, 8 with lengths)
 #>   phytoplankton      typical species 4, genus 1; median factor 12
 #>   zooplankton        typical species 3; median factor 12
-#>   zooplankton        length  species 1; median factor 3
+#>   zooplankton        length  species 1; median factor 2.6
 #>   macroinvertebrate  typical species 1, genus 1, family 1; median factor 14
-#>   macroinvertebrate  length  species 2, family 1; median factor 3.5
-#>   fish               typical species 1, genus 1; median factor 11
+#>   macroinvertebrate  length  species 2, family 1; median factor 3.1
+#>   fish               typical species 1, genus 1; median factor 7.8
 #>   fish               length  species 1, genus 2; median factor 1.4
 #>   amphibian          typical none, not estimable 1; median factor -
 #>   amphibian          length  species 1; median factor 1.7
@@ -113,25 +113,25 @@ e <- as.data.frame(est)
 print(e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "ind_lower",
                           "ind_upper", "unit")], digits = 3)
 #>    taxon_id  method match_level ind_median ind_lower ind_upper unit
-#> 1       t01 typical     species   2.79e+03  2.48e+02  3.14e+04  um3
-#> 2       t02 typical     species   1.10e+02  1.01e+01  1.20e+03  um3
-#> 3       t03 typical       genus   1.00e+03  4.76e+01  2.12e+04  um3
-#> 4       t04 typical     species   5.48e+01  4.49e+00  6.68e+02  um3
-#> 5       t05 typical     species   1.01e+02  8.43e+00  1.21e+03  um3
-#> 6       t06 typical     species   2.18e-05  1.87e-06  2.54e-04   mg
-#> 7       t07 typical     species   8.53e-05  7.25e-06  1.00e-03   mg
-#> 8       t08  length     species   5.71e-02  1.87e-02  1.74e-01   mg
-#> 9       t09 typical     species   6.35e-03  5.35e-04  7.54e-02   mg
-#> 10      t10  length     species   5.19e-01  1.68e-01  1.61e+00   mg
-#> 11      t11  length     species   6.07e-01  1.74e-01  2.12e+00   mg
-#> 12      t12  length      family   1.39e+01  2.97e+00  6.54e+01   mg
-#> 13      t13 typical       genus   4.34e-01  3.21e-02  5.86e+00   mg
-#> 14      t14 typical      family   4.00e-01  1.22e-02  1.31e+01   mg
-#> 15      t15 typical     species   1.90e-01  1.55e-02  2.33e+00   mg
-#> 16      t16  length     species   5.55e+01  4.56e+01  6.76e+01    g
-#> 17      t17  length       genus   2.14e+01  1.48e+01  3.10e+01    g
-#> 18      t18 typical     species   7.14e-01  5.55e-02  9.18e+00    g
-#> 19      t19  length     species   2.31e+01  1.33e+01  3.99e+01    g
+#> 1       t01 typical     species   2.80e+03  2.51e+02  3.12e+04  um3
+#> 2       t02 typical     species   1.11e+02  1.03e+01  1.19e+03  um3
+#> 3       t03 typical       genus   1.00e+03  4.79e+01  2.09e+04  um3
+#> 4       t04 typical     species   5.49e+01  4.55e+00  6.62e+02  um3
+#> 5       t05 typical     species   1.01e+02  8.55e+00  1.20e+03  um3
+#> 6       t06 typical     species   2.18e-05  1.88e-06  2.54e-04   mg
+#> 7       t07 typical     species   8.53e-05  7.26e-06  1.00e-03   mg
+#> 8       t08  length     species   6.39e-02  2.45e-02  1.67e-01   mg
+#> 9       t09 typical     species   6.35e-03  5.35e-04  7.53e-02   mg
+#> 10      t10  length     species   4.40e-01  1.65e-01  1.17e+00   mg
+#> 11      t11  length     species   7.02e-01  2.24e-01  2.20e+00   mg
+#> 12      t12  length      family   1.54e+01  3.55e+00  6.64e+01   mg
+#> 13      t13 typical       genus   4.30e-01  3.18e-02  5.81e+00   mg
+#> 14      t14 typical      family   4.30e-01  1.30e-02  1.42e+01   mg
+#> 15      t15 typical     species   1.85e-01  1.51e-02  2.27e+00   mg
+#> 16      t16  length     species   5.55e+01  4.56e+01  6.75e+01    g
+#> 17      t17  length       genus   1.97e+01  1.41e+01  2.75e+01    g
+#> 18      t18 typical     species   4.45e-01  5.70e-02  3.48e+00    g
+#> 19      t19  length     species   2.34e+01  1.36e+01  4.02e+01    g
 #> 20      t20 typical        <NA>         NA        NA        NA <NA>
 ```
 
@@ -148,24 +148,24 @@ ec <- as.data.frame(est_c)
 print(ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_lower",
                             "ind_upper", "unit")], digits = 3)
 #>    taxon_id converted_from ind_median ind_lower ind_upper unit
-#> 1       t01      biovolume   1.79e-04  2.52e-05  1.28e-03   ug
-#> 2       t02      biovolume   1.79e-05  1.90e-06  1.68e-04   ug
-#> 3       t03      biovolume   1.42e-04  8.13e-06  2.49e-03   ug
-#> 4       t04      biovolume   9.28e-06  8.86e-07  9.71e-05   ug
-#> 5       t05      biovolume   1.65e-05  1.60e-06  1.69e-04   ug
-#> 6       t06       dry_mass   8.28e-03  6.64e-04  1.03e-01   ug
-#> 7       t07       dry_mass   3.05e-02  2.50e-03  3.72e-01   ug
-#> 8       t08       dry_mass   2.60e+01  7.83e+00  8.62e+01   ug
+#> 1       t01      biovolume   1.80e-04  2.55e-05  1.27e-03   ug
+#> 2       t02      biovolume   1.80e-05  1.93e-06  1.67e-04   ug
+#> 3       t03      biovolume   1.42e-04  8.18e-06  2.47e-03   ug
+#> 4       t04      biovolume   9.29e-06  8.97e-07  9.63e-05   ug
+#> 5       t05      biovolume   1.65e-05  1.62e-06  1.68e-04   ug
+#> 6       t06       dry_mass   8.29e-03  6.64e-04  1.03e-01   ug
+#> 7       t07       dry_mass   3.05e-02  2.50e-03  3.71e-01   ug
+#> 8       t08       dry_mass   2.91e+01  1.01e+01  8.38e+01   ug
 #> 9       t09       dry_mass   2.96e+00  2.36e-01  3.72e+01   ug
-#> 10      t10       dry_mass   2.30e+02  6.89e+01  7.69e+02   ug
-#> 11      t11       dry_mass   2.81e+02  7.20e+01  1.10e+03   ug
-#> 12      t12       dry_mass   6.38e+03  1.17e+03  3.47e+04   ug
-#> 13      t13       dry_mass   1.58e+02  1.12e+01  2.23e+03   ug
-#> 14      t14       dry_mass   1.67e+02  4.98e+00  5.62e+03   ug
-#> 15      t15       dry_mass   7.84e+01  5.02e+00  1.23e+03   ug
-#> 16      t16       wet_mass   5.86e+06  3.45e+06  9.94e+06   ug
-#> 17      t17       wet_mass   2.21e+06  1.16e+06  4.20e+06   ug
-#> 18      t18       wet_mass   8.26e+04  6.00e+03  1.14e+06   ug
+#> 10      t10       dry_mass   1.95e+02  6.71e+01  5.67e+02   ug
+#> 11      t11       dry_mass   3.25e+02  9.19e+01  1.15e+03   ug
+#> 12      t12       dry_mass   7.03e+03  1.39e+03  3.55e+04   ug
+#> 13      t13       dry_mass   1.57e+02  1.11e+01  2.21e+03   ug
+#> 14      t14       dry_mass   1.80e+02  5.32e+00  6.08e+03   ug
+#> 15      t15       dry_mass   7.63e+01  4.89e+00  1.19e+03   ug
+#> 16      t16       wet_mass   5.86e+06  3.48e+06  9.88e+06   ug
+#> 17      t17       wet_mass   2.02e+06  1.07e+06  3.81e+06   ug
+#> 18      t18       wet_mass   5.12e+04  6.02e+03  4.36e+05   ug
 #> 19      t19           <NA>         NA        NA        NA <NA>
 #> 20      t20           <NA>         NA        NA        NA <NA>
 ```
@@ -180,15 +180,15 @@ print(tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lo
               "biomass_upper", "n_missing")], digits = 3)
 #>    site       broad_group biomass_unit biomass_mean biomass_lower biomass_upper n_missing
 #> 1    L1         amphibian         <NA>           NA            NA            NA         2
-#> 2    L1              fish    ug/100 m2     5.43e+07      3.22e+07      9.54e+07         0
-#> 3    L1 macroinvertebrate        ug/m2     3.63e+05      1.17e+05      9.88e+05         0
-#> 4    L1     phytoplankton        ug/mL     1.71e+00      2.78e-01      6.31e+00         0
-#> 5    L1       zooplankton         ug/L     3.11e+02      6.52e+01      1.11e+03         0
+#> 2    L1              fish    ug/100 m2     4.75e+07      2.97e+07      7.59e+07         0
+#> 3    L1 macroinvertebrate        ug/m2     3.51e+05      1.15e+05      9.96e+05         0
+#> 4    L1     phytoplankton        ug/mL     1.70e+00      2.98e-01      6.38e+00         0
+#> 5    L1       zooplankton         ug/L     3.20e+02      8.26e+01      9.90e+02         0
 #> 6    L2         amphibian         <NA>           NA            NA            NA         2
-#> 7    L2              fish    ug/100 m2     5.18e+07      2.81e+07      1.13e+08         0
-#> 8    L2 macroinvertebrate        ug/m2     3.40e+05      8.86e+04      1.16e+06         0
-#> 9    L2     phytoplankton        ug/mL     1.98e+00      2.61e-01      8.25e+00         0
-#> 10   L2       zooplankton         ug/L     1.08e+02      8.83e+00      4.86e+02         1
+#> 7    L2              fish    ug/100 m2     4.40e+07      2.71e+07      7.46e+07         0
+#> 8    L2 macroinvertebrate        ug/m2     3.31e+05      8.92e+04      1.07e+06         0
+#> 9    L2     phytoplankton        ug/mL     1.98e+00      2.86e-01      8.41e+00         0
+#> 10   L2       zooplankton         ug/L     1.07e+02      9.20e+00      4.72e+02         1
 ```
 
 The draws themselves, for models that use the biomass of every taxon
@@ -210,12 +210,12 @@ d <- as.data.frame(sim, draws = 1:2)
 print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
                  "biomass_unit")]), digits = 3)
 #>   draw site taxon_id habitat ind_mass biomass biomass_unit
-#> 1    1   L1      t01    lake 1.39e-06  3754.3        mg/m2
-#> 2    1   L1      t02    lake 2.20e-08   823.3        mg/m2
-#> 3    1   L1      t03    lake 3.62e-07   162.9        mg/m2
-#> 4    1   L1      t04    lake 1.37e-08   185.4        mg/m2
-#> 5    1   L1      t05    lake 2.59e-08    23.3        mg/m2
-#> 6    1   L1      t06    lake 1.44e-03   757.2        mg/m2
+#> 1    1   L1      t01    lake 1.80e-06  4853.6        mg/m2
+#> 2    1   L1      t02    lake 1.48e-07  5554.7        mg/m2
+#> 3    1   L1      t03    lake 1.70e-06   765.5        mg/m2
+#> 4    1   L1      t04    lake 4.51e-08   609.3        mg/m2
+#> 5    1   L1      t05    lake 2.21e-07   198.6        mg/m2
+#> 6    1   L1      t06    lake 3.30e-05    17.3        mg/m2
 ```
 
 ## Methods and decisions
@@ -251,7 +251,7 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
   `extrapolate = TRUE`.
 - The vignette (`vignette("bmassa")`) goes through the workflow and the
   decisions; the cross-validation of the intervals is in the source
-  repository (`dev/validacion/validacion_modelos.md`).
+  repository (`dev/validation/cross_validation.md`).
 
 ## Data sources
 
@@ -283,6 +283,7 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 | mccauley1984       | McCauley E (1984). The estimation of the abundance and biomass of zooplankton in samples. In: Downing JA, Rigler FH (eds), A Manual on Methods for the Assessment of Secondary Productivity in Fresh Waters, 2nd edn, IBP Handbook 17. Blackwell Scientific Publications, Oxford, pp. 228-265. ISBN 0-632-00616-1.                      | Values transcribed from the book chapter                                                                                                |
 | mdl2000            | Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for dinoflagellates, diatoms, and other protist plankton. Limnology and Oceanography 45, 569-579.                                                                                                                                                                     | Values transcribed from the paper                                                                                                       |
 | moreau2021         | Moreau A, Dupuy C, Bocher P, Farau S (2021). Morphological, calorific and nutritive characteristics of 656 freshwater invertebrates taxa. Biodiversity Data Journal 9, e70214.                                                                                                                                                          | CC0 1.0 (Dryad)                                                                                                                         |
+| neon_fish          | NEON (National Ecological Observatory Network) (2026). Fish electrofishing, gill netting, and fyke netting counts (DP1.20107.001), RELEASE-2026. Dataset accessed from <https://data.neonscience.org/data-products/DP1.20107.001/RELEASE-2026> on 2026-11-06.                                                                           | CC BY 4.0 (NEON Data Use and Citation Policy)                                                                                           |
 | platt1973          | Platt T, Irwin B (1973). Caloric content of phytoplankton. Limnology and Oceanography 18, 306-310.                                                                                                                                                                                                                                      | Values transcribed from the paper                                                                                                       |
 | rimet2018          | Rimet F, Druart J-C (2018). A trait database for Phytoplankton of temperate lakes. Annales de Limnologie - International Journal of Limnology 54, 18.                                                                                                                                                                                   | CC BY 4.0 (Zenodo)                                                                                                                      |
 | santini2018        | Santini L, Benítez-López A, Ficetola GF, Huijbregts MAJ (2018). Length–mass allometries in amphibians. Integrative Zoology 13, 36-45.                                                                                                                                                                                                   | Publisher copyright (article: (c) 2017 ISZS, IOZ CAS and John Wiley & Sons Australia); no licence stated for the supplementary material |
@@ -293,14 +294,19 @@ knitr::kable(s[, c("source_id", "citation", "licence")])
 | usepa2016          | US EPA (2016). Standard Operating Procedure for Zooplankton Analysis. LG403, Revision 07, July 2016. U.S. Environmental Protection Agency, Great Lakes National Program Office, Chicago.                                                                                                                                                | Convention of the standard operating procedure; no data used                                                                            |
 | vanleeuwen2025     | van Leeuwen CHA, Csabai Z, Szloboda A, Móra A, Declerck SAJ (2025). Length-dry mass relationships of aquatic insects: geographic and taxonomic variation in a digital database. Freshwater Biology 70, e70056.                                                                                                                          | CC BY 4.0 (Figshare)                                                                                                                    |
 
+The fish data of NEON are used as its data policy asks: this material is
+based in part upon work supported by the National Ecological Observatory
+Network (NEON), a program sponsored by the U.S. National Science
+Foundation (NSF) and operated under cooperative agreement by Battelle.
+
 ## Status
 
-Version 0.3.0, not on CRAN. In cross-validation, the 95 % intervals
-cover 93-97 % of new populations of species in the reference and 91-97 %
+Version 0.4.0, not on CRAN. In cross-validation, the 95 % intervals
+cover 92-97 % of new populations of species in the reference and 94-97 %
 of species left out. Masses without lengths are much more uncertain (the
-median is divided and multiplied by a factor of about 6 to 40 for the 95
+median is divided and multiplied by a factor of about 7 to 40 for the 95
 % interval of a new population) than masses from lengths (a factor of
-1.2 to 4): measure lengths where possible.
+1.2 to 3.3): measure lengths where possible.
 
 ## Known limitations
 
@@ -310,12 +316,23 @@ median is divided and multiplied by a factor of about 6 to 40 for the 95
   share with the population means of Hrycik et al. (2024), so the
   estimates of benthic taxa measured only by Moreau depend on that
   correction (95 % interval 3.6 to 11).
+- Copepods without a stage are taken as adults: a count of a species
+  that includes its copepodites is overestimated (1.4 to 3.6 times in
+  the test with Tuesday Lake); give the copepodites as rows of their
+  own.
 - Phytoplankton counted in natural units goes to carbon and energy only
   with `cells_per_unit`; without it, it stays in biovolume and wet mass.
+- The conversion factors have two to four sources per model, too few to
+  estimate the variation between sources: with each source left out in
+  turn, 61-66 % of the wet to dry mass and dry mass to carbon factors of
+  invertebrates fall inside their 95 % intervals.
 - Amphibian larvae are not estimated, with or without lengths.
 - Fish without lengths: the mean masses of populations come from Iberian
-  streams (Arranz et al. 2022) and the Mekong (Koning et al. 2024);
-  orders absent from them take the mean of all fish.
+  streams (Arranz et al. 2022), the Mekong (Koning et al. 2024) and
+  streams and lakes of the United States (NEON, 2016-2024), mostly small
+  fish caught by electrofishing: populations of large adults (stocked
+  fish, catches of fisheries) are underestimated, and orders absent from
+  them take the mean of their class.
 - There is no dry mass or AFDM of phytoplankton, no AFDM or carbon of
   amphibians, and no energy of masses with shell.
 - Detritus, periphyton and macrophytes are outside the scope of the

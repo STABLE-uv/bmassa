@@ -42,8 +42,13 @@ also \code{contrast_cov_rotifer_weighing} and \code{contrast_cov_moreau_benthos}
 not used in predictions).
 \item \code{components}: variance components (\code{value}, natural logs) by \code{model},
 \code{level} (taxonomic levels, \code{"equation"}, \code{"study"}, \code{"source"},
-\code{"stage"}, \code{"residual"}) and \code{parameter} (\code{"intercept"}, \code{"slope"},
-\code{"intercept_slope"}).
+\code{"population"} (fish without lengths: between populations, the
+residual being between samplings of a population), \code{"stage"},
+\code{"residual"}) and \code{parameter} (\code{"intercept"}, \code{"slope"},
+\code{"intercept_slope"}). In the length-mass model of invertebrates,
+\code{"study"} is the variance of a new study, from a second fit with an
+effect of study, and \code{"equation"} the rest of the variance between
+equations of the fit without it (the paths come from that fit).
 \item \code{fixed}: fixed effects by model, with standard errors and covariances
 (intercepts and slopes by length type; in the model of invertebrates
 without lengths, the contrasts \code{c_copepod_copepodite} and
@@ -55,8 +60,8 @@ from volumes and the population means are the ones predicted).
 \item \code{conversion_models}: one row per model of the conversion factors (ln
 of the ratio between two currencies of the same organisms), with
 \code{model}, \code{domain} (\code{"invertebrate"} or \code{"fish"}), \code{from} and \code{to}
-(currencies), \code{levels} and \code{context} (crossed effects: \code{habitat},
-\code{source}).
+(currencies), \code{levels} and \code{context} (\code{"habitat"} when the model has a
+crossed effect of habitat, otherwise empty).
 \item \code{conversion_nodes}, \code{conversion_components}, \code{conversion_fixed}: as
 \code{nodes}, \code{components} and \code{fixed}, for the conversion models; the
 nodes of level \code{"habitat"} hold the habitat effects.

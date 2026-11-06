@@ -12,7 +12,7 @@
 #   model_fixed.csv       fixed effects, their covariance and the centre of
 #                         the log lengths
 #   model_fit_log.md      what was fitted, and diagnostics
-# The functions are also used by dev/validacion/validacion_modelos.R (with
+# The functions are also used by dev/validation/cross_validation.R (with
 # BMASSA_FIT_ONLY_FUNCTIONS=true only the functions are defined).
 #
 # Model:
@@ -24,9 +24,13 @@
 #   stage group (invertebrates) or habitat (conversion factors), and of
 #   source, when the model has two or more sources (a user's data are a new
 #   source: what each source takes as the typical mass differs), except in the
-#   model of invertebrates (model_options()); the residual is the variation
-#   between records of the same species and source (populations, varieties,
-#   size classes).
+#   models of invertebrates and fish (model_options()); random intercepts of
+#   population when some populations were sampled more than once (fish of
+#   NEON: column `population`; the other records are one population each); the
+#   residual is the variation between records of the same species and source
+#   (populations, varieties, size classes) or, with the population effect,
+#   between the samplings of a population. A new population takes the
+#   variance of both.
 # - Length-mass relations, one model per domain: three points per equation, at
 #   the centres of the thirds of its log length range, and one point per
 #   population mean (amphibians); x = ln length centred by length type; fixed
@@ -34,8 +38,12 @@
 #   for each nested taxonomic level within length type (an equation informs
 #   only the nodes of its own length type; the variance components are shared),
 #   with intercepts only at levels where most nodes have points at a single
-#   length; random intercepts of equation (variation between populations) and,
-#   with five or more studies, of study.
+#   length; random intercepts of equation (variation between populations). No
+#   effect of study in the fit, so that each species keeps the level of its own
+#   equations; with five or more studies, a second fit with random intercepts
+#   of study gives the variance of a new study, taken out of that of equation
+#   (study_share()): the variance of a new population is that of the fit
+#   without study, and the totals share the part of a new study.
 # - Prediction for a taxon: the path of its deepest node in the reference; the
 #   variance of the path comes from the joint conditional covariance of fixed
 #   and random effects (Henderson's mixed model equations, from the Cholesky
@@ -118,6 +126,10 @@ model_frame <- function(d, type, levels, centre = NULL) {
   } else {
     d$root <- "all"
     for (l in levels) d[[paste0("g_", l)]] <- factor(node_path(d, l))
+    # Records without a population of their own are one population each.
+    if ("population" %in% names(d)) {
+      d$population <- factor(ifelse(is.na(d$population), paste("record", d$record_id), d$population))
+    }
     # Fixed contrasts (stages of copepods): one indicator per contrast.
     if ("contrast" %in% names(d)) {
       for (k in sort(unique(stats::na.omit(d$contrast)))) {
@@ -140,7 +152,16 @@ slope_levels <- function(d, levels) {
 # Crossed terms of a model.
 model_options <- function(d, type) {
   if (type == "lwr") {
-    return(list(study = length(unique(d$study)) >= 5, source = FALSE, context = character(0)))
+    # Study (decision of 2026-11-06): not in the fit. With it, the prediction
+    # was for an average study and the species of a single study moved away
+    # from their own equations (the rotifers of Ejsmont-Karabin 1.26 times,
+    # those of CADSES 1.33-1.37, the bivalves of Coughlan et al. 2021 0.80),
+    # with wider intervals and the same coverage in cross-validation. But the
+    # equations of a study left out deviate together, so with five or more
+    # studies the variance between studies of a second fit is kept as the
+    # share of a new study (study_share(); dev/validation/study_effect_lwr.md).
+    return(list(study = FALSE, study_share = length(unique(d$study)) >= 5, source = FALSE,
+                context = character(0)))
   }
   # Context factors (crossed): stage groups, and habitat of the conversion
   # factors when two or more habitats have 10 or more rows each.
@@ -156,10 +177,18 @@ model_options <- function(d, type) {
   # without better intervals. Without it each species keeps the level of its
   # data, the weighings of rotifers are corrected by their contrast, and the
   # cross-validation keeps its coverage with narrower intervals
-  # (dev/validacion/efecto_fuente.md).
-  no_source <- "invertebrate_individual"
+  # (dev/validation/source_effect_invertebrates.md). Nor in the model of fish
+  # (decision of 2026-11-06): its three sources (Iberian streams, a Mekong
+  # fishery, the streams and lakes of NEON) share few species, and the source
+  # effect put the species of NEON 1.5 times above their own data and those of
+  # Arranz et al. (2022) 0.8 times below, with wider intervals and the same
+  # coverage in cross-validation (dev/validation/source_effect_fish.md).
+  no_source <- c("invertebrate_individual", "fish_individual")
+  # Population: when some populations have several records (samplings), so
+  # that they are not taken as independent populations.
+  pop <- if ("population" %in% names(d)) stats::na.omit(d$population) else character(0)
   list(study = FALSE, source = length(unique(d$source_id)) >= 2 && !any(d$model %in% no_source),
-       context = context)
+       population = anyDuplicated(pop) > 0, context = context)
 }
 model_formula <- function(d, type, levels, opt) {
   if (type == "lwr") {
@@ -171,7 +200,7 @@ model_formula <- function(d, type, levels, opt) {
   } else {
     fixed <- paste(c("1", grep("^c_", names(d), value = TRUE)), collapse = " + ")
     rand <- c(sprintf("(1 | g_%s)", levels), if (opt$source) "(1 | source_id)",
-              sprintf("(1 | %s)", opt$context))
+              if (isTRUE(opt$population)) "(1 | population)", sprintf("(1 | %s)", opt$context))
   }
   stats::as.formula(paste("y ~", fixed, "+", paste(rand, collapse = " + ")))
 }
@@ -179,6 +208,32 @@ fit_model <- function(d, type, levels, opt) {
   lme4::lmer(model_formula(d, type, levels, opt), data = d, REML = TRUE,
              control = lme4::lmerControl(calc.derivs = FALSE, optimizer = "bobyqa",
                                          optCtrl = list(maxfun = 1e5)))
+}
+# Share of a new study (length-mass models with five or more studies): the
+# variance of the random intercepts of study in a second fit, with the same
+# terms plus study, is moved from the component of equation to a component of
+# study (at most all of it). The paths and the variance of a new population
+# (their sum) stay those of the fit without study; the package draws the
+# study part once for all the rows of the model in the totals.
+study_share <- function(tabs, d, type, levels, opt) {
+  fit_s <- suppressMessages(suppressWarnings(
+    fit_model(d, type, levels, utils::modifyList(opt, list(study = TRUE)))))
+  vc <- as.data.frame(lme4::VarCorr(fit_s))
+  cp <- tabs$components
+  k <- which(cp$level == "equation" & cp$quantity == "variance")
+  stopifnot(length(k) == 1L, sum(vc$grp == "study") == 1L)
+  s2 <- min(vc$vcov[vc$grp == "study"], cp$value[k])
+  st <- cp[k, ]
+  st$level <- "study"
+  st$value <- s2
+  st$sd_cor <- sqrt(s2)
+  cp$value[k] <- cp$value[k] - s2
+  cp$sd_cor[k] <- sqrt(cp$value[k])
+  tabs$components <- rbind(cp, st)
+  rownames(tabs$components) <- NULL
+  attr(tabs, "study_fit") <- c(study = sqrt(vc$vcov[vc$grp == "study"]),
+                               equation = sqrt(vc$vcov[vc$grp == "equation_id"]))
+  tabs
 }
 
 # Tables of a fitted model ------------------------------------------------------------
@@ -396,7 +451,7 @@ predict_tables <- function(tabs, newdata, type, levels) {
       if (slope) 2 * xc[miss] * getc(levels[j], "intercept_slope") + xc[miss]^2 * getc(levels[j], "slope") else 0
   }
   v_pop <- getc("residual", "intercept") + getc("equation", "intercept") + getc("study", "intercept") +
-    getc("source", "intercept")
+    getc("source", "intercept") + getc("population", "intercept")
   data.frame(eta = eta, v_param = v_param, v_missing = v_missing, v_population = v_pop,
              v_total = v_param + v_missing + v_pop, matched_level = matched,
              stringsAsFactors = FALSE)
@@ -447,13 +502,17 @@ if (identical(Sys.getenv("BMASSA_FIT_ONLY_FUNCTIONS"), "true")) {
                                })
     secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
     tabs <- model_tables(fit, d, m, type, levels)
+    if (isTRUE(opt$study_share)) tabs <- study_share(tabs, d, type, levels, opt)
     for (k in names(out)) out[[k]][[m]] <- tabs[[k]]
     say("## %s", m)
     say("")
-    say("- %d rows, %d %s; levels: %s%s%s%s; fitted in %.1f s; singular: %s%s.", nrow(d),
+    say("- %d rows, %d %s; levels: %s%s%s%s%s; fitted in %.1f s; singular: %s%s.", nrow(d),
         length(unique(if (type == "lwr") d$equation_id else d$record_id)),
         if (type == "lwr") "equations and means" else "records", paste(levels, collapse = ", "),
-        if (opt$study) "; plus study" else "", if (opt$source) "; plus source" else "",
+        if (isTRUE(opt$study_share)) sprintf("; share of a new study from a second fit with study (%d studies)",
+                                             length(unique(d$study))) else "",
+        if (opt$source) "; plus source" else "",
+        if (isTRUE(opt$population)) sprintf("; plus population (%d)", length(unique(d$population))) else "",
         paste0(if (length(opt$context)) "; plus ", paste(opt$context, collapse = ", ")), secs,
         lme4::isSingular(fit),
         if (length(warn)) paste0(" (", paste(unique(warn), collapse = "; "), ")") else "")
@@ -463,11 +522,16 @@ if (identical(Sys.getenv("BMASSA_FIT_ONLY_FUNCTIONS"), "true")) {
     say("- Standard deviations (ln): %s.",
         paste(sprintf("%s%s %.3f", v$level, ifelse(v$parameter == "slope", " (slope)", ""), v$sd_cor),
               collapse = "; "))
+    if (isTRUE(opt$study_share)) {
+      sf <- attr(tabs, "study_fit")
+      say("- Fit with study: SD of study %.3f and of equation %.3f; the study part is taken out of the equation SD of the fit without study (%.3f).",
+          sf[["study"]], sf[["equation"]], sqrt(sum(v$value[v$level %in% c("equation", "study")])))
+    }
     # Spread for a new population by the lowest level known: population terms
     # plus the levels below (x/÷ at 95 %, at the centre of the lengths, without
     # the uncertainty of the estimates).
     vv <- stats::setNames(v$value[v$parameter == "intercept"], v$level[v$parameter == "intercept"])
-    pop <- sum(vv[intersect(names(vv), c("residual", "equation", "study", "source"))])
+    pop <- sum(vv[intersect(names(vv), c("residual", "equation", "study", "source", "population"))])
     below <- rev(cumsum(rev(vv[levels])))
     fac <- exp(1.96 * sqrt(pop + c(below[-1], 0)))
     say("- 95 %% factor (x/÷) for a new population by the lowest level known%s: %s.",

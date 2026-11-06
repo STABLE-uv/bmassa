@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
 options(width = 100)
 ```
 
-# bmassa
+# bmassa <img src="man/figures/logo.png" align="right" height="139" alt="bmassa logo" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/STABLE-uv/bmassa/actions/workflows/R-CMD-check.yaml)
@@ -161,7 +161,7 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
   `extrapolate = TRUE`.
 - The vignette (`vignette("bmassa")`) goes through the workflow and the
   decisions; the cross-validation of the intervals is in the source
-  repository (`dev/validacion/validacion_modelos.md`).
+  repository (`dev/validation/cross_validation.md`).
 
 ## Data sources
 
@@ -170,14 +170,19 @@ s <- cite_sources()
 knitr::kable(s[, c("source_id", "citation", "licence")])
 ```
 
+The fish data of NEON are used as its data policy asks: this material is
+based in part upon work supported by the National Ecological Observatory
+Network (NEON), a program sponsored by the U.S. National Science Foundation
+(NSF) and operated under cooperative agreement by Battelle.
+
 ## Status
 
-Version 0.3.0, not on CRAN. In cross-validation, the 95 % intervals cover
-93-97 % of new populations of species in the reference and 91-97 % of
-species left out. Masses without lengths are much more uncertain (the
-median is divided and multiplied by a factor of about 6 to 40 for the 95 %
-interval of a new population) than masses from lengths (a factor of 1.2 to
-4): measure lengths where possible.
+Version 0.4.0, not on CRAN. In cross-validation, the 95 %
+intervals cover 92-97 % of new populations of species in the reference and
+94-97 % of species left out. Masses without lengths are much more uncertain
+(the median is divided and multiplied by a factor of about 7 to 40 for the
+95 % interval of a new population) than masses from lengths (a factor of 1.2
+to 3.3): measure lengths where possible.
 
 ## Known limitations
 
@@ -187,12 +192,22 @@ interval of a new population) than masses from lengths (a factor of 1.2 to
   population means of Hrycik et al. (2024), so the estimates of benthic taxa
   measured only by Moreau depend on that correction (95 % interval 3.6 to
   11).
+- Copepods without a stage are taken as adults: a count of a species that
+  includes its copepodites is overestimated (1.4 to 3.6 times in the test
+  with Tuesday Lake); give the copepodites as rows of their own.
 - Phytoplankton counted in natural units goes to carbon and energy only
   with `cells_per_unit`; without it, it stays in biovolume and wet mass.
+- The conversion factors have two to four sources per model, too few to
+  estimate the variation between sources: with each source left out in
+  turn, 61-66 % of the wet to dry mass and dry mass to carbon factors of
+  invertebrates fall inside their 95 % intervals.
 - Amphibian larvae are not estimated, with or without lengths.
 - Fish without lengths: the mean masses of populations come from Iberian
-  streams (Arranz et al. 2022) and the Mekong (Koning et al. 2024); orders
-  absent from them take the mean of all fish.
+  streams (Arranz et al. 2022), the Mekong (Koning et al. 2024) and streams
+  and lakes of the United States (NEON, 2016-2024), mostly small fish caught
+  by electrofishing: populations of large adults (stocked fish, catches of
+  fisheries) are underestimated, and orders absent from them take the mean
+  of their class.
 - There is no dry mass or AFDM of phytoplankton, no AFDM or carbon of
   amphibians, and no energy of masses with shell.
 - Detritus, periphyton and macrophytes are outside the scope of the

@@ -138,19 +138,29 @@ typ$zoo <- data.frame(record_id = tr$record_id[k], source_id = tr$source_id[k], 
                       converted_from = ifelse(tr$currency[k] == "wet_mass", "wet_mass (rotifer)", NA),
                       stringsAsFactors = FALSE)
 # Fish without lengths (decision of 2026-11-05; data-raw/typical_records.R):
-# mean wet mass (g) of the populations of Arranz et al. (2022) and of the
-# species in the catch of Koning et al. (2024).
-k <- tr$source_id %in% c("arranz2022", "koning2024") & tr$use_in_model &
+# mean wet mass (g) of the populations of Arranz et al. (2022), of the
+# species in the catch of Koning et al. (2024) and of the species in each
+# sampling of NEON (decision of 2026-11-06). The samplings of a species at a
+# NEON site are one population (`population`, completed with its species
+# below, so that two names of one species are one population): the model has
+# a random effect of population, and the residual is the variation between
+# samplings of a population (data-raw/fit_models.R).
+k <- tr$source_id %in% c("arranz2022", "koning2024", "neon_fish") & tr$use_in_model &
   tr$count_unit == "individual"
 stopifnot(all(tr$currency[k] == "wet_mass"), all(tr$unit[k] == "g"))
 typ$fish <- data.frame(record_id = tr$record_id[k], source_id = tr$source_id[k], taxon = tr$taxon[k],
                        model = "fish_individual", life_stage = NA_character_, stage = "unspecified",
-                       value = tr$mean[k], unit = "g", n = tr$n[k], stringsAsFactors = FALSE)
+                       value = tr$mean[k], unit = "g", n = tr$n[k],
+                       population = ifelse(is.na(tr$sampling[k]), NA_character_,
+                                           paste(tr$source_id[k], tr$site[k], sep = "|")),
+                       stringsAsFactors = FALSE)
 for (j in setdiff(names(typ), c("hrycik", "zoo"))) typ[[j]]$converted_from <- NA_character_
+for (j in setdiff(names(typ), "fish")) typ[[j]]$population <- NA_character_
 typ <- do.call(rbind, typ)
 rownames(typ) <- NULL
 typ <- typ[is.finite(typ$value) & typ$value > 0, ]
 typ <- with_lineage(typ)
+typ$population <- ifelse(is.na(typ$population), NA_character_, paste(typ$population, typ$species, sep = "|"))
 # Hrycik et al. (2024) give no life stage: their benthic samples hold the
 # aquatic stages, so their insects are taken as larvae (larva group: larvae
 # and nymphs); the other animals stay "unspecified".
@@ -169,7 +179,7 @@ typ$contrast <- NA_character_
 cop <- typ$model == "invertebrate_individual" & typ$class %in% "Copepoda"
 typ$contrast[cop] <- copepod_contrast(typ$life_stage[cop])
 # Method of the masses of rotifers (decision of 2026-11-05, after the test with
-# Tuesday Lake, dev/validacion/tuesday_lake.md): direct weighings (Dumont et
+# Tuesday Lake, dev/validation/tuesday_lake.md): direct weighings (Dumont et
 # al. 1975, Table 8; Bottrell et al. 1976, Table VIII, weighings compiled from
 # several studies) are several times the dry masses from calculated volumes
 # (Bottrell et al. 1976, Table IX; Ejsmont-Karabin 1998) with the convention
@@ -184,8 +194,9 @@ typ$contrast[rw] <- "rotifer_weighing"
 # Kaminski and Prince 1981; Boreham 1994; Pizzul et al. 2009, among others),
 # often of large or adult animals, against the means of all the individuals of
 # field samples of Hrycik et al. (2024), the quantity a biomass needs. For the
-# same taxa they are about six times heavier (dev/validacion/efecto_fuente.md).
-# They get a fixed contrast, and the model predicts for population means.
+# same taxa they are about six times heavier
+# (dev/validation/source_effect_invertebrates.md). They get a fixed contrast,
+# and the model predicts for population means.
 mb <- typ$model == "invertebrate_individual" & typ$source_id %in% "moreau2021" &
   !typ$phylum %in% "Rotifera" & !typ$class %in% c("Branchiopoda", "Copepoda", "Ostracoda") &
   is.na(typ$contrast)
@@ -243,11 +254,17 @@ for (m in unique(typ$model)) {
         sum(s$class %in% "Copepoda"), sum(s$class %in% "Copepoda" & is.na(s$contrast)),
         sum(s$phylum %in% "Rotifera"), sum(s$phylum %in% "Rotifera" & is.na(s$contrast)))
   }
+  if (any(!is.na(s$population))) {
+    np <- table(s$population)
+    say("  Populations sampled more than once (%s): %d records of %d populations (species and site), %d to %d samplings each (median %d); the other records are one population each.",
+        paste(unique(s$source_id[!is.na(s$population)]), collapse = ", "), sum(np), length(np),
+        min(np), max(np), as.integer(stats::median(np)))
+  }
 }
 say("")
 typ <- typ[, c("model", "record_id", "source_id", "taxon", "col_id", "domain", "lowest_rank", main,
-               "life_stage", "stage", "contrast", "value", "unit", "y", "n", "converted_from", "conversion_ln", "conversion_var",
-               "conversion_level")]
+               "life_stage", "stage", "contrast", "population", "value", "unit", "y", "n", "converted_from",
+               "conversion_ln", "conversion_var", "conversion_level")]
 write.csv(typ, file.path(out_dir, "model_typical.csv"), row.names = FALSE, fileEncoding = "UTF-8")
 
 # 2. Length-mass equations ------------------------------------------------------------
@@ -290,7 +307,7 @@ say("- 0.1.0 `length_mass`: %d equations, %d of them without a length range (the
 # taxon has them, otherwise the pooled one; not the flagged ones (r2 < 0.5 or b
 # outside 1.5-4.5).
 keep_src <- c("cadses_boxcorer", "cadses_leafpack", "coughlan2021", "arranz2022", "koning2024",
-              "santini2018")
+              "neon_fish", "santini2018")
 f <- lf[lf$source_id %in% keep_src, ]
 native <- (f$mass_currency == "dry_mass" & !f$shell_included) | f$mass_currency == "wet_mass"
 native <- native & !(f$source_id %in% c("cadses_boxcorer", "cadses_leafpack", "coughlan2021") &

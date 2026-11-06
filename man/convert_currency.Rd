@@ -79,8 +79,15 @@ mass to carbon). As in \code{\link[=estimate_biomass]{estimate_biomass()}}, \eqn
 the path to the deepest node of the model shared with the taxon (matched by
 \code{col_id} or by name and rank), and \eqn{\tau_f^2} adds its conditional
 variance, the variances of the missing levels, the variation between
-records of a species (a new population), between sources and between
-habitats (when unknown). The errors of the factor and of the mass are
+records of a species (a new population) and between habitats (when
+unknown). The models have no effect of source: most of their factors come
+from the data bank of Brey et al. (2010), which compiles many studies, so
+the differences between studies are part of the variation between records,
+and two to four sources are too few to estimate a variance between them.
+A source with its own methods may still deviate as a whole: in
+cross-validation, with each source left out in turn, 66 \% of the wet to
+dry mass factors and 61 \% of the dry mass to carbon factors of invertebrates
+fell inside their 95 \% intervals. The errors of the factor and of the mass are
 independent: \eqn{\tau_B^2 = \tau_A^2 + \tau_f^2}{tau_B^2 = tau_A^2 + tau_f^2}.
 
 \strong{Energy.} The factor is an energy density in J per ug of the mass of the

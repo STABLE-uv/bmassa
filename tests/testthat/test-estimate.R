@@ -146,33 +146,51 @@ test_that("lengths outside the reference move up the tree, or are not estimated"
 })
 
 test_that("fish without length: mean mass of a population (hand calculation)", {
-  ab <- data.frame(site = "s", taxon_id = c("f1", "f2"), abundance = 2, per = "m2")
-  mudminnow <- taxon("f2", "fish",
-                     c(kingdom = "Animalia", phylum = "Chordata", class = "Teleostei",
-                       order = "Esociformes", family = "Umbridae", genus = "Umbra",
-                       species = "Umbra limi"))
-  e <- as.data.frame(estimate_biomass(ab, rbind(trout, mudminnow)))
-  expect_equal(e$status, c("estimated", "estimated"))
-  expect_equal(e$method, c("typical", "typical"))
-  expect_equal(e$unit, c("g", "g"))
+  ab <- data.frame(site = "s", taxon_id = c("f1", "f2", "f3"), abundance = 2, per = "m2")
+  smelt <- taxon("f2", "fish",
+                 c(kingdom = "Animalia", phylum = "Chordata", class = "Teleostei",
+                   order = "Osmeriformes", family = "Osmeridae", genus = "Osmerus",
+                   species = "Osmerus eperlanus"))
+  stingray <- taxon("f3", "fish",
+                    c(kingdom = "Animalia", phylum = "Chordata", class = "Elasmobranchii",
+                      order = "Myliobatiformes", family = "Potamotrygonidae",
+                      genus = "Potamotrygon", species = "Potamotrygon motoro"))
+  e <- as.data.frame(estimate_biomass(ab, rbind(trout, smelt, stingray)))
+  expect_equal(e$status, rep("estimated", 3))
+  expect_equal(e$method, rep("typical", 3))
+  expect_equal(e$unit, rep("g", 3))
   expect_match(e$note[1], "fish without length")
   # The trout from its node of the fish model: path, its variance, the
-  # variation between populations and that of a new source.
+  # variation between populations (populations and samplings of a
+  # population) and that of a new source.
   m <- "fish_individual"
-  nd <- ref$nodes[ref$nodes$model == m & ref$nodes$node == e$match_name[1] &
-                    ref$nodes$level == e$match_level[1], ]
-  tau2 <- nd$path_var + comp(m, "residual", "intercept") + comp(m, "source", "intercept")
-  lv <- strsplit(ref$models$levels[ref$models$model == m], ",")[[1]]
-  miss <- lv[seq_along(lv) > match(e$match_level[1], lv)]
-  for (l in miss) tau2 <- tau2 + comp(m, l, "intercept")
-  expect_equal(e$ind_median[1], exp(nd$path_intercept))
-  expect_equal(e$ind_upper[1], exp(nd$path_intercept + stats::qnorm(0.975) * sqrt(tau2)))
+  pred_tau2 <- function(k) {
+    nd <- ref$nodes[ref$nodes$model == m & ref$nodes$node == e$match_name[k] &
+                      ref$nodes$level == e$match_level[k], ]
+    tau2 <- nd$path_var + comp(m, "residual", "intercept") + comp(m, "population", "intercept") +
+      comp(m, "source", "intercept")
+    lv <- strsplit(ref$models$levels[ref$models$model == m], ",")[[1]]
+    miss <- lv[seq_along(lv) > match(e$match_level[k], c("root", lv)) - 1L]
+    for (l in miss) tau2 <- tau2 + comp(m, l, "intercept")
+    list(eta = nd$path_intercept, tau2 = tau2)
+  }
+  expect_gt(comp(m, "population", "intercept"), 0)
+  p1 <- pred_tau2(1)
+  expect_equal(e$ind_median[1], exp(p1$eta))
+  expect_equal(e$ind_upper[1], exp(p1$eta + stats::qnorm(0.975) * sqrt(p1$tau2)))
   expect_equal(e$biomass_median[1], 2 * e$ind_median[1])
-  # An order absent from the reference: from all the fish, with the variances
-  # of all the levels.
-  expect_equal(e$match_level[2], "root")
-  expect_match(e$note[2], "order not in the reference")
+  # An order absent from the reference: from the fish of its class, with the
+  # variances of the levels below.
+  expect_equal(e$match_level[2], "class")
+  expect_equal(e$match_name[2], "Teleostei")
+  p2 <- pred_tau2(2)
+  expect_equal(e$ind_upper[2], exp(p2$eta + stats::qnorm(0.975) * sqrt(p2$tau2)))
   expect_gt(e$ind_upper[2] / e$ind_median[2], e$ind_upper[1] / e$ind_median[1])
+  # A class absent too: from all the fish, with the variances of all the
+  # levels.
+  expect_equal(e$match_level[3], "root")
+  expect_match(e$note[3], "class not in the reference")
+  expect_gte(e$ind_upper[3] / e$ind_median[3], e$ind_upper[2] / e$ind_median[2])
 })
 
 test_that("rows that cannot be estimated say why, with one warning", {

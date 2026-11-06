@@ -17,7 +17,7 @@ test_that("the reference has its tables and versions", {
   expect_true(all(ref$conversion_models$from[to_energy] %in% c("wet_mass", "dry_mass", "afdm")))
   expect_equal(ref$carbon_equations$log10_a, c(-0.541, -0.665))
   expect_equal(ref$carbon_equations$b, c(0.811, 0.939))
-  expect_equal(ref$info$col_release, "COL26.6 XR")
+  expect_equal(ref$info$col_release, "COL26.10 XR")
   expect_setequal(ref$models$domain, c("phytoplankton", "invertebrate", "fish", "amphibian"))
   expect_output(print(ref), "bmassa_reference")
 })
@@ -48,7 +48,8 @@ test_that("the conversion nodes have their parents, and col_id follows the COL",
   expect_false(anyNA(vapply(some, parent_row, integer(1), nodes = n)))
   expect_true(all(n$path_var[tax] > 0))
   expect_true(all(n$effect_var[n$level == "habitat"] >= 0))
-  # Identifiers of the COL26.6 XR (answers of the GBIF API v2 on 2026-11-02).
+  # Identifiers of the COL26.10 XR (answers of the GBIF API v2 on 2026-11-06; the
+  # same in the COL26.6 XR).
   m <- ref$nodes
   expect_equal(m$col_id[m$node == "Daphnia magna"][1], "6CCSV")
   expect_equal(m$col_id[m$node == "Chironomus" & m$level == "genus"][1], "BXWQR")

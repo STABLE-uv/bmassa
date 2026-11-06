@@ -135,14 +135,14 @@ for (id in c("cadses_boxcorer", "cadses_leafpack")) {
                        domain = "animal")
 }
 
-# Fish: Arranz et al. (2022) give the family; Koning et al. (2024) and Bagley
-# et al. (2022) only the species.
+# Fish: Arranz et al. (2022) give the family; Koning et al. (2024), Bagley
+# et al. (2022) and NEON only the species.
 if (use_source("arranz2022", reg)) {
   x <- read.delim(source_files("arranz2022", reg)[1], stringsAsFactors = FALSE)
   nm$arranz <- names_of("arranz2022", x$Scientific_name, "Animalia", "Chordata",
                         family = x$Family, domain = "animal")
 }
-for (id in c("koning2024", "bagley2022")) {
+for (id in c("koning2024", "bagley2022", "neon_fish")) {
   if (use_source(id, reg)) nm[[id]] <- names_of(id, taxa_of(id), "Animalia", "Chordata", domain = "animal")
 }
 if (use_source("coughlan2021", reg)) {
@@ -427,6 +427,21 @@ if (!is.null(cache)) {
   cache <- cache[, cache_cols]
 }
 n_sent <- 0
+# Version of the COL XR of the matching service now, and of the cache. The
+# cache holds the answers of one version: when the service has moved to
+# another one, new queries are refused unless all the queries are sent again
+# (BMASSA_COLXR_REFRESH = "true"), so that the names of the reference are never
+# matched against two versions.
+version_file <- file.path(out_dir, "colxr_version.csv")
+meta <- tryCatch(jsonlite::fromJSON(paste0(api, "/metadata?checklistKey=", checklist_key)),
+                 error = function(e) NULL)
+now <- if (is.null(meta)) NULL else data.frame(
+  dataset_alias = meta$mainIndex$datasetAlias, dataset_title = meta$mainIndex$datasetTitle,
+  clb_dataset_key = meta$mainIndex$clbDatasetKey, name_usages = meta$mainIndex$nameUsageCount,
+  index_built = substr(meta$created, 1, 10), checked_on = format(Sys.Date()))
+cached_version <- if (!is.null(cache) && file.exists(version_file)) {
+  read.csv(version_file, stringsAsFactors = FALSE)
+} else NULL
 run_queries <- function(q) {
   # Sends the queries that are not in the cache, in chunks of 500, and saves
   # the cache after each chunk.
@@ -436,6 +451,12 @@ run_queries <- function(q) {
   q <- q[!duplicated(q$key), ]
   new <- q[!(q$key %in% cache$key), ]
   if (nrow(new)) {
+    if (is.null(now)) stop("The metadata of the matching service could not be read.")
+    if (!is.null(cached_version) && cached_version$clb_dataset_key != now$clb_dataset_key) {
+      stop(nrow(new), " names are not in the cache, which holds answers of the ",
+           cached_version$dataset_alias, ", but the service now uses the ", now$dataset_alias,
+           ": run with BMASSA_COLXR_REFRESH = \"true\" to send all the queries again.")
+    }
     message(nrow(new), " queries to send")
     chunks <- split(seq_len(nrow(new)), ceiling(seq_len(nrow(new)) / 500))
     for (ch in chunks) {
@@ -682,15 +703,9 @@ nm$flag <- apply(fl, 1, function(v) if (all(is.na(v))) NA_character_ else paste(
 review_flags <- "no match|higher rank than the name|inconsistent|synonym of a taxon of higher rank|ambiguous_synonym|misapplied|fungus"
 nm$review <- !is.na(nm$flag) & grepl(review_flags, nm$flag) & !manual_ok & !(nm$manual_action %in% "drop")
 nm$use <- !is.na(nm$col_id) & (manual_ok | (nm$consistent & !nm$review))
-# Version of the COL XR of the matching service, saved with the cache: it is
-# rewritten when queries are sent and read from the file otherwise.
-version_file <- file.path(out_dir, "colxr_version.csv")
-meta <- tryCatch(jsonlite::fromJSON(paste0(api, "/metadata?checklistKey=", checklist_key)),
-                 error = function(e) NULL)
-now <- if (is.null(meta)) NULL else data.frame(
-  dataset_alias = meta$mainIndex$datasetAlias, dataset_title = meta$mainIndex$datasetTitle,
-  clb_dataset_key = meta$mainIndex$clbDatasetKey, name_usages = meta$mainIndex$nameUsageCount,
-  index_built = substr(meta$created, 1, 10), checked_on = format(Sys.Date()))
+# Version of the COL XR of the matching service (read before the queries),
+# saved with the cache: it is rewritten when queries are sent and read from
+# the file otherwise.
 if (!is.null(now) && (n_sent > 0 || !file.exists(version_file))) {
   write.csv(now, version_file, row.names = FALSE, fileEncoding = "UTF-8")
 }

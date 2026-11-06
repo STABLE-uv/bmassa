@@ -11,8 +11,10 @@
 #
 # Columns: `mean` and the other statistics are masses of one counting unit
 # (individual, cell or natural unit) in `unit`; `n` counts `n_unit`
-# (individuals, samples or unknown). `use_in_model = FALSE` marks records that
-# would count the same animals twice or are not individuals (see `note`).
+# (individuals, samples or unknown). `sampling`: the sampling of the record
+# when a site was sampled more than once (NEON: year, season and gear).
+# `use_in_model = FALSE` marks records that would count the same animals twice
+# or are not individuals (see `note`).
 
 source("data-raw/sources.R")
 
@@ -27,7 +29,7 @@ num <- function(x) suppressWarnings(as.numeric(x))
 
 cols <- c("source_id", "taxon", "name_as_given", "identified_to", "life_stage", "count_unit",
           "currency", "unit", "shell_included", "preservation", "mean", "median", "se", "sd",
-          "min", "max", "n", "n_unit", "scope", "site", "country", "length_type",
+          "min", "max", "n", "n_unit", "scope", "site", "sampling", "country", "length_type",
           "length_mean", "length_unit", "original_reference", "use_in_model", "note")
 
 # A data frame with all the columns above; missing ones filled with NA.
@@ -558,6 +560,53 @@ if (use_source("koning2024", reg)) {
       nrow(m), min_fish, sum(m$n), min(m$mean), max(m$mean), stats::median(m$mean))
   say("")
 }
+# NEON: species in each sampling (bout: site, year and season) and gear of the
+# streams and lakes of 2016-2024 (RELEASE-2026), read with data-raw/neon.R.
+# The fish measured are up to 50 (30 at some sites) per species and pass,
+# the rest being counted only, so the mean of those measured is that of the
+# catch. Fish recorded at the minimum of the scale take the mean mass of the
+# fish of their length lighter than it (neon.R); populations with such a fish
+# without an equation to give it a mass are left out. A site is sampled about
+# twice a year: its samplings of a species are one population
+# (data-raw/model_data.R).
+if (use_source("neon_fish", reg)) {
+  say("## NEON: mean mass of fish populations in each sampling")
+  say("")
+  source("data-raw/neon.R")
+  path <- source_files("neon_fish", reg)
+  nf <- read_neon_fish(path[1])
+  x <- nf$fish
+  key <- paste(x$site, x$bout, x$gear, sep = "|")
+  grp <- paste(x$taxon, key, sep = "\r")
+  n_grp <- table(grp)
+  no_mass <- unique(grp[is.na(x$mass)])
+  big <- names(n_grp)[n_grp >= min_fish]
+  keep <- !grp %in% no_mass
+  m <- fish_means(x$taxon[keep], key[keep], x$mass[keep], x$length[keep])
+  part <- do.call(rbind, strsplit(m$site, "|", fixed = TRUE))
+  records$neon <- std(
+    source_id = "neon_fish", taxon = m$taxon, name_as_given = m$taxon,
+    identified_to = "species", life_stage = NA_character_, count_unit = "individual",
+    currency = "wet_mass", unit = "g", shell_included = FALSE, preservation = "fresh",
+    mean = m$mean, median = m$median, sd = m$sd, min = m$min, max = m$max, n = m$n,
+    n_unit = "individuals", scope = "population", site = part[, 1],
+    sampling = paste0(part[, 2], ", ", part[, 3]), country = "United States",
+    length_type = "total_length", length_mean = m$length_mean, length_unit = "mm",
+    use_in_model = TRUE, note = "mean of the individuals of the species measured in one sampling with one gear")
+  imp <- tapply(x$imputed[keep], grp[keep], mean)[paste(m$taxon, m$site, sep = "\r")]
+  say("- %d fish kept by data-raw/neon.R (%d with the mass of their length below the minimum of the scale: %d from the equation of their species, %d from that of their genus; %d recorded at the minimum without an equation).",
+      nrow(x), sum(x$imputed), nf$counts[["imputed_species"]], nf$counts[["imputed_genus"]],
+      sum(is.na(x$mass)))
+  say("- %d populations (species, sampling and gear) with at least %d individuals, of %d species at %d sites (%d individuals); %d more left out for holding a fish without mass (%s). Gears: %s.",
+      nrow(m), min_fish, length(unique(m$taxon)), length(unique(part[, 1])), sum(m$n),
+      sum(big %in% no_mass),
+      paste(names(sort(table(sub("\r.*$", "", intersect(big, no_mass))), decreasing = TRUE)),
+            collapse = ", "),
+      paste(sprintf("%s %d", names(table(part[, 3])), as.integer(table(part[, 3]))), collapse = ", "))
+  say("- Population means from %.2f to %.0f g (median %.1f); the masses given to the fish below the minimum are more than half of the fish in %d populations.",
+      min(m$mean), max(m$mean), stats::median(m$mean), sum(imp > 0.5))
+  say("")
+}
 
 # Output -------------------------------------------------------------------------
 
@@ -565,7 +614,7 @@ rec <- do.call(rbind, records)
 rownames(rec) <- NULL
 rec$permission <- reg$permission[match(rec$source_id, reg$source_id)]
 rec <- rec[order(rec$source_id, rec$taxon, rec$life_stage, rec$count_unit, rec$scope,
-                 rec$site, method = "radix"), ]
+                 rec$site, rec$sampling, method = "radix"), ]
 rec$record_id <- sprintf("%s_typ_%04d", rec$source_id,
                          ave(seq_len(nrow(rec)), rec$source_id, FUN = seq_along))
 rec <- rec[, c("record_id", "source_id", "permission", cols[-1])]

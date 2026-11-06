@@ -1,3 +1,80 @@
+# bmassa 0.4.0
+
+## Changes that alter results
+
+* The reference of fish includes the fish of the National Ecological
+  Observatory Network of the United States (NEON; Fish electrofishing, gill
+  netting, and fyke netting counts, DP1.20107.001, RELEASE-2026), measured in
+  2016-2024 in 27 streams and lakes: the mean wet mass of 94 species in each
+  sampling and gear (1,180 records), for fish without lengths, and 120
+  length-mass equations by total length of 75 species. The model of fish
+  without lengths goes from 57 to 145 species and from 21 to 31 families, and
+  that of their length-mass relations from 84 to 157 species, lampreys
+  included.
+  The samplings of a species at a site are one population with a random
+  effect (level `"population"` of `get_reference()$components`), so that the
+  variation between populations and that between samplings of a population
+  both enter the interval of a new population.
+* The model of fish without lengths has no effect of source, like that of
+  invertebrates since 0.3.0: its three sources come from different regions
+  and share few species, and the effect of source put the species of NEON
+  1.5 times above their own data, with wider intervals and the same coverage
+  in cross-validation. The 95 % interval of a new population of a species of
+  the reference narrows from a factor of about 8.5 to 7.3, and the masses of
+  the fish species already in 0.3.0 change little (median ×0.94). In
+  cross-validation, the 95 % intervals of fish without lengths cover 96 % of
+  new populations and of new species (0.3.0: 94 % and 91 %). In the test
+  with Tuesday Lake, the fish go from 8.3 to 1.2 times their measured masses:
+  the dace and the mudminnow are now estimated from their own genus and
+  species instead of from Cyprinidae and all fish.
+* A fish without length of an order absent from the reference is estimated
+  from the fish of its class (Teleostei) instead of from all fish.
+* The taxonomy of the reference is that of the COL26.10 XR (it was the
+  COL26.6 XR): the classification of 1,085 of the 8,059 names of the reference
+  data changed, mostly the classes and orders of algae (Zygnematophyceae for
+  Conjugatophyceae, Volvocales for Chlamydomonadales), with small changes in
+  the models of phytoplankton and in the conversion factors.
+* The length-mass relations of invertebrates are fitted without an effect of
+  study, so that each species keeps the level of its own equations. With the
+  effect, which predicted for an average study, the species measured by a
+  single study moved away from them: the rotifers of Ejsmont-Karabin (1998)
+  1.26 times above, the species of CADSES 1.33 to 1.37 times above, the
+  bivalves of Coughlan et al. (2021) 0.80 times below. Masses from lengths of
+  rotifers and of the benthos of transitional waters go down by about a
+  fifth, and those of insects and microcrustaceans change little. In
+  cross-validation, the 95 % interval of a new population of a species of
+  the reference narrows from a factor of 3.7 to 3.3, with the same coverage
+  (95 %; new species 96 %, new studies 94 %). The variance between studies,
+  from a second fit with that effect (SD 0.34 in ln), is still the deviation
+  of a new study that `summarize_biomass()` shares among all the
+  invertebrates with lengths, because the equations of a study left out
+  deviate together. It is taken out of the variance between equations
+  (levels `"study"` and `"equation"` of `get_reference()$components`), so the
+  interval of each row is that of the fit without study.
+* The conversion models have no effect of source. They have two to four
+  sources, most of their factors come from the data bank of Brey et al.
+  (2010), which compiles many studies, and the effect was estimated as zero in
+  8 of the 13 models with more than one source; where it was not, it put the
+  species of the data bank below their own factors (0.94 times in dry mass to
+  AFDM and 0.95 in wet to dry mass of invertebrates) with the same coverage
+  in cross-validation. The conversions of invertebrates between wet mass, dry
+  mass and AFDM change by a few per cent, and so do the masses of Hrycik et
+  al. (2024) that the reference converts to dry mass (median ×0.98).
+
+## Bug fixes
+
+* *Thryssocypris tonlesapensis* (Koning et al. 2024) was missing from the
+  model of fish without lengths.
+
+## Documentation
+
+* Copepods without a stage are still taken as adults, and the documentation
+  and the note of those rows warn that a count of a species that includes
+  its copepodites is then overestimated (1.4 to 3.6 times for the copepods
+  of Tuesday Lake, whose means seem to include them): give the copepodites
+  as rows of their own.
+* The README shows the logo of the package.
+
 # bmassa 0.3.0
 
 ## Changes that alter results

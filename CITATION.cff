@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use bmassa, please cite it as below."
 type: software
 title: "bmassa: Biomass of Aquatic Taxa from Abundances and Body Sizes"
-version: 0.3.0
+version: 0.4.0
 license: MIT
 repository-code: "https://github.com/STABLE-uv/bmassa"
 authors:

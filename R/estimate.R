@@ -169,11 +169,19 @@ estimate_biomass_columns <- c(
 #' ancestors), \eqn{V_j} its conditional variance, the sum runs over the
 #' taxonomic levels below the node (the taxon's own genus or species when they
 #' are not in the reference), \eqn{\sigma^2_{pop}} is the variation between
-#' populations (records or equations of the same species) and
-#' \eqn{\sigma^2_{source}} that between sources or studies (a user's data are a
-#' new one; the model of invertebrates without lengths has no effect of source,
-#' so there the variation between sources is part of that between
-#' populations). With a length \eqn{L} (mm), \eqn{\eta_j = \alpha_j + \beta_j (\ln L -
+#' populations (records or equations of the same species; in the model of
+#' fish without lengths, the variation between populations plus that between
+#' samplings of one population, separated by the populations sampled many
+#' times) and \eqn{\sigma^2_{source}} that between sources or studies (a
+#' user's data are a new one). The models of invertebrates and fish without
+#' lengths have no effect of source, so there the variation between sources is
+#' part of that between populations. The length-mass relations of
+#' invertebrates are fitted without an effect of study, so that each species
+#' keeps the level of its own equations, and \eqn{\sigma^2_{source}} is the
+#' variance between studies of a second fit with that effect, taken out of the
+#' variance between equations: \eqn{\tau^2} is that of the fit without study,
+#' and in [summarize_biomass()] the part of a new study is shared by all the
+#' rows of the model. With a length \eqn{L} (mm), \eqn{\eta_j = \alpha_j + \beta_j (\ln L -
 #' c)}{eta_j = alpha_j + beta_j (ln L - c)} and the variances are evaluated at
 #' \eqn{\ln L}. The median is \eqn{\exp(\eta)}{exp(eta)}, the mean
 #' \eqn{\exp(\eta + \tau^2/2)}{exp(eta + tau^2/2)} and the interval
@@ -187,7 +195,10 @@ estimate_biomass_columns <- c(
 #' adults (a copepod without a stage is taken as an adult): its estimate, its
 #' variance and twice its covariance with the path enter \eqn{\eta}{eta} and
 #' \eqn{V_j}{V_j}. Most records of nauplii are of an order, so their contrast
-#' is wide. With lengths there is no stage effect, but the body length of
+#' is wide. A count of a species that includes its copepodites is therefore
+#' overestimated when given without a stage (1.4 to 3.6 times for the
+#' copepods of Tuesday Lake, whose means seem to include them): give the
+#' copepodites as rows of their own. With lengths there is no stage effect, but the body length of
 #' copepod nauplii has relations of its own (length type
 #' `"nauplius_body_length"`, used for rows of copepods with `life_stage =
 #' "nauplius"` and `length_type = "body_length"`).
@@ -202,13 +213,18 @@ estimate_biomass_columns <- c(
 #'
 #' **Fish without lengths.** The model of fish without lengths is fitted to
 #' the mean wet mass of whole populations (all the sizes caught): species and
-#' site of an electrofishing survey of Iberian streams (Arranz et al. 2022)
-#' and species in the catch of a river fishery (Koning et al. 2024). The mean
-#' of a population depends on its size structure, which the variation between
-#' populations takes up, so the intervals are wide; a mean length gives a
-#' closer estimate. A fish of an order absent from these data is predicted
-#' from all their fish (the root of the model), with the variances of all the
-#' levels; a fish with `life_stage` or `sex` is not estimated without a
+#' site of an electrofishing survey of Iberian streams (Arranz et al. 2022),
+#' species in the catch of a river fishery (Koning et al. 2024), and species
+#' in each sampling (season and year) and gear of the streams and lakes of the
+#' National Ecological Observatory Network of the United States (NEON,
+#' electrofishing and fyke and gill nets, 2016-2024), whose samplings of a
+#' species at a site are one population with a random effect. The mean of a
+#' population depends on its size structure, which the variation between
+#' populations and between samplings takes up, so the intervals are wide; a
+#' mean length gives a closer estimate. A fish of an order absent from these
+#' data is predicted from the fish of its class, and one of a class absent
+#' too from all their fish (the root of the model), with the variances of the
+#' levels below; a fish with `life_stage` or `sex` is not estimated without a
 #' length.
 #'
 #' **Matching.** A taxon with a `col_id` is first looked for by it (the
@@ -244,8 +260,8 @@ estimate_biomass_columns <- c(
 #' central values were used). Masses without
 #' lengths vary much more between populations than masses at a given length:
 #' in cross-validation, the median 95 % interval of a new population of a
-#' species of the reference spans a factor of 6 to 38 either way without
-#' lengths, against 1.2 to 3.7 with them (`dev/validacion` in the source
+#' species of the reference spans a factor of 7 to 38 either way without
+#' lengths, against 1.2 to 3.3 with them (`dev/validation` in the source
 #' repository): measure lengths where possible. Insects without lengths and
 #' without a stage are taken as larvae, and copepods as adults. The
 #' length-mass relations of insects come mostly from larvae. The masses of
@@ -272,6 +288,10 @@ estimate_biomass_columns <- c(
 #' Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
 #' for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
 #' \doi{10.5061/dryad.dr7sqvb5h}
+#'
+#' NEON (National Ecological Observatory Network) (2026). Fish
+#' electrofishing, gill netting, and fyke netting counts (DP1.20107.001),
+#' RELEASE-2026. \doi{10.48443/s1e6-df79}
 #'
 #' Sprugel DG (1983). Correcting for bias in log-transformed allometric
 #' equations. *Ecology*, 64, 209-210.
@@ -712,8 +732,8 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
         pr$model[i] <- "fish_individual"
         pr$note[i] <- append_note(pr$note[i], paste(
           "fish without length: mean mass of a population of all the sizes caught in the",
-          "reference (electrofishing of streams, a river fishery), which may differ from the",
-          "sizes of this population; a mean length gives a closer estimate"))
+          "reference (electrofishing of streams, nets in lakes, a river fishery), which may",
+          "differ from the sizes of this population; a mean length gives a closer estimate"))
       } else {
         pr$reason[i] <- paste(
           "fish without length are estimated as whole populations (all the sizes caught in",
@@ -756,10 +776,11 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
       next
     }
     if (is.null(mt$row)) {
-      # Fish without length of an order absent from the reference: the mean of
-      # all its fish, with the variances of all the levels.
+      # Fish without length of a class (or order, the highest level of the
+      # model) absent from the reference: the mean of all its fish, with the
+      # variances of all the levels.
       j <- root
-      mt$note <- append_note(mt$note, paste("order not in the reference: estimated from all",
+      mt$note <- append_note(mt$note, paste(lv[1], "not in the reference: estimated from all",
                                             "the fish of the reference"))
     } else {
       j <- cand[mt$row]
@@ -866,7 +887,8 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     pr$eta[i] <- eta
     pr$v_param[i] <- vp
     pr$v_missing[i] <- vm
-    pr$v_population[i] <- comp_value(m, "residual", "intercept") + comp_value(m, "equation", "intercept")
+    pr$v_population[i] <- comp_value(m, "residual", "intercept") + comp_value(m, "equation", "intercept") +
+      comp_value(m, "population", "intercept")
     pr$v_source[i] <- comp_value(m, "source", "intercept") + comp_value(m, "study", "intercept")
     pr$corrections[i] <- if (length(corr)) paste(corr, collapse = "; ") else NA_character_
     has_src <- any(comps$model == m & comps$level %in% c("source", "study"))
@@ -882,7 +904,8 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     if (identical(pr$stage_used[i], "larva (assumed)")) {
       pr$note[i] <- append_note(pr$note[i], "life stage not given: taken as larva")
     } else if (identical(pr$stage_used[i], "copepod_adult (assumed)")) {
-      pr$note[i] <- append_note(pr$note[i], "life stage not given: taken as adult")
+      pr$note[i] <- append_note(pr$note[i], paste(
+        "life stage not given: taken as adult (too high if the count includes copepodites)"))
     }
   }
   list(pred = pr, missing_keys = missing_keys)

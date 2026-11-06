@@ -36,6 +36,12 @@ missing_var <- function(m, level) {
   sum(vapply(lv[seq_along(lv) > match(level, lv)], function(l) comp(m, l), numeric(1)))
 }
 
+test_that("the conversion models have no effect of source", {
+  expect_false(any(ref$conversion_components$level == "source"))
+  expect_false(any(grepl("source", ref$conversion_models$context, fixed = TRUE)))
+  expect_true(any(ref$conversion_models$context == "habitat"))
+})
+
 test_that("a factor conversion adds the path and the variances of its model (hand calculation)", {
   cv <- suppressWarnings(convert_currency(est, to = "carbon"))
   e1 <- as.data.frame(cv)
@@ -44,9 +50,9 @@ test_that("a factor conversion adds the path and the variances of its model (han
     i <- row_of(id)
     j <- conv_node(m, id)
     n <- ref$conversion_nodes[j, ]
-    # Without habitat: its variance is added, and that of a new source.
-    v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat") +
-      comp(m, "source")
+    # Without habitat: its variance is added (the conversion models have no
+    # effect of source).
+    v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat")
     expect_equal(log(e1$ind_median[i]) - log(e0$ind_median[i]), n$path_intercept, tolerance = 1e-12)
     expect_equal(tau2_of(e1, i) - tau2_of(e0, i), v_f, tolerance = 1e-10)
     expect_equal(e1$unit[i], "mg")
@@ -61,8 +67,7 @@ test_that("an inverse conversion changes the sign of the factor, not its varianc
   m <- "invertebrate wet_mass_to_dry_mass"
   i <- row_of("t10")
   n <- ref$conversion_nodes[conv_node(m, "t10"), ]
-  v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat") +
-    comp(m, "source")
+  v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat")
   expect_equal(log(e1$ind_median[i]) - log(e0$ind_median[i]), -n$path_intercept, tolerance = 1e-12)
   expect_equal(tau2_of(e1, i) - tau2_of(e0, i), v_f, tolerance = 1e-10)
   expect_match(e1$conversion[i], "^dry_mass->wet_mass: inverse of invertebrate wet_mass_to_dry_mass")
@@ -216,11 +221,11 @@ test_that("amphibians go to dry mass and energy with the values of frogs and toa
   expect_true(all(grepl("; conversion$", e1$uncertainty[amph])))
   expect_true("usepa1993" %in% cite_sources(dm)$source_id)
   # Energy: wet mass (g) * 1e6 ug/g * 0.15 * 4.6 kcal/g * 4.184e-3 J/ug per kcal/g,
-  # 69.3 kJ for a mean wet mass of 24.0 g.
+  # 70.1 kJ for a mean wet mass of 24.3 g.
   en <- suppressWarnings(convert_currency(est, to = "energy"))
   j <- as.data.frame(en)
   expect_equal(j$ind_mean[amph], e0$ind_mean[amph] * 1e6 * 0.15 * 4.6 * 4.184e-3)
-  expect_equal(j$ind_mean[amph[1]] / 1000, 69.3, tolerance = 1e-3)
+  expect_equal(j$ind_mean[amph[1]] / 1000, 70.1, tolerance = 1e-3)
   expect_equal(tau2_of(j, amph) - tau2_of(e0, amph), rep(v + ve, 2L))
   expect_true(all(j$unit[amph] == "J"))
   expect_match(j$conversion[amph[1]], paste0(
@@ -434,8 +439,7 @@ test_that("energy is the mass in ug times the energy density of the taxon (hand 
   for (id in c("t10", "t13", "t08")) {
     i <- row_of(id)
     n <- ref$conversion_nodes[conv_node(m, id), ]
-    v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat") +
-      comp(m, "source")
+    v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat")
     # ln E (J) = ln M (mg) + ln(1000 ug/mg) + ln f (J/ug)
     expect_equal(log(e1$ind_median[i]), log(e0$ind_median[i]) + log(1000) + n$path_intercept,
                  tolerance = 1e-12)

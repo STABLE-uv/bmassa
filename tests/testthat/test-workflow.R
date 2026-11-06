@@ -1,4 +1,4 @@
-# The flow of dev/ejemplos_uso.R (also in the README and the vignette).
+# The flow of dev/usage_examples.R (also in the README and the vignette).
 
 test_that("taxa and lengths -> coverage -> estimates -> carbon -> totals -> sources", {
   ab <- example_survey$abundance

@@ -10,10 +10,10 @@
 #   conversion_fit_log.md      what was fitted, and diagnostics
 # A model per pair of currencies and domain: y = ln of the factor (a mass ratio,
 # or J/ug for energy); a fixed intercept; random intercepts of each nested
-# taxonomic level that splits the data, of habitat (freshwater, marine,
-# transitional) when two or more habitats have 10 or more factors, and of
-# source when there are two or more sources. The functions are those of
-# fit_models.R. Pairs with fewer than 30 factors or fewer than 5 species nodes
+# taxonomic level that splits the data and of habitat (freshwater, marine,
+# transitional) when two or more habitats have 10 or more factors. No effect
+# of source (decision of 2026-11-06; see fit_one()). The functions are those
+# of fit_models.R. Pairs with fewer than 30 factors or fewer than 5 species nodes
 # are not fitted. model_data.R uses these tables to convert the wet masses of
 # Hrycik et al. (2024) and the dry masses with shell of the CADSES molluscs; the
 # package uses them in convert_currency().
@@ -129,6 +129,17 @@ say("")
 fit_one <- function(x) {
   levels <- split_levels(x)
   opt <- model_options(x, "typical")
+  # No random effect of source (decision of 2026-11-06). The models have two
+  # to four sources, one of which (Brey et al. 2010, a compilation of many
+  # studies whose differences are part of the residual) holds most of the
+  # factors: too few to estimate a variance between sources. It was estimated
+  # as 0 in 8 of the 13 models with two or more sources; in the others it put
+  # the species of the larger source below their own factors (0.94 times in
+  # dry mass to AFDM, 0.95 in wet to dry mass) and, in wet mass with shell to
+  # dry mass, those of Hrycik et al. (2024) at 0.78 times theirs (0.90
+  # without it), with the same coverage in cross-validation and intervals as
+  # wide or wider (dev/validation/source_effect_conversions.md).
+  opt$source <- FALSE
   x <- model_frame(x, "typical", levels)
   warn <- character(0)
   fit <- withCallingHandlers(fit_model(x, "typical", levels, opt),
@@ -174,10 +185,10 @@ for (m in sort(fit_these)) {
   fac <- exp(1.96 * sqrt(pop + c(below[-1], 0)))
   ctx <- tabs$nodes[tabs$nodes$level == "habitat", ]
   energy_model <- sub("^[a-z]+ ", "", m) %in% energy_pairs
-  say("- **%s**: %d factors of %d species nodes (%s); levels %s%s%s; median %s %.3g; SD (ln): %s; 95 %% factor (x/÷) for a new population by the lowest level known: %s%s%s%s.",
+  say("- **%s**: %d factors of %d species nodes (%s); levels %s%s; median %s %.3g; SD (ln): %s; 95 %% factor (x/÷) for a new population by the lowest level known: %s%s%s%s.",
       m, nrow(x), length(unique(node_path(x, "species"))),
       paste(sprintf("%s %d", names(table(x$source_id)), as.integer(table(x$source_id))), collapse = ", "),
-      paste(levels, collapse = ", "), if (opt$source) "; plus source" else "",
+      paste(levels, collapse = ", "),
       if (length(opt$context)) paste0("; plus ", paste(opt$context, collapse = ", ")) else "",
       if (energy_model) "(J/mg)" else "factor",
       exp(stats::median(x$y)) * if (energy_model) 1000 else 1,

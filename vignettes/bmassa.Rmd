@@ -175,11 +175,14 @@ Some decisions behind those rows, which you can change through the data:
 
 - Fish without lengths are estimated as whole populations: the model is
   fitted to the mean mass of the populations of an electrofishing survey of
-  Iberian streams (Arranz et al. 2022) and of the catch of a river fishery
-  (Koning et al. 2024), all sizes together, so its intervals are wide; a mean
-  length gives a much closer estimate. A fish of an order absent from those
-  data takes the mean of all of them, and a fish given a life stage or a sex
-  is not estimated without a length.
+  Iberian streams (Arranz et al. 2022), of the catch of a river fishery
+  (Koning et al. 2024) and of the samplings of streams and lakes of the
+  United States (NEON 2026), all sizes together, so its intervals are wide; a
+  mean length gives a much closer estimate. Most of these fish are small and
+  caught by electrofishing, so populations of large adults are
+  underestimated. A fish of an order absent from those data takes the mean of
+  its class, and a fish given a life stage or a sex is not estimated without
+  a length.
 - Phytoplankton counted in natural units (colonies, filaments) takes the
   natural units of the reference, which in colonial genera are often single
   cells or small groups of their sources, not whole colonies (a note says
@@ -196,9 +199,12 @@ Some decisions behind those rows, which you can change through the data:
   (assumed)"`); give `life_stage = "adult"` (or `"pupa"`) in `taxa` otherwise.
 - Copepods without a stage are taken as adults (`stage_used =
   "copepod_adult (assumed)"`); copepodites and nauplii (`life_stage =
-  "copepodite"` or `"nauplius"`) are about 2.7 and 33 times lighter, with
+  "copepodite"` or `"nauplius"`) are about 3 and 60 times lighter, with
   fixed contrasts estimated from few records of nauplii, hence their wide
-  intervals. A copepod given as `"juvenile"` is not estimated.
+  intervals. A count of a species that includes its copepodites is
+  therefore overestimated without a stage (1.4 to 3.6 times for the
+  copepods of Tuesday Lake): give the copepodites as rows of their own. A
+  copepod given as `"juvenile"` is not estimated.
 - Amphibians without lengths are estimated only when declared adults.
 - A length outside the range of the reference relations of the taxon and
   its relatives is not estimated unless `extrapolate = TRUE`.
@@ -386,20 +392,28 @@ nodes and variance components, the conversion models and the sources.
 The models were fitted outside the package with lme4 (REML), one per domain
 and kind of data: masses without lengths with nested random intercepts by
 taxonomic level, crossed with the source (except in invertebrates, whose
-sources measure different groups of taxa by different methods, so that each
-taxon keeps the level of the sources that measured it); length-mass
-relations with random
+sources measure different groups of taxa by different methods, and in fish,
+whose sources come from different regions and share few species, so that
+each taxon keeps the level of the sources that measured it), and in fish with
+a random intercept of population for the populations sampled many times
+(NEON); length-mass relations with random
 intercepts and slopes by taxonomic level within each type of length, from
-three points of each equation inside its range of lengths, with effects of
-equation and study; conversion factors with nested random intercepts and
-crossed effects of habitat and source. The package keeps, for each node of
+three points of each equation inside its range of lengths, with an effect of
+equation (in invertebrates, the fit has no effect of study, so that each
+species keeps the level of its own equations, and the variance between
+studies of a second fit with that effect is the part of a new study, shared
+by all the rows in the totals: in cross-validation, the equations of a study
+left out deviate together); conversion factors with nested random
+intercepts and a crossed effect of habitat, without an effect of source (two
+to four sources per model, most of the factors from the data bank of Brey et
+al. 2010, which compiles many studies). The package keeps, for each node of
 each model, the estimate of its path from the root and its conditional
 variance (and its covariance with the path of its parent, which the
 simulation of totals needs), and predicts with base R.
 
-In cross-validation (scripts in `dev/validacion/` of the source repository),
-the 95 % intervals covered 93-97 % of new populations of species in the
-reference and 91-97 % of species left out, in the eight models. The median
+In cross-validation (scripts in `dev/validation/` of the source repository),
+the 95 % intervals covered 92-97 % of new populations of species in the
+reference and 94-97 % of species left out, in the eight models. The median
 width of the interval for a new population of a species of the reference
 was:
 
@@ -407,10 +421,10 @@ was:
 |---|---|
 | Fish, length-mass | 1.2 |
 | Amphibians, length-mass | 1.8 |
-| Invertebrates, length-mass | 3.7 |
-| Amphibians, adult masses | 6.4 |
-| Fish, mean mass of populations without lengths | 8.9 |
-| Invertebrates, dry mass without lengths | 14 |
+| Invertebrates, length-mass | 3.3 |
+| Amphibians, adult masses | 6.6 |
+| Fish, mean mass of populations without lengths | 8.1 |
+| Invertebrates, dry mass without lengths | 13 |
 | Phytoplankton, cell biovolume | 20 |
 | Phytoplankton, natural-unit biovolume | 38 |
 
@@ -469,6 +483,9 @@ taxon or its relatives.
 - Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
   dinoflagellates, diatoms, and other protist plankton. *Limnology and
   Oceanography* 45, 569-579.
+- NEON (National Ecological Observatory Network) (2026). Fish
+  electrofishing, gill netting, and fyke netting counts (DP1.20107.001),
+  RELEASE-2026. <https://doi.org/10.48443/s1e6-df79>
 - Oliver RL, Kinnear AJ, Ganf GG (1981). Measurements of cell density of three
   freshwater phytoplankters by density gradient centrifugation. *Limnology and
   Oceanography* 26, 285-294.
