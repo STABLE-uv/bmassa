@@ -8,6 +8,9 @@ estimate_biomass(
   abundance,
   taxa,
   lengths = NULL,
+  currency = "wet_mass",
+  unit = NULL,
+  habitat = NULL,
   bias_correction,
   level = 0.95,
   extrapolate = FALSE,
@@ -24,10 +27,16 @@ with it, a site is sampled on several dates, and each site and date is
 a sample.
 \item \code{taxon_id}: key of the taxon unit in \code{taxa}.
 \item \code{abundance} (numeric, >= 0 or \code{NA}): counting units per \code{per}.
-\item \code{per} (character): unit of area or volume of the abundance, e.g.
-\code{"L"}, \code{"mL"}, \code{"m2"} or \code{"100 m2"}; the biomass is given per this
-unit. To add up groups sampled per volume and per area, put them on one
-basis first with \code{\link[=convert_abundance]{convert_abundance()}}.
+\item \code{per} (character): what the abundance refers to, the size of the
+sample: a volume or an area, with or without a number before the unit
+(\code{"mL"}, \code{"L"}, \code{"m3"}, \code{"cm2"}, \code{"m2"}, \code{"ha"}), or \code{"site"} for counts
+of a whole site. Write what was sampled: the individuals in a trap of
+30 x 10 cm are per \code{"300 cm2"}, those of two such traps counted
+together per \code{"600 cm2"}, those in 10 L of filtered water per
+\code{"10 L"}, a density per litre per \code{"L"}. The biomass is given per this
+basis. To add up groups sampled differently, or to get the totals of a
+site from the share of it that was sampled, put them on one basis
+first with \code{\link[=convert_abundance]{convert_abundance()}}.
 Other columns (treatment, habitat...) are kept. The life stage, the sex
 and the counting unit belong to the taxon unit, in \code{taxa}.
 }}
@@ -51,21 +60,46 @@ counted) for phytoplankton, where it is required; \code{"individual"} or
 \item \code{cells_per_unit} (>= 1): for phytoplankton counted in natural units,
 the mean number of cells of a unit, where it was counted; the unit is
 then estimated as that many cells (see Details). \code{NA} otherwise.
-\item \code{length_mean} (> 0), \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and
-\code{length_type} (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"},
-\code{"fork_length"}, \code{"total_length"}, \code{"standard_length"} or
-\code{"snout_vent_length"}), with \code{length_sd} or \code{length_cv} (spread of the
-lengths): the mean length of the unit in all the samples; \code{NA} where
-it was not measured.
 Other columns, such as \code{scientific_name}, are kept, and
-\code{scientific_name} is added to the result.
+\code{scientific_name} is added to the result. Mean lengths in \code{taxa}
+(\code{length_mean}, \code{length_unit}, \code{length_type}, \code{length_sd}, \code{length_cv})
+are deprecated: they are still used, after any row of \code{lengths}, with a
+warning; give them in \code{lengths}.
 }}
 
-\item{lengths}{\code{NULL} (default) or a data frame of mean lengths measured
-in particular samples, which take precedence over those of \code{taxa}:
-\code{taxon_id}, \code{site}, \code{date} (optional; \code{NA} applies to all the dates of
-the site), \code{length_mean}, \code{length_unit}, \code{length_type} and, optionally,
-\code{length_sd} or \code{length_cv}, as in \code{taxa}.}
+\item{lengths}{\code{NULL} (default) or a data frame with the lengths of the
+taxon units, one row per mean length or per measured length:
+\itemize{
+\item \code{taxon_id}: key of the taxon unit in \code{taxa}.
+\item \code{site} and \code{date} (optional): where the lengths apply. A row without
+\code{site} applies to all the samples of the unit, one with \code{site} and
+without \code{date} to all the dates of that site, and one with both to that
+sample. For each sample the most specific lengths are used.
+\item Either \code{length_mean} (> 0), the mean length of the unit, the usual case,
+with its spread in \code{length_sd} or \code{length_cv} when known; or \code{length}
+(> 0), the length of measured individuals, with \code{n} (default 1) the
+number of individuals of that length: one row per individual, or per
+length class with its count. A unit and sample have one or the other.
+\item \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and \code{length_type}
+(\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"}, \code{"fork_length"},
+\code{"total_length"}, \code{"standard_length"} or \code{"snout_vent_length"}), one
+type per unit and sample.
+}}
+
+\item{currency}{Currency of all the rows of the result: \code{"wet_mass"}
+(default; the only one that all the groups reach), \code{"dry_mass"},
+\code{"afdm"}, \code{"carbon"} or \code{"energy"}. Rows that cannot be converted to it
+(phytoplankton to dry mass or AFDM, amphibians to AFDM or carbon,
+phytoplankton counted in natural units without \code{cells_per_unit} to carbon
+or energy) are not estimated, with the reason. See \code{\link[=convert_currency]{convert_currency()}}.}
+
+\item{unit}{\code{NULL} (default: mg for masses, J for energy) or the unit of
+all the rows: \code{"pg"}, \code{"ng"}, \code{"ug"}, \code{"mg"} or \code{"g"} for masses;
+\code{"mJ"}, \code{"J"}, \code{"kJ"} or \code{"MJ"} for energy.}
+
+\item{habitat}{\code{NULL} (default: unknown) or the habitat of the organisms,
+\code{"freshwater"}, \code{"marine"} or \code{"transitional"}, for the conversion models
+that have a habitat effect (see \code{\link[=convert_currency]{convert_currency()}}).}
 
 \item{bias_correction}{Back-transformation of the length-mass relations,
 required when lengths are used: \code{"none"} (the relation gives the median
@@ -105,14 +139,18 @@ estimated); \code{"non_insect"} for the other invertebrates; \code{"adult"} for
 amphibians; \code{NA} otherwise (and for estimates from lengths, whose
 relations have no stage effect; the lengths of copepod nauplii use
 relations of their own).
-\item \code{length_mm}, \code{length_type} (the length used: from \code{lengths} for that
-sample or, if none, from \code{taxa}), \code{length_status} (\code{"within"} the
-lengths of the reference relations used, \code{"outside"}, or \code{NA}).
+\item \code{length_mm}, \code{length_type}, \code{length_basis} and \code{length_n}: the length
+used (mm), its type, whether it is a mean length (\code{"mean"}) or comes
+from measured individuals (\code{"individuals"}: then \code{length_mm} is the
+length of their mean mass and \code{length_n} their number), and
+\code{length_status} (\code{"within"} the lengths of the reference relations
+used, \code{"outside"}, or \code{NA}).
 \item \code{match_level}, \code{match_name}: the node of the reference the estimate
 comes from (the lowest taxonomic level shared with the reference), and
 \code{n_reference} (records or equations below it) and \code{sources}.
-\item \code{currency} (\code{"biovolume"}, \code{"dry_mass"}, \code{"wet_mass"}) and \code{unit}
-(\code{"um3"}, \code{"mg"}, \code{"g"}).
+\item \code{currency} and \code{unit}, the same in all the rows, and, for the rows
+whose models are in another currency, \code{converted_from}, \code{conversion}
+(the factors used) and \code{conversion_sources}, as in \code{\link[=convert_currency]{convert_currency()}}.
 \item \code{ind_mean}, \code{ind_median}, \code{ind_lower}, \code{ind_upper}: mean, median and
 prediction interval of the mean individual mass of a population of the
 taxon, in \code{unit}.
@@ -135,10 +173,12 @@ individual mass of a population of its taxon (mean, median and prediction
 interval) and the biomass, from hierarchical models fitted to the
 reference data of the package: phytoplankton biovolume, dry mass of
 invertebrates (without shell in molluscs) and wet mass of fish and
-amphibians. With a mean length of the taxon it uses the length-mass
-models; otherwise, the models of mass without lengths. A taxon absent from
-the reference is predicted from its closest relatives, and the interval
-widens accordingly.
+amphibians. With lengths of the taxon it uses the length-mass models;
+otherwise, the models of mass without lengths. A taxon absent from the
+reference is predicted from its closest relatives, and the interval widens
+accordingly. All the rows are given in one currency and unit (\code{currency},
+wet mass in mg by default), converted with the uncertainty of the factors
+as in \code{\link[=convert_currency]{convert_currency()}}.
 }
 \details{
 \strong{Model.} For a taxon matched to node \eqn{j} of the reference, the log of
@@ -213,11 +253,22 @@ same name at the same rank (homonyms: the one whose higher ranks agree most
 with the taxon). A taxon that matches no node is not estimated. With a length, the node used is the lowest one whose
 reference relations cover that length.
 
-\strong{Mean length.} If \eqn{L} is a mean length and the spread of lengths is
+\strong{Lengths.} If \eqn{L} is a mean length and the spread of lengths is
 given, the mean mass is multiplied by \eqn{(1 + CV^2)^{\beta(\beta-1)/2}}{(1 + CV^2)^(beta (beta - 1)/2)}
 (lognormal lengths; \code{corrections = "jensen"}); without the spread the mean
 mass is underestimated (by 29 \% with \eqn{\beta = 3}{beta = 3} and CV = 0.3),
-which is noted.
+which is noted. With the lengths \eqn{L_i} of \eqn{n_i} measured
+individuals, the mean mass is the mean of their masses, which under the
+relation is that at the length
+\eqn{L_* = (\sum n_i L_i^\beta / \sum n_i)^{1/\beta}}{L* = (sum n_i L_i^beta / sum n_i)^(1/beta)}
+(\code{length_mm}), with the uncertainty of the relation at that length; the
+node used is the lowest one whose relations cover all their lengths.
+
+\strong{Currency.} The models give phytoplankton biovolume, dry mass of
+invertebrates and wet mass of fish and amphibians; every row is then
+converted to \code{currency} and \code{unit} as \code{\link[=convert_currency]{convert_currency()}} does, so that
+all the rows can be added up and compared. Biovolume goes to wet mass with
+the density of water (1 mm\out{<sup>3</sup>} = 1 mg).
 }
 \section{Missing values and zeros}{
 

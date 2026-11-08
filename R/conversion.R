@@ -42,7 +42,10 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'
 #' `convert_currency()` expresses the mean individual mass and the biomass of
 #' each row of an estimate in another currency: wet mass, dry mass, ash-free
-#' dry mass (AFDM), carbon or energy. Invertebrates and fish are converted with
+#' dry mass (AFDM), carbon or energy. [estimate_biomass()] already gives all
+#' its rows in one currency (`currency`, wet mass by default) with these
+#' conversions; `convert_currency()` changes it afterwards, starting again
+#' from the currency of the models. Invertebrates and fish are converted with
 #' hierarchical models of the conversion factors fitted to the data of Brey et
 #' al. (2010), Hrycik et al. (2024), Coughlan et al. (2021), Cummins and
 #' Wuycheck (1971), Evans-White et al. (2005) and the CADSES data sets: a
@@ -66,12 +69,10 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'   `"freshwater"`, `"marine"` or `"transitional"`. Several conversion models
 #'   have a habitat effect: if it is unknown its variance is added to the
 #'   uncertainty; if it is given its estimate is used.
-#' @param unit `NULL` (default: mg for invertebrates, g for fish, pg per
-#'   counting unit for the wet mass and carbon of phytoplankton and J for
-#'   energy) or a unit for all the
-#'   rows in `to`: for masses `"pg"`, `"ng"`, `"ug"`, `"mg"` or `"g"`; for
-#'   energy `"mJ"`, `"J"`, `"kJ"` or `"MJ"`. A common unit is needed to
-#'   compare or add up groups (with the same `per`).
+#' @param unit `NULL` (default: mg for masses, J for energy) or the unit of
+#'   all the rows in `to`: for masses `"pg"`, `"ng"`, `"ug"`, `"mg"` or
+#'   `"g"`; for energy `"mJ"`, `"J"`, `"kJ"` or `"MJ"`. All the rows share it,
+#'   so groups can be compared and added up (with the same `per`).
 #' @param ... Not used; an error if anything is given.
 #'
 #' @return An object of the same class
@@ -284,6 +285,7 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'   `conversion_nodes`) and the carbon equations.
 #' @export
 #' @examples
+#' # Wet mass in mg, the default of estimate_biomass()
 #' est <- estimate_biomass(example_survey$abundance, example_survey$taxa,
 #'                         example_survey$lengths, bias_correction = "lognormal")
 #' carbon <- convert_currency(est, to = "carbon", unit = "ug")
@@ -296,8 +298,9 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' head(as.data.frame(energy)[, c("site", "taxon_id", "converted_from", "ind_median",
 #'                                "ind_lower", "ind_upper", "unit", "status")])
 #'
-#' # Wet mass in mg; phytoplankton at the density of water (1 mm3/L = 1 mg/L)
-#' wet <- convert_currency(est, to = "wet_mass", unit = "mg")
+#' # Back to wet mass, in g; phytoplankton at the density of water
+#' # (1 mm3/L = 1 mg/L)
+#' wet <- convert_currency(carbon, to = "wet_mass", unit = "g")
 #' head(as.data.frame(wet)[, c("site", "taxon_id", "converted_from", "ind_median",
 #'                             "unit", "conversion")])
 convert_currency <- function(data, ...) {
@@ -315,11 +318,38 @@ convert_currency.default <- function(data, ...) {
 #' @export
 convert_currency.bmassa_estimate <- function(data, to, habitat = NULL, unit = NULL, ...) {
   check_dots_empty(...)
-  check_choice(to, conversion_targets)
-  if (!is.null(habitat)) check_choice(habitat, habitat_levels)
-  if (!is.null(unit)) {
-    check_choice(unit, names(if (identical(to, "energy")) energy_unit_J else mass_unit_g))
+  check_conversion_args(to, habitat, unit)
+  data <- convert_estimate(data, to, habitat, unit)
+  n_failed <- attr(data, "n_failed")
+  attr(data, "n_failed") <- NULL
+  if (n_failed > 0L) {
+    warn_not_estimable(sprintf(
+      "%d of %d rows could not be converted to %s; see the `reason` column of the result.",
+      n_failed, nrow(data$estimates), to))
   }
+  data
+}
+
+check_conversion_args <- function(to, habitat, unit, to_arg = "to", call = sys.call(-1)) {
+  check_choice(to, conversion_targets, arg = to_arg, call = call)
+  if (!is.null(habitat)) check_choice(habitat, habitat_levels, arg = "habitat", call = call)
+  if (!is.null(unit)) {
+    check_choice(unit, names(if (identical(to, "energy")) energy_unit_J else mass_unit_g),
+                 arg = "unit", call = call)
+  }
+  invisible(TRUE)
+}
+
+# Default unit of a currency (version 0.5.0): one unit for all the rows, mg
+# for masses and J for energy.
+default_unit <- function(to) {
+  if (identical(to, "energy")) "J" else "mg"
+}
+
+# The conversion itself, from the native estimates; the number of rows that
+# could not be converted is attribute "n_failed" of the result.
+convert_estimate <- function(data, to, habitat, unit) {
+  if (is.null(unit)) unit <- default_unit(to)
   native <- if (is.null(data$native)) data$estimates else data$native
   plan <- plan_conversions(native, data$simulation, data$reference, to, habitat, unit)
   out <- apply_conversions(native, plan, to, data$settings$level)
@@ -333,11 +363,7 @@ convert_currency.bmassa_estimate <- function(data, to, habitat = NULL, unit = NU
                                                     ifelse(is.na(out$ind_median), "no estimate",
                                                            "already in the currency"),
                                                     "converted"))), stringsAsFactors = FALSE)
-  if (any(failed)) {
-    warn_not_estimable(sprintf(
-      "%d of %d rows could not be converted to %s; see the `reason` column of the result.",
-      sum(failed), nrow(out), to))
-  }
+  attr(data, "n_failed") <- sum(failed)
   data
 }
 

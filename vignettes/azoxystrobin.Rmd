@@ -1,0 +1,563 @@
+---
+title: "From raw counts to the effect of a fungicide on biomass"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{From raw counts to the effect of a fungicide on biomass}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(width = 90, digits = 3)
+has_glmmtmb <- requireNamespace("glmmTMB", quietly = TRUE)
+```
+
+```{r setup}
+library(bmassa)
+```
+
+This vignette goes through a real data set from the files of the experiment
+to a statistical test: it puts the counts in the tables of *bmassa*, estimates
+the biomass of every sample, and tests the effect of a fungicide on it with
+a generalized linear mixed model.
+
+The data are those of Amador et al. (2024): 24 outdoor mesocosms of 1230 L
+(140 cm in diameter, 80 cm of water) with the communities of two habitats of
+the Albufera Natural Park (Valencia, Spain), a eutrophic lake and a water
+spring, exposed to the fungicide azoxystrobin (controls and 2, 20 and 200
+µg/L, applied twice 14 days apart; three mesocosms each). Phytoplankton,
+zooplankton and macroinvertebrates were sampled 7 days before the first
+application and 7, 21, 35 and 56 days after it. The package ships the raw
+files, under a CC BY 4.0 licence: please cite the article when you use
+them.
+
+## The raw files
+
+Four files: the design of the experiment and one table per community, as
+the counts were entered, one row per sample and one column per taxon.
+
+```{r files}
+path <- function(file) system.file("extdata", "azoxystrobin", file, package = "bmassa")
+design <- read.csv(path("design.csv"))
+phyto <- read.csv(path("phytoplankton.csv"), check.names = FALSE)
+zoo <- read.csv(path("zooplankton.csv"), check.names = FALSE)
+macro <- read.csv(path("macroinvertebrates.csv"), check.names = FALSE)
+head(design, 4)
+phyto[1:3, 1:7]
+c(phytoplankton = ncol(phyto), zooplankton = ncol(zoo), macroinvertebrates = ncol(macro)) - 3
+```
+
+The phytoplankton are cells per litre and the zooplankton individuals per
+litre; the macroinvertebrates are the individuals caught in the two traps
+(30 × 10 cm each) of each mesocosm and date. The treatment is `W` for the
+eutrophic lake and `S` for the water spring.
+
+## One row per sample and taxon
+
+*bmassa* needs one row per sample and taxon. The tables have no identifier of
+the mesocosm: within a day, a treatment and a concentration, the three rows
+are the three replicates, always in the same order. `to_long()` stacks the
+columns of taxa and numbers the replicates, and the design gives the tank:
+
+```{r long}
+to_long <- function(d, broad_group) {
+  taxa_cols <- setdiff(names(d), c("Day", "Treatment", "Concentration"))
+  replicate <- stats::ave(seq_len(nrow(d)), d$Day, d$Treatment, d$Concentration, FUN = seq_along)
+  k <- length(taxa_cols)
+  data.frame(day = rep(d$Day, k), treatment = rep(d$Treatment, k),
+             concentration = rep(d$Concentration, k), replicate = rep(replicate, k),
+             broad_group = broad_group, raw_name = rep(taxa_cols, each = nrow(d)),
+             abundance = unlist(d[taxa_cols], use.names = FALSE))
+}
+long <- rbind(to_long(phyto, "phytoplankton"), to_long(zoo, "zooplankton"),
+              to_long(macro, "macroinvertebrate"))
+tank <- match(paste(long$treatment, long$concentration, long$replicate),
+              paste(design$treatment, design$concentration_ug_L, design$replicate))
+long$tank <- design$tank[tank]
+long$habitat <- design$habitat[tank]
+nrow(long)
+head(long[long$abundance > 0, ], 3)
+```
+
+## Taxon units
+
+Each column is a taxon unit. Its label is turned into a scientific name and,
+where the label says so, a life stage: qualifiers such as "sp", "spp." and
+"(lineal)" go, misspellings are corrected, and the larvae and adults of the
+water beetles become units with their stage. The nauplii are copepods in
+that stage; the water mites (Hydracarina) belong to the order
+Trombidiformes, and the small coccal algae are taken as green algae
+(Chlorophyta), which overestimates the biovolume of cells under 5 µm.
+
+```{r units}
+units <- unique(long[c("broad_group", "raw_name")])
+rownames(units) <- NULL
+units$taxon_id <- gsub("^_+|_+$", "", gsub("[^a-z0-9]+", "_", tolower(units$raw_name)))
+nm <- units$raw_name
+units$life_stage <- ifelse(grepl("\\(adult\\)$", nm), "adult",
+                    ifelse(grepl("larva", nm), "larva",
+                    ifelse(grepl(" pupa$", nm), "pupa",
+                    ifelse(nm == "Nauplii", "nauplius", NA_character_))))
+nm <- sub(" \\(adult\\)$| larvae$| \\(small larva\\)$| pupa$| \\(lineal\\)$", "", nm)
+nm <- sub("(_| )spp?\\.?( [0-9]+)?( \\(small\\))?$", "", nm)
+fixes <- c(Dyctiosphaerium = "Dictyosphaerium", Ankystrodesmus = "Ankistrodesmus",
+           Chroccoccus = "Chroococcus", Pseudonitzschia = "Pseudo-nitzschia",
+           "Coccal < 5 um" = "Chlorophyta", Chidorus = "Chydorus", Leidigia = "Leydigia",
+           Ciclopoida = "Cyclopoida", Nauplii = "Copepoda",
+           "Brachionus havanensis" = "Brachionus havanaensis",
+           Orthocladineae = "Orthocladiinae", "Physella Acuta" = "Physella acuta",
+           Hydracarina = "Trombidiformes")
+fix <- nm %in% names(fixes)
+nm[fix] <- fixes[nm[fix]]
+units$scientific_name <- nm
+changed <- units$scientific_name != units$raw_name | !is.na(units$life_stage)
+units[changed, c("raw_name", "scientific_name", "life_stage")][1:12, ]
+```
+
+Three labels are left out: *Vorticella*, a ciliate counted both in the
+phytoplankton and in the zooplankton; "Coccal colony", which names no taxon;
+and *Pleurogyra*, which is not in the Catalogue of Life and has no
+classification to estimate it from.
+
+```{r drop}
+left_out <- c("Vorticella", "Coccal colony", "Pleurogyra")
+units <- units[!units$raw_name %in% left_out, ]
+nrow(units)
+```
+
+## Classification
+
+`standardize_taxa()` gives each name the classification of the Catalogue of
+Life (COL XR), which the models use. A first run reported in `note` that
+*Anisoptera*, the dragonflies, is also a genus of bush crickets (which it
+took), and that the COL XR has no *Cyclopoida*, *Calanoida* or *Hirudinea*.
+The order of the dragonflies tells the homonyms apart, and the
+classification given is kept for the names that are not found:
+
+```{r hints}
+hints <- data.frame(
+  raw_name = c("Zygoptera", "Anisoptera", "Ciclopoida", "Calanoida", "Hirudinea"),
+  phylum = c("Arthropoda", "Arthropoda", "Arthropoda", "Arthropoda", "Annelida"),
+  class = c("Insecta", "Insecta", "Copepoda", "Copepoda", "Clitellata"),
+  order = c("Odonata", "Odonata", "Cyclopoida", "Calanoida", NA))
+k <- match(units$raw_name, hints$raw_name)
+for (col in c("phylum", "class", "order")) units[[col]] <- hints[[col]][k]
+```
+
+`standardize_taxa()` needs internet, so the vignette reads its result, kept
+with the data (run on 2026-11-07):
+
+```{r standardize, eval = FALSE}
+taxa <- standardize_taxa(units[c("taxon_id", "broad_group", "scientific_name", "phylum",
+                                 "class", "order")])
+```
+
+```{r standardize-stored}
+taxa <- read.csv(path("taxa.csv"), colClasses = "character")
+unique(stats::na.omit(taxa$col_release))
+taxa[!is.na(taxa$note), c("scientific_name", "col_name", "family", "note")][1:5, ]
+```
+
+```{r check-stored, include = FALSE}
+# The stored classification is that of these units.
+stopifnot(identical(taxa$taxon_id, units$taxon_id),
+          identical(taxa$scientific_name, units$scientific_name))
+```
+
+The rest of the notes are homonyms in other groups (*Cosmarium* is also a
+genus of plants). The stages and the counting units complete the table of
+taxa:
+
+```{r taxa}
+taxa$life_stage <- units$life_stage
+taxa$count_unit <- ifelse(taxa$broad_group == "phytoplankton", "cell", "individual")
+```
+
+`check_coverage()` shows from which level of the reference each unit will
+be estimated, and how wide its interval will be (the factor by which the
+median is divided and multiplied for the 95 % interval of a new population):
+
+```{r coverage}
+check_coverage(taxa)
+```
+
+There are no lengths, so the intervals are those of typical masses: about
+×/÷ 12-23 for a genus or a family, and wider for the units known only at a
+higher rank, such as the ostracods, the nauplii and the shrimp *Dugastella
+valentina*, from their class. The copepods without a stage are taken as
+adults (see below).
+
+## Sampling effort and a common basis
+
+The abundance table has one row per sample and taxon: the tank as `site`,
+the day as `date`, and in `per` what each abundance refers to, that is, how
+much was sampled. The plankton are densities per litre (`"L"`). The
+macroinvertebrates were counted in two traps of 30 × 10 cm per mesocosm and
+date, so their `per` is the area of the two traps, `"600 cm2"`. A zero is a
+taxon looked for and not found, and its biomass is zero. The habitat and the
+concentration go along with the rows.
+
+```{r abundance}
+keep <- long$raw_name %in% units$raw_name
+ab <- data.frame(site = long$tank, date = long$day,
+                 taxon_id = units$taxon_id[match(paste(long$broad_group, long$raw_name),
+                                                 paste(units$broad_group, units$raw_name))],
+                 abundance = long$abundance,
+                 per = ifelse(long$broad_group == "macroinvertebrate", "600 cm2", "L"),
+                 habitat = long$habitat, concentration = long$concentration)[keep, ]
+head(ab, 3)
+```
+
+Densities per litre and per pair of traps cannot be compared or added up.
+Given the size of each mesocosm, `convert_abundance()` takes them all to the
+whole mesocosm (`"site"`): the two traps are 3.9 % of the bottom of a tank
+and a litre 0.081 % of its water, and `per_assumption` says so; the density
+of the sample is taken as that of the whole tank.
+
+```{r basis}
+tanks <- data.frame(site = design$tank, area = design$area_m2, area_unit = "m2",
+                    volume = design$volume_L, volume_unit = "L")
+ab_tank <- convert_abundance(ab, to = "site", sites = tanks)
+unique(ab_tank[c("per_original", "per", "per_factor", "per_assumption")])
+```
+
+## Biomass
+
+All the estimates come in wet mass (mg) by default, here per mesocosm:
+
+```{r estimate}
+est <- estimate_biomass(ab_tank, taxa)
+est
+```
+
+The biomass of each community in each sample, by simulation: the taxa
+estimated from the same node of the reference share their errors, and so do
+the samples of a taxon (`population_effect = "shared"`), whose population is
+the same in all the mesocosms.
+
+```{r totals}
+tot <- summarize_biomass(est, by = c("site", "date", "broad_group", "habitat", "concentration"),
+                         seed = 1)
+tot[1:3, c("site", "date", "broad_group", "biomass_unit", "biomass_median", "biomass_lower",
+           "biomass_upper")]
+```
+
+A few taxa make most of the biomass of each community (shares of the biomass
+of the samples after the first application, with the median mass of each
+taxon):
+
+```{r composition}
+e <- as.data.frame(est)
+after <- e[e$date > 0, ]
+after$b <- after$abundance * after$ind_median
+share <- stats::aggregate(b ~ broad_group + habitat + taxon_id, data = after, FUN = sum)
+share$share <- stats::ave(share$b, share$broad_group, share$habitat, FUN = function(x) x / sum(x))
+share <- share[order(share$broad_group, share$habitat, -share$share), ]
+do.call(rbind, lapply(split(share, list(share$broad_group, share$habitat)), head, 3))[
+  , c("broad_group", "habitat", "taxon_id", "share")]
+```
+
+```{r plot-biomass, fig.width = 7, fig.height = 4, fig.alt = "Zooplankton biomass per mesocosm (log scale) against the azoxystrobin concentration, in the two habitats, after the first application: lower biomass at the highest concentrations, above all in the eutrophic lake"}
+z <- tot[tot$broad_group == "zooplankton" & tot$date > 0, ]
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (h in c("eutrophic_lake", "water_spring")) {
+  s <- z[z$habitat == h, ]
+  x <- match(s$concentration, c(0, 2, 20, 200)) + (match(s$date, c(7, 21, 35, 56)) - 2.5) / 10
+  plot(x, s$biomass_median / 1000, log = "y", xaxt = "n", pch = 19,
+       col = match(s$date, c(7, 21, 35, 56)), xlab = "Azoxystrobin (µg/L)",
+       ylab = "Zooplankton (g per mesocosm)", main = gsub("_", " ", h),
+       ylim = range(z$biomass_median / 1000))
+  axis(1, at = 1:4, labels = c(0, 2, 20, 200))
+}
+legend("bottomleft", paste("day", c(7, 21, 35, 56)), col = 1:4, pch = 19, bty = "n", cex = 0.8)
+par(op)
+```
+
+## Effect of azoxystrobin on biomass
+
+A generalized linear mixed model for each community, with the samples after
+the first application: Gamma errors with a log link (biomasses are positive
+and their variance grows with the mean), the habitat and the day as fixed
+effects with their interaction, a slope of the log concentration
+(log10(C + 1)) in each habitat, and the tank as a random effect for its
+repeated samples. The R package *glmmTMB* (Brooks et al. 2017) fits it.
+`contrasts()` takes the slope in each habitat and their difference, and
+`as_ratios()` turns them into ratios: the biomass at a tenfold higher
+concentration (of C + 1) relative to that at the lower one, with a 95 %
+confidence interval and the p-value of no effect (a ratio of 1). The row
+`spring vs lake` is the ratio of the two effects: it tests whether the
+habitat changes the effect.
+
+```{r glmm, eval = has_glmmtmb}
+d <- tot[tot$date > 0, ]
+d$day <- factor(d$date)
+d$log_conc <- log10(d$concentration + 1)
+glmm <- function(data, y) {
+  data$y <- y
+  glmmTMB::glmmTMB(y ~ habitat * day + habitat:log_conc + (1 | site),
+                   family = Gamma(link = "log"), data = data)
+}
+contrasts <- function(fit) {
+  b <- glmmTMB::fixef(fit)$cond
+  v <- stats::vcov(fit)$cond
+  k <- c("habitateutrophic_lake:log_conc", "habitatwater_spring:log_conc")
+  w <- rbind(eutrophic_lake = c(1, 0), water_spring = c(0, 1), `spring vs lake` = c(-1, 1))
+  data.frame(term = rownames(w), estimate = drop(w %*% b[k]),
+             variance = diag(w %*% v[k, k] %*% t(w)), row.names = NULL)
+}
+as_ratios <- function(x) {
+  se <- sqrt(x$variance)
+  data.frame(term = x$term, ratio = exp(x$estimate), lower = exp(x$estimate - 1.96 * se),
+             upper = exp(x$estimate + 1.96 * se), p = 2 * stats::pnorm(-abs(x$estimate / se)))
+}
+communities <- c("phytoplankton", "zooplankton", "macroinvertebrate")
+by_community <- function(f) {
+  do.call(rbind, lapply(communities, function(g) cbind(community = g, f(g))))
+}
+point <- by_community(function(g) {
+  dg <- d[d$broad_group == g, ]
+  as_ratios(contrasts(glmm(dg, dg$biomass_median)))
+})
+point
+```
+
+## The uncertainty of the masses
+
+The model above takes the biomass of each sample as known, but it comes from
+masses with wide intervals. When the fungicide changes the composition of a
+community, its effect on the total biomass depends on how heavy the taxa
+that change are, which is uncertain. `simulate()` gives joint draws of the
+masses: refitting the model to the biomasses of each draw and pooling the
+fits with Rubin's rules (the variance of the pooled estimate adds the mean
+variance within fits and the variance between them) carries that
+uncertainty into the effects. With 30 draws:
+
+```{r draws, eval = has_glmmtmb}
+n_draws <- 30
+sim <- simulate(est, nsim = n_draws, seed = 1)
+draws <- rowsum(e$abundance * sim$ind_mass, paste(e$site, e$date, e$broad_group))
+pooled <- by_community(function(g) {
+  dg <- d[d$broad_group == g, ]
+  bg <- draws[paste(dg$site, dg$date, dg$broad_group), ]
+  fits <- lapply(seq_len(n_draws), function(k) contrasts(glmm(dg, bg[, k])))
+  m <- sapply(fits, `[[`, "estimate")
+  v <- sapply(fits, `[[`, "variance")
+  as_ratios(data.frame(term = fits[[1]]$term, estimate = rowMeans(m),
+                       variance = rowMeans(v) + (1 + 1 / n_draws) * apply(m, 1, stats::var)))
+})
+pooled
+```
+
+## Numbers and mean mass
+
+The biomass is the number of individuals times their mean mass. The numbers
+are counts, not estimates, and the mean mass of the individuals, from
+`summarize_size()`, is exact without lengths (the biomass divided by the
+individuals; the median and the size classes would be approximations, since
+every individual has the mean mass of its taxon). Each taxon keeps its mass,
+so a change of the mean mass is a change of composition, towards lighter or
+heavier taxa.
+
+```{r numbers, eval = has_glmmtmb}
+sz <- summarize_size(est, by = c("site", "date", "broad_group", "habitat", "concentration"),
+                     seed = 1)
+s <- as.data.frame(sz)
+s <- s[s$date > 0, ]
+s <- s[match(paste(d$site, d$date, d$broad_group), paste(s$site, s$date, s$broad_group)), ]
+numbers <- by_community(function(g) {
+  k <- d$broad_group == g
+  as_ratios(contrasts(glmm(d[k, ], s$abundance[k])))
+})
+mean_mass <- by_community(function(g) {
+  k <- d$broad_group == g
+  as_ratios(contrasts(glmm(d[k, ], s$mean_size[k])))
+})
+numbers
+mean_mass[mean_mass$term != "spring vs lake", ]
+```
+
+The snail *Physella acuta* makes more than 80 % of the biomass of the
+macroinvertebrates. Its biomass and that of the other macroinvertebrates,
+with the median mass of each taxon:
+
+```{r snail, eval = has_glmmtmb}
+mi <- after[after$broad_group == "macroinvertebrate", ]
+mi$part <- ifelse(mi$taxon_id == "physella_acuta", "Physella acuta", "other taxa")
+parts <- stats::aggregate(b ~ site + date + part, data = mi, FUN = sum)
+dm <- d[d$broad_group == "macroinvertebrate", ]
+snail <- do.call(rbind, lapply(c("Physella acuta", "other taxa"), function(p) {
+  bp <- parts[parts$part == p, ]
+  cbind(part = p, as_ratios(contrasts(glmm(dm, bp$b[match(paste(dm$site, dm$date),
+                                                             paste(bp$site, bp$date))]))))
+}))
+snail[snail$term != "spring vs lake", ]
+```
+
+## Copepods: adults or copepodites?
+
+The cyclopoid and calanoid copepods were counted without their stage, and
+*bmassa* takes them as adults. If the counts include copepodites, their
+mass, and that of the zooplankton, is overestimated. Taken as copepodites
+instead:
+
+```{r copepodites, eval = has_glmmtmb}
+taxa_cop <- taxa
+taxa_cop$life_stage[taxa_cop$order %in% c("Cyclopoida", "Calanoida")] <- "copepodite"
+est_cop <- estimate_biomass(ab_tank, taxa_cop)
+e_cop <- as.data.frame(est_cop)
+first <- match(c("ciclopoida", "calanoida"), e$taxon_id)
+data.frame(taxon_id = e$taxon_id[first], adult_mg = e$ind_median[first],
+           copepodite_mg = e_cop$ind_median[first])
+tot_cop <- summarize_biomass(est_cop, by = c("site", "date", "broad_group", "habitat",
+                                             "concentration"), seed = 1)
+zc <- tot_cop[tot_cop$date > 0 & tot_cop$broad_group == "zooplankton", ]
+zc <- zc[match(paste(d$site, d$date)[d$broad_group == "zooplankton"],
+               paste(zc$site, zc$date)), ]
+stats::median(zc$biomass_median / d$biomass_median[d$broad_group == "zooplankton"])
+copepodites <- cbind(community = "zooplankton",
+                     as_ratios(contrasts(glmm(d[d$broad_group == "zooplankton", ],
+                                              zc$biomass_median))))
+copepodites
+```
+
+## Discussion
+
+```{r discussion-helpers, include = FALSE}
+# Ratios and intervals for the text (the tables need glmmTMB).
+rc <- function(tab, community, term, col = "community") {
+  if (!has_glmmtmb) return("(needs *glmmTMB*)")
+  r <- tab[tab[[col]] == community & tab$term == term, ]
+  sprintf("%.2f [%.2f-%.2f]", r$ratio, r$lower, r$upper)
+}
+loss <- function(tab, community, term, steps = log10(201)) {
+  if (!has_glmmtmb) return("?")
+  r <- tab[tab$community == community & tab$term == term, ]
+  round(100 * (1 - r$ratio^steps))
+}
+p_range <- function(tab) {
+  if (!has_glmmtmb) return("?")
+  p <- tab$p[tab$term != "spring vs lake" & tab$ratio < 1]
+  sprintf("%.2f to %.2f", min(p), max(p))
+}
+cop_ratio <- if (has_glmmtmb) {
+  zc$biomass_median / d$biomass_median[d$broad_group == "zooplankton"]
+} else NA
+cop_median <- round(100 * (1 - stats::median(cop_ratio)))
+cop_max <- round(100 * (1 - min(cop_ratio)))
+```
+
+What can be concluded from these models about the effects of azoxystrobin on
+the biomass of the three communities, and about the role of the habitat?
+
+**Direction and size of the effects.** In the three communities and in both
+habitats, the biomass was lower at higher concentrations. Per tenfold
+increase of the concentration, it fell to a ratio (with its 95 % interval)
+of
+`r rc(point, "phytoplankton", "eutrophic_lake")` in the phytoplankton of the
+eutrophic lake, `r rc(point, "zooplankton", "eutrophic_lake")` and
+`r rc(point, "zooplankton", "water_spring")` in the zooplankton of the lake
+and of the spring, and `r rc(point, "macroinvertebrate", "eutrophic_lake")`
+and `r rc(point, "macroinvertebrate", "water_spring")` in the
+macroinvertebrates. From the controls to 200 µg/L, 2.3 tenfold steps, the
+macroinvertebrates would lose about
+`r loss(point, "macroinvertebrate", "eutrophic_lake")` % of their biomass
+and the zooplankton of the lake about
+`r loss(point, "zooplankton", "eutrophic_lake")` %. Only the phytoplankton
+of the water spring showed no clear decline.
+
+**How certain.** These intervals take the biomass of each sample as known.
+Once the uncertainty of the masses is carried into the model, the intervals
+widen and all of them include 1 (p from `r p_range(pooled)`): the
+masses come from typical values of each taxon, not from measurements in
+these mesocosms, and the fungicide changed the composition of the
+communities, so how much biomass was lost depends on how heavy the taxa that
+declined are. The numbers of individuals do not depend on the masses, and
+they confirm the declines of the macroinvertebrates in both habitats
+(`r rc(numbers, "macroinvertebrate", "eutrophic_lake")` and
+`r rc(numbers, "macroinvertebrate", "water_spring")`) and of the zooplankton
+and the phytoplankton of the lake
+(`r rc(numbers, "zooplankton", "eutrophic_lake")` and
+`r rc(numbers, "phytoplankton", "eutrophic_lake")`). The evidence is
+therefore firm for the losses of individuals and consistent, but imprecise,
+for the losses of biomass. Measuring the lengths of the few animals that
+make most of the biomass, the snail *Physella acuta* and the cyclopoid
+copepods, would narrow the intervals most.
+
+**The habitat.** The habitat did not change the size of the effects on
+biomass detectably: the ratios of the effect in the spring to that in the
+lake are close to 1, with wide intervals, in the three communities
+(`r rc(point, "phytoplankton", "spring vs lake")`,
+`r rc(point, "zooplankton", "spring vs lake")` and
+`r rc(point, "macroinvertebrate", "spring vs lake")`). It did change how
+the zooplankton lost its biomass. In the lake it lost individuals, with the
+same mean mass; in the spring the number of individuals did not change
+(ratio of the effects on numbers, spring to lake,
+`r rc(numbers, "zooplankton", "spring vs lake")`), but their mean mass fell
+(`r rc(mean_mass, "zooplankton", "water_spring")`): the zooplankton of the
+spring turned towards lighter taxa, and its biomass fell with them. In the
+macroinvertebrates, the snail and the other taxa did not respond alike in
+each habitat: in the lake the other taxa declined clearly
+(`r rc(snail, "other taxa", "eutrophic_lake", "part")`) and the snail less
+(`r rc(snail, "Physella acuta", "eutrophic_lake", "part")`); in the spring
+the snail declined clearly
+(`r rc(snail, "Physella acuta", "water_spring", "part")`) and the other
+taxa less (`r rc(snail, "other taxa", "water_spring", "part")`). A similar
+loss of biomass can thus hide different changes in each habitat.
+
+**Composition and biomass.** Amador et al. (2024) analysed the composition of
+the communities and found the most sensitive taxa in the water spring: there
+the zooplankton changed at the lowest concentration (community NOEC below 2
+µg/L on days 7 and 35), and the macroinvertebrates mostly through the decline
+of the crustaceans *Echinogammarus* and *Dugastella valentina*. The biomass
+adds another view: the change of the zooplankton of the spring was one of
+composition, without loss of individuals, and the crustaceans that drove the
+change of the macroinvertebrates make little of their biomass, which is
+mostly snails.
+
+**Copepods.** The cyclopoid and calanoid copepods were taken as adults, so
+the zooplankton biomass may be overestimated if the counts include
+copepodites: were all of them copepodites, the biomass of a sample would be
+lower by a median of `r cop_median` %, and by up to `r cop_max` % where
+copepods dominate. The effect of azoxystrobin does not depend on this
+assumption (`r rc(copepodites, "zooplankton", "eutrophic_lake")` and
+`r rc(copepodites, "zooplankton", "water_spring")` with copepodites): it
+changes how much zooplankton there is, not how it responded.
+
+**Other assumptions.** The macroinvertebrates of each sample come from two
+traps of 30 × 10 cm, and their biomass per mesocosm takes the density of the
+traps for the whole bottom; this sets the level of the biomass, not the
+effects, since all the mesocosms are the same size. The effect of the
+concentration is taken as log-linear and constant from day 7 to day 56.
+
+In short, azoxystrobin reduced the number of individuals of the
+macroinvertebrates in both habitats and of the zooplankton and the
+phytoplankton in the eutrophic lake, with losses of biomass in the same
+direction but uncertain in size while the masses come from typical values.
+The habitat did not change the size of the effects on biomass detectably,
+but it changed their form: the zooplankton of the lake lost individuals and
+that of the spring turned towards lighter taxa.
+
+## What to cite
+
+The data: Amador et al. (2024). The sources of the masses and of the
+conversion factors used:
+
+```{r sources}
+cite_sources(est)[, c("source_id", "n_rows")]
+```
+
+## References
+
+- Amador P, Vega C, Navarro Pacheco NI, Moratalla-López J, Palacios J,
+  Crettaz Minaglia MC, López I, Díaz M, Rico A (2024). Effects of the
+  fungicide azoxystrobin in two habitats representative of Mediterranean
+  coastal wetlands: a mesocosm experiment. *Aquatic Toxicology* 267, 106828.
+  <https://doi.org/10.1016/j.aquatox.2023.106828>
+- Brooks ME, Kristensen K, van Benthem KJ, Magnusson A, Berg CW, Nielsen A,
+  Skaug HJ, Mächler M, Bolker BM (2017). *glmmTMB* balances speed and
+  flexibility among packages for zero-inflated generalized linear mixed
+  modeling. *The R Journal* 9(2), 378-400.
+  <https://doi.org/10.32614/RJ-2017-066>
+- Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*. Wiley,
+  New York.

@@ -3,10 +3,10 @@
     Code
       print(cv)
     Output
-      <bmassa_estimate> 40 rows: 35 estimated (11 from lengths, 24 without lengths), 5 not estimated
+      <bmassa_estimate> 40 rows: 35 estimated (12 from lengths, 23 without lengths), 5 not estimated
       Lowest level shared with the reference: species 25, genus 6, family 4
       Interval: prediction 95 %, for the mean individual mass of a population; bias_correction = "lognormal"
-      Converted to carbon (ug): 36 rows; habitat unknown
+      Currency: carbon (ug); 36 rows converted from the currency of their models; habitat unknown
       Not estimated:
           1  abundance is missing
           2  amphibian larvae and juveniles have no reference masses without lengths
@@ -18,10 +18,10 @@
     Code
       print(en)
     Output
-      <bmassa_estimate> 40 rows: 37 estimated (13 from lengths, 24 without lengths), 3 not estimated
+      <bmassa_estimate> 40 rows: 37 estimated (14 from lengths, 23 without lengths), 3 not estimated
       Lowest level shared with the reference: species 27, genus 6, family 4
       Interval: prediction 95 %, for the mean individual mass of a population; bias_correction = "lognormal"
-      Converted to energy (J): 38 rows; habitat unknown
+      Currency: energy (J); 38 rows converted from the currency of their models; habitat unknown
       Not estimated:
           1  abundance is missing
           2  amphibian larvae and juveniles have no reference masses without lengths

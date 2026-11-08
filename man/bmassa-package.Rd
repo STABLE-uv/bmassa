@@ -4,7 +4,7 @@
 \name{bmassa-package}
 \alias{bmassa}
 \alias{bmassa-package}
-\title{bmassa: Biomass of Aquatic Taxa from Abundances and Body Sizes}
+\title{\emph{bmassa}: Biomass of Aquatic Taxa from Abundances and Body Sizes}
 \description{
 Estimates the mean individual mass and the biomass of aquatic taxa
 (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians) from
@@ -21,11 +21,15 @@ estimated, and how wide its interval will be.
 \item \code{\link[=convert_abundance]{convert_abundance()}}: the abundances on one basis (per volume, per area
 or per site), so that the biomasses of all the groups can be added up.
 \item \code{\link[=estimate_biomass]{estimate_biomass()}}: mean individual mass of a population of each taxon
-and biomass of each row, from the taxon units (with their stages, sexes,
-counting units and mean lengths) and their abundances by site and date.
+and biomass of each row, from the taxon units (with their stages, sexes
+and counting units), their abundances by site and date and their lengths,
+in one currency (wet mass by default).
 \item \code{\link[=convert_currency]{convert_currency()}}: the estimates in wet mass, dry mass, ash-free dry
 mass, carbon or energy, with the uncertainty of the conversion factors.
 \item \code{\link[=summarize_biomass]{summarize_biomass()}}: totals by site or group with prediction intervals.
+\item \code{\link[=summarize_size]{summarize_size()}}: size structure by site or group: mean and median
+size of the individuals and shares of individuals and biomass by size
+class.
 \item \link[=simulate.bmassa_estimate]{simulate()}: joint draws of the mass and the
 biomass of every row, for models that use them (such as the energy fluxes
 of a food web).

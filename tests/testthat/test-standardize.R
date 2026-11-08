@@ -5,7 +5,7 @@ skip_if_not_installed("curl")
 
 test_that("each kind of name gets its COL XR taxon (recorded answers)", {
   fx <- local_colxr_answers()
-  expect_warning(s <- standardize_taxa(fx$names, quiet = TRUE), "2 of 18 names were not found",
+  expect_warning(s <- standardize_taxa(fx$names, quiet = TRUE), "2 of 19 names were not found",
                  class = "bmassa_warning_not_estimable")
   row <- function(name) s[s$scientific_name == name, ]
   # Exact species.
@@ -39,6 +39,11 @@ test_that("each kind of name gets its COL XR taxon (recorded answers)", {
   expect_equal(c(o$col_rank, o$class), c("subclass", "Clitellata"))
   expect_true(is.na(o$order))
   expect_equal(row("Chironomidae")$col_rank, "family")
+  # A subfamily (its ending says so), not the placeholder genus of the same name
+  # that the COL XR also has.
+  oc <- row("Orthocladiinae")
+  expect_equal(unlist(oc[c("col_rank", "family")], use.names = FALSE), c("subfamily", "Chironomidae"))
+  expect_true(is.na(oc$genus))
   expect_match(row("Gammarus pulex larvae")$note, "life-stage words removed")
   expect_equal(row("Gammarus pulex larvae")$species, "Gammarus pulex")
   # Phytoplankton outside Animalia (a cyanobacterium in Bacillati).
@@ -80,11 +85,9 @@ test_that("its result goes into check_coverage() and estimate_biomass()", {
   fx <- local_colxr_answers()
   s <- suppressWarnings(standardize_taxa(fx$names, quiet = TRUE))
   ok <- s[s$match_type != "none", ]
-  ok$length_mean <- ifelse(ok$taxon_id %in% c("x01", "x02", "x03"),
-                           c(x01 = 6, x02 = 5, x03 = 12)[ok$taxon_id], NA)
-  ok$length_unit <- ifelse(is.na(ok$length_mean), NA, "mm")
-  ok$length_type <- ifelse(is.na(ok$length_mean), NA, "body_length")
-  cov <- as.data.frame(check_coverage(ok))
+  ln <- data.frame(taxon_id = c("x01", "x02", "x03"), length_mean = c(6, 5, 12), length_unit = "mm",
+                   length_type = "body_length")
+  cov <- as.data.frame(check_coverage(ok, ln))
   expect_true(all(cov$taxon_id %in% ok$taxon_id))
   by_length <- cov[cov$method == "length", ]
   # The synonym Ephemerella ignita is found as Serratella ignita.
@@ -96,16 +99,16 @@ test_that("col_id finds the node of the reference even under another name", {
   tx <- data.frame(taxon_id = "a", broad_group = "macroinvertebrate", kingdom = "Animalia",
                    phylum = "Arthropoda", class = "Insecta", order = "Diptera",
                    family = "Chironomidae", genus = "Chironomus",
-                   species = "Chironomus plumosa", col_id = "8BGDB", length_mean = 12,
-                   length_unit = "mm", length_type = "body_length")
-  cov <- as.data.frame(check_coverage(tx))
+                   species = "Chironomus plumosa", col_id = "8BGDB")
+  ln <- data.frame(taxon_id = "a", length_mean = 12, length_unit = "mm", length_type = "body_length")
+  cov <- as.data.frame(check_coverage(tx, ln))
   cov <- cov[cov$method == "length", ]
   expect_equal(cov$match_level, "species")
   expect_equal(cov$match_name, "Chironomus plumosus")
   expect_match(cov$note, "matched by col_id")
   # Without col_id the misspelt species is not found, and the genus is used.
   tx$col_id <- NA_character_
-  cov <- as.data.frame(check_coverage(tx))
+  cov <- as.data.frame(check_coverage(tx, ln))
   expect_equal(cov$match_level[cov$method == "length"], "genus")
 })
 

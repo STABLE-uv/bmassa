@@ -17,14 +17,10 @@ chiro <- taxon("c1", "macroinvertebrate",
 trout <- taxon("f1", "fish",
                c(kingdom = "Animalia", phylum = "Chordata", class = "Teleostei",
                  order = "Salmoniformes", family = "Salmonidae", genus = "Salmo", species = "Salmo trutta"))
-# A taxon unit with its mean length.
-with_length <- function(tx, mean, unit, type, ...) {
-  tx$length_mean <- mean
-  tx$length_unit <- unit
-  tx$length_type <- type
-  extra <- list(...)
-  for (k in names(extra)) tx[[k]] <- extra[[k]]
-  tx
+# The mean length of a taxon unit in all its samples, as a table of lengths.
+len <- function(tx, mean, unit, type, ...) {
+  data.frame(taxon_id = tx$taxon_id, length_mean = mean, length_unit = unit, length_type = type,
+             ..., stringsAsFactors = FALSE)
 }
 comp <- function(m, l, p) {
   v <- ref$components$value[ref$components$model == m & ref$components$level == l &
@@ -34,7 +30,7 @@ comp <- function(m, l, p) {
 
 test_that("a species matched in the reference is predicted from its path (hand calculation)", {
   ab <- data.frame(site = "s", taxon_id = "w1", abundance = 10, per = "m2")
-  e <- as.data.frame(estimate_biomass(ab, limno))
+  e <- as.data.frame(estimate_biomass(ab, limno, currency = "dry_mass"))
   m <- "invertebrate_individual"
   nd <- ref$nodes[ref$nodes$model == m & ref$nodes$level == "species" &
                     ref$nodes$node == "Limnodrilus hoffmeisteri", ]
@@ -54,8 +50,8 @@ test_that("a species matched in the reference is predicted from its path (hand c
 
 test_that("a species missing from the reference adds the variance of its level at its length", {
   ab <- data.frame(site = "s", taxon_id = "c1", abundance = 1, per = "m2")
-  e <- as.data.frame(estimate_biomass(ab, with_length(chiro, 10, "mm", "body_length"),
-                                      bias_correction = "none"))
+  e <- as.data.frame(estimate_biomass(ab, chiro, len(chiro, 10, "mm", "body_length"),
+                                      currency = "dry_mass", bias_correction = "none"))
   m <- "invertebrate_lwr"
   nd <- ref$nodes[ref$nodes$model == m & ref$nodes$level == "genus" & ref$nodes$node == "Chironomus", ]
   lt <- ref$lwr_types[ref$lwr_types$model == m & ref$lwr_types$length_type == "body_length", ]
@@ -77,8 +73,8 @@ test_that("a published equation lies inside the interval (Salmo trutta, Arranz e
   # ln W = -11.46273 + 3.021065 ln FL (g, mm; data-raw/derived/lwr_fitted.csv,
   # arranz2022_fit_0267, 1461 fish): 94.1 g at 200 mm.
   ab <- data.frame(site = "s", taxon_id = "f1", abundance = 1, per = "100 m2")
-  e <- as.data.frame(estimate_biomass(ab, with_length(trout, 200, "mm", "fork_length"),
-                                      bias_correction = "none"))
+  e <- as.data.frame(estimate_biomass(ab, trout, len(trout, 200, "mm", "fork_length"),
+                                      unit = "g", bias_correction = "none"))
   w <- exp(-11.46273 + 3.021065 * log(200))
   expect_equal(w, 94.1, tolerance = 0.001)
   expect_true(e$ind_lower < w && w < e$ind_upper)
@@ -87,11 +83,12 @@ test_that("a published equation lies inside the interval (Salmo trutta, Arranz e
 
 test_that("the corrections for mean lengths follow their formulas", {
   ab <- data.frame(site = "s", taxon_id = "c1", abundance = 1, per = "m2")
-  tx0 <- with_length(chiro, 10, "mm", "body_length")
-  tx1 <- transform(tx0, length_cv = 0.3)
-  e0 <- as.data.frame(estimate_biomass(ab, tx0, bias_correction = "none"))
-  e1 <- as.data.frame(estimate_biomass(ab, tx1, bias_correction = "none"))
-  e2 <- as.data.frame(estimate_biomass(ab, tx1, bias_correction = "lognormal"))
+  ln0 <- len(chiro, 10, "mm", "body_length")
+  ln1 <- transform(ln0, length_cv = 0.3)
+  e0 <- as.data.frame(estimate_biomass(ab, chiro, ln0, currency = "dry_mass", bias_correction = "none"))
+  e1 <- as.data.frame(estimate_biomass(ab, chiro, ln1, currency = "dry_mass", bias_correction = "none"))
+  e2 <- as.data.frame(estimate_biomass(ab, chiro, ln1, currency = "dry_mass",
+                                       bias_correction = "lognormal"))
   nd <- ref$nodes[ref$nodes$model == "invertebrate_lwr" & ref$nodes$node == "Chironomus", ]
   b <- nd$path_slope
   # Lognormal lengths: E[L^b] / E[L]^b = (1 + CV^2)^(b (b - 1) / 2); with b = 3
@@ -103,20 +100,21 @@ test_that("the corrections for mean lengths follow their formulas", {
   expect_equal(e2$ind_median / e1$ind_median, exp(s^2 / 2))
   expect_equal(e1$corrections, "jensen")
   expect_equal(e2$corrections, "jensen; lognormal")
-  expect_equal(transform(tx1, length_cv = NULL, length_sd = 3)$length_sd / 10, 0.3)
-  e3 <- as.data.frame(estimate_biomass(ab, transform(tx0, length_sd = 3), bias_correction = "none"))
+  expect_equal(transform(ln1, length_cv = NULL, length_sd = 3)$length_sd / 10, 0.3)
+  e3 <- as.data.frame(estimate_biomass(ab, chiro, transform(ln0, length_sd = 3), currency = "dry_mass",
+                                       bias_correction = "none"))
   expect_equal(e3$ind_median, e1$ind_median)
 })
 
 test_that("units: the same length in mm and cm, and abundances scale the biomass", {
   ab <- data.frame(site = "s", taxon_id = "f1", abundance = c(1), per = "m2")
-  tx_mm <- with_length(trout, 150, "mm", "fork_length")
-  tx_cm <- with_length(trout, 15, "cm", "fork_length")
-  a <- as.data.frame(estimate_biomass(ab, tx_mm, bias_correction = "none"))
-  b <- as.data.frame(estimate_biomass(ab, tx_cm, bias_correction = "none"))
+  ln_mm <- len(trout, 150, "mm", "fork_length")
+  ln_cm <- len(trout, 15, "cm", "fork_length")
+  a <- as.data.frame(estimate_biomass(ab, trout, ln_mm, bias_correction = "none"))
+  b <- as.data.frame(estimate_biomass(ab, trout, ln_cm, bias_correction = "none"))
   expect_equal(a$ind_median, b$ind_median)
   ab10 <- transform(ab, abundance = 10)
-  c10 <- as.data.frame(estimate_biomass(ab10, tx_mm, bias_correction = "none"))
+  c10 <- as.data.frame(estimate_biomass(ab10, trout, ln_mm, bias_correction = "none"))
   expect_equal(c10$biomass_mean, 10 * a$biomass_mean)
 })
 
@@ -132,11 +130,11 @@ test_that("zeros and missing abundances", {
 
 test_that("lengths outside the reference move up the tree, or are not estimated", {
   ab <- data.frame(site = "s", taxon_id = "c1", abundance = 1, per = "m2")
-  tiny <- with_length(chiro, 0.02, "mm", "body_length")
-  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, tiny, bias_correction = "none")))
+  tiny <- len(chiro, 0.02, "mm", "body_length")
+  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, chiro, tiny, bias_correction = "none")))
   expect_equal(e$status, "not_estimated")
   expect_match(e$reason, "outside the lengths")
-  e2 <- as.data.frame(estimate_biomass(ab, tiny, bias_correction = "none", extrapolate = TRUE))
+  e2 <- as.data.frame(estimate_biomass(ab, chiro, tiny, bias_correction = "none", extrapolate = TRUE))
   expect_equal(e2$length_status, "outside")
   expect_equal(e2$match_level, "genus")
   ex <- as.data.frame(estimate_biomass(example_survey$abundance[12, ], example_survey$taxa,
@@ -155,7 +153,7 @@ test_that("fish without length: mean mass of a population (hand calculation)", {
                     c(kingdom = "Animalia", phylum = "Chordata", class = "Elasmobranchii",
                       order = "Myliobatiformes", family = "Potamotrygonidae",
                       genus = "Potamotrygon", species = "Potamotrygon motoro"))
-  e <- as.data.frame(estimate_biomass(ab, rbind(trout, smelt, stingray)))
+  e <- as.data.frame(estimate_biomass(ab, rbind(trout, smelt, stingray), unit = "g"))
   expect_equal(e$status, rep("estimated", 3))
   expect_equal(e$method, rep("typical", 3))
   expect_equal(e$unit, rep("g", 3))
@@ -233,7 +231,7 @@ test_that("copepods are taken as adults without a stage, with contrasts for cope
                  transform(cyc, taxon_id = "k4", life_stage = "nauplius"),
                  transform(cyc, taxon_id = "k5", life_stage = "juvenile"))
   ab <- data.frame(site = "s", taxon_id = paste0("k", 1:5), abundance = 1, per = "L")
-  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, units)))
+  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, units, currency = "dry_mass")))
   expect_equal(e$stage_used, c("copepod_adult (assumed)", "copepod_adult", "copepod_copepodite",
                                "copepod_nauplius", NA))
   expect_equal(e$ind_median[1], e$ind_median[2])
@@ -285,12 +283,13 @@ test_that("draws of copepod nauplii have the variance of their prediction", {
 test_that("the body lengths of copepod nauplii use relations of their own", {
   cal <- taxon("n1", "zooplankton",
                c(kingdom = "Animalia", phylum = "Arthropoda", class = "Copepoda", order = "Calanoida"))
-  units <- rbind(with_length(transform(cal, life_stage = "nauplius"), 0.3, "mm", "body_length"),
-                 with_length(transform(cal, taxon_id = "n2", life_stage = "copepodite"), 0.3, "mm",
-                             "body_length"))
+  units <- rbind(transform(cal, life_stage = "nauplius"),
+                 transform(cal, taxon_id = "n2", life_stage = "copepodite"))
+  ln <- data.frame(taxon_id = c("n1", "n2"), length_mean = 0.3, length_unit = "mm",
+                   length_type = "body_length")
   ab <- data.frame(site = "s", taxon_id = c("n1", "n2"), abundance = 1, per = "L")
-  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, units, bias_correction = "none",
-                                                       extrapolate = TRUE)))
+  e <- suppressWarnings(as.data.frame(estimate_biomass(ab, units, ln, currency = "dry_mass",
+                                                       bias_correction = "none", extrapolate = TRUE)))
   expect_equal(e$length_type, c("body_length", "body_length"))
   # Hand calculation from the node of the nauplii.
   m <- "invertebrate_lwr"
@@ -303,7 +302,7 @@ test_that("the body lengths of copepod nauplii use relations of their own", {
   expect_false(isTRUE(all.equal(e$ind_median[1], e$ind_median[2])))
 })
 
-test_that("the lengths of a sample take precedence over those of the unit", {
+test_that("the most specific lengths apply: sample, site, all the samples", {
   ex <- example_survey
   e <- suppressWarnings(as.data.frame(estimate_biomass(ex$abundance, ex$taxa, ex$lengths,
                                                        bias_correction = "none")))
@@ -313,15 +312,101 @@ test_that("the lengths of a sample take precedence over those of the unit", {
   fr <- e[e$taxon_id %in% c("t19", "t20"), ]
   expect_equal(fr$method, c("length", "typical", "length", "typical"))
   expect_equal(fr$life_stage, c("adult", "larva", "adult", "larva"))
-  # A length in the unit, replaced in one site and on one date.
-  tx <- with_length(chiro, 10, "mm", "body_length")
+  # Gammarus measured in L1 only: from its individuals there, without length in L2.
+  gm <- e[e$taxon_id == "t13", ]
+  expect_equal(gm$method, c("length", "typical"))
+  expect_equal(gm$length_basis, c("individuals", NA))
+  expect_equal(gm$length_n, c(12, NA))
+  # A length for all the samples, replaced in one site and on one date.
   ab <- data.frame(site = c("a", "a", "b", "b"), date = c(1, 2, 1, 2), taxon_id = "c1",
                    abundance = 1, per = "m2")
-  ln <- data.frame(taxon_id = "c1", site = c("a", "b"), date = c(NA, 2), length_mean = c(8, 12),
-                   length_unit = "mm", length_type = "body_length")
-  e2 <- as.data.frame(estimate_biomass(ab, tx, ln, bias_correction = "none"))
+  ln <- data.frame(taxon_id = "c1", site = c(NA, "a", "b"), date = c(NA, NA, 2),
+                   length_mean = c(10, 8, 12), length_unit = "mm", length_type = "body_length")
+  e2 <- as.data.frame(estimate_biomass(ab, chiro, ln, bias_correction = "none"))
   expect_equal(e2$length_mm, c(8, 8, 10, 12))
+  expect_equal(e2$length_basis, rep("mean", 4))
   expect_identical(e2$date, ab$date)
+})
+
+test_that("individual lengths give the mean mass of the individuals (hand calculation)", {
+  ab <- data.frame(site = c("a", "b"), taxon_id = "c1", abundance = 5, per = "m2")
+  L <- c(6, 8, 10, 12, 14)
+  n <- c(1, 3, 4, 3, 1)
+  ln <- rbind(data.frame(taxon_id = "c1", site = "a", length = L, n = n, length_unit = "mm",
+                         length_type = "body_length"),
+              # One row per individual gives the same as their counts.
+              data.frame(taxon_id = "c1", site = "b", length = rep(L, n), n = 1, length_unit = "mm",
+                         length_type = "body_length"))
+  e <- as.data.frame(estimate_biomass(ab, chiro, ln, currency = "dry_mass", bias_correction = "none"))
+  expect_equal(e$length_basis, c("individuals", "individuals"))
+  expect_equal(e$length_n, c(12, 12))
+  expect_equal(e$ind_median[1], e$ind_median[2])
+  m <- "invertebrate_lwr"
+  nd <- ref$nodes[ref$nodes$model == m & ref$nodes$level == e$match_level[1] &
+                    ref$nodes$node == e$match_name[1] & ref$nodes$length_type %in% "body_length", ]
+  lt <- ref$lwr_types[ref$lwr_types$model == m & ref$lwr_types$length_type == "body_length", ]
+  b <- nd$path_slope
+  mass <- function(x) exp(nd$path_intercept + b * (log(x) - lt$centre))
+  # The mean of the masses of the individuals is the mass at the length of
+  # their mean mass, which the estimate uses.
+  expect_equal(e$ind_median[1], sum(n * mass(L)) / sum(n))
+  expect_equal(e$length_mm[1], (sum(n * L^b) / sum(n))^(1 / b))
+  xc <- log(e$length_mm[1]) - lt$centre
+  v <- nd$path_var + 2 * xc * nd$path_cov + xc^2 * nd$path_var_slope +
+    comp(m, "species", "intercept") + 2 * xc * comp(m, "species", "intercept_slope") +
+    xc^2 * comp(m, "species", "slope") + comp(m, "residual", "intercept") +
+    comp(m, "equation", "intercept") + comp(m, "study", "intercept")
+  expect_equal(e$ind_upper[1], exp(log(e$ind_median[1]) + stats::qnorm(0.975) * sqrt(v)))
+  expect_true(is.na(e$corrections[1]))
+  expect_match(e$note[1], "mean mass of 12 individuals measured \\(6-14 mm\\)")
+  # Individuals beyond the range of the node move it up, as a mean length.
+  wide <- transform(ln[ln$site == "a", ], length = c(0.02, 8, 10, 12, 14))
+  e2 <- suppressWarnings(as.data.frame(estimate_biomass(ab[1, ], chiro, wide, bias_correction = "none")))
+  expect_equal(e2$status, "not_estimated")
+  expect_match(e2$reason, "lengths of individuals 0.02-14 mm outside")
+})
+
+test_that("lengths in taxa are deprecated but still used, after those of lengths", {
+  ab <- data.frame(site = c("a", "b"), taxon_id = "c1", abundance = 1, per = "m2")
+  old <- transform(chiro, length_mean = 10, length_unit = "mm", length_type = "body_length")
+  expect_warning(e_old <- estimate_biomass(ab, old, bias_correction = "none"),
+                 class = "bmassa_warning_deprecated")
+  e_new <- estimate_biomass(ab, chiro, len(chiro, 10, "mm", "body_length"), bias_correction = "none")
+  expect_equal(as.data.frame(e_old)$ind_median, as.data.frame(e_new)$ind_median)
+  ln <- data.frame(taxon_id = "c1", site = "b", length_mean = 8, length_unit = "mm",
+                   length_type = "body_length")
+  e2 <- suppressWarnings(as.data.frame(estimate_biomass(ab, old, ln, bias_correction = "none")))
+  expect_equal(e2$length_mm, c(10, 8))
+})
+
+test_that("all the rows come out in one currency and unit", {
+  ex <- example_survey
+  e <- suppressWarnings(as.data.frame(estimate_biomass(ex$abundance, ex$taxa, ex$lengths,
+                                                       bias_correction = "lognormal")))
+  ok <- e$status == "estimated"
+  expect_equal(unique(e$currency[ok]), "wet_mass")
+  expect_equal(unique(e$unit[ok]), "mg")
+  expect_true(all(is.na(e$converted_from[ok & e$broad_group == "fish"])))
+  expect_true(all(e$converted_from[ok & e$broad_group == "phytoplankton"] == "biovolume"))
+  # Phytoplankton biovolume at the density of water: 1 um3 = 1 pg = 1e-9 mg.
+  pg <- suppressWarnings(as.data.frame(estimate_biomass(ex$abundance, ex$taxa, ex$lengths,
+                                                        unit = "pg", bias_correction = "lognormal")))
+  phy <- e$broad_group == "phytoplankton" & ok
+  expect_equal(pg$ind_median[phy], 1e9 * e$ind_median[phy])
+  # Dry mass: phytoplankton cannot be converted, and says why.
+  expect_warning(d <- as.data.frame(estimate_biomass(ex$abundance, ex$taxa, ex$lengths,
+                                                     currency = "dry_mass", bias_correction = "lognormal")),
+                 class = "bmassa_warning_not_estimable")
+  expect_true(all(d$status[d$broad_group == "phytoplankton"] == "not_estimated"))
+  expect_match(d$reason[d$broad_group == "phytoplankton"][1], "no conversion from biovolume to dry mass")
+  expect_equal(unique(d$unit[d$status == "estimated"]), "mg")
+  # convert_currency() starts again from the currency of the models.
+  est <- suppressWarnings(estimate_biomass(ex$abundance, ex$taxa, ex$lengths, bias_correction = "none"))
+  back <- suppressWarnings(as.data.frame(convert_currency(convert_currency(est, to = "carbon"),
+                                                          to = "wet_mass")))
+  expect_equal(back$ind_median, as.data.frame(est)$ind_median)
+  expect_error(estimate_biomass(ex$abundance, ex$taxa, currency = "biovolume"), class = "bmassa_error_input")
+  expect_error(estimate_biomass(ex$abundance, ex$taxa, unit = "kJ"), class = "bmassa_error_input")
 })
 
 test_that("a site sampled on several dates has one row per date", {
@@ -412,25 +497,48 @@ test_that("input errors are classed and informative", {
   expect_error(estimate_biomass(ab, limno, level = 1.5), class = cls)
   phy <- taxon("p1", "phytoplankton", c(kingdom = "Chromista", genus = "Cyclotella"))
   expect_error(estimate_biomass(transform(ab, taxon_id = "p1"), phy), class = cls)
-  limno_l <- with_length(limno, 5, "mm", "body_length")
-  expect_error(estimate_biomass(ab, limno_l), class = cls)
-  expect_error(estimate_biomass(ab, transform(limno_l, length_unit = "inch"), bias_correction = "none"),
+  ln5 <- len(limno, 5, "mm", "body_length")
+  expect_error(estimate_biomass(ab, limno, ln5), class = cls)
+  expect_error(estimate_biomass(ab, limno, transform(ln5, length_unit = "inch"), bias_correction = "none"),
                class = cls)
-  expect_error(estimate_biomass(ab, transform(limno_l, length_sd = 1, length_cv = 0.2),
+  expect_error(estimate_biomass(ab, limno, transform(ln5, length_sd = 1, length_cv = 0.2),
                                 bias_correction = "none"), class = cls)
-  expect_error(estimate_biomass(ab, transform(limno_l, length_unit = NA), bias_correction = "none"),
+  expect_error(estimate_biomass(ab, limno, transform(ln5, length_unit = NA), bias_correction = "none"),
                "length_unit", class = cls)
   expect_error(estimate_biomass(ab, transform(limno, length_unit = "mm"), bias_correction = "none"),
                "length_mean", class = cls)
   ln <- data.frame(taxon_id = "w1", site = "s", length_mean = 5, length_unit = "mm",
                    length_type = "body_length")
-  expect_error(estimate_biomass(ab, limno, ln[, -2], bias_correction = "none"), class = cls)
+  expect_error(estimate_biomass(ab, limno, ln[, c("taxon_id", "site", "length_unit", "length_type")],
+                                bias_correction = "none"), "length_mean", class = cls)
   expect_error(estimate_biomass(ab, limno, transform(ln, date = 1), bias_correction = "none"),
                "date", class = cls)
   expect_error(estimate_biomass(ab, limno, rbind(ln, ln), bias_correction = "none"), class = cls)
+  # Individual lengths: not with a mean, no spread, n only for them, one kind
+  # and one type per sample, and a date needs a site.
+  ind <- data.frame(taxon_id = "w1", site = "s", length = c(4, 6), length_unit = "mm",
+                    length_type = "body_length")
+  expect_error(estimate_biomass(ab, limno, transform(ind, length_mean = 5), bias_correction = "none"),
+               "both", class = cls)
+  expect_error(estimate_biomass(ab, limno, transform(ind, length_sd = 1), bias_correction = "none"),
+               "spread", class = cls)
+  expect_error(estimate_biomass(ab, limno, transform(ln, n = 3), bias_correction = "none"),
+               "`n`", class = cls)
+  expect_error(estimate_biomass(ab, limno, transform(ind, n = 0), bias_correction = "none"),
+               class = cls)
+  mixed <- rbind(transform(ind, length_mean = NA), transform(ln, length = NA)[, c(names(ind), "length_mean")])
+  expect_error(estimate_biomass(ab, limno, mixed, bias_correction = "none"), "one or the other",
+               class = cls)
+  expect_error(estimate_biomass(ab, limno, transform(ind, length_type = c("body_length", "shell_length")),
+                                bias_correction = "none"), "length type", class = cls)
+  ab_d <- transform(ab, date = 1)
+  expect_error(estimate_biomass(ab_d, limno, transform(ind, site = NA, date = 1), bias_correction = "none"),
+               "without `site`", class = cls)
+  expect_error(estimate_biomass(ab, limno, ind[, -3], bias_correction = "none"), "length_mean",
+               class = cls)
   grouped <- structure(ab, class = c("grouped_df", "tbl_df", "tbl", "data.frame"))
   expect_error(estimate_biomass(grouped, limno), class = cls)
-  expect_snapshot(estimate_biomass(ab, limno_l), error = TRUE)
+  expect_snapshot(estimate_biomass(ab, limno, ln5), error = TRUE)
 })
 
 test_that("homonyms are told apart by the higher ranks", {

@@ -41,7 +41,8 @@ copepod_orders <- c("Calanoida", "Cyclopoida", "Harpacticoida", "Siphonostomatoi
 # Columns added by estimate_biomass().
 estimate_biomass_columns <- c(
   "broad_group", "life_stage", "sex", "count_unit", "domain", "method", "model", "stage_used",
-  "length_mm", "length_type", "length_status", "match_level", "match_name", "n_reference", "sources", "currency", "unit",
+  "length_mm", "length_type", "length_basis", "length_n", "length_status", "match_level", "match_name",
+  "n_reference", "sources", "currency", "unit",
   "ind_mean", "ind_median", "ind_lower", "ind_upper", "biomass_mean", "biomass_median",
   "biomass_lower", "biomass_upper", "biomass_unit", "level", "interval", "uncertainty",
   "corrections", "status", "reason", "note"
@@ -54,10 +55,12 @@ estimate_biomass_columns <- c(
 #' interval) and the biomass, from hierarchical models fitted to the
 #' reference data of the package: phytoplankton biovolume, dry mass of
 #' invertebrates (without shell in molluscs) and wet mass of fish and
-#' amphibians. With a mean length of the taxon it uses the length-mass
-#' models; otherwise, the models of mass without lengths. A taxon absent from
-#' the reference is predicted from its closest relatives, and the interval
-#' widens accordingly.
+#' amphibians. With lengths of the taxon it uses the length-mass models;
+#' otherwise, the models of mass without lengths. A taxon absent from the
+#' reference is predicted from its closest relatives, and the interval widens
+#' accordingly. All the rows are given in one currency and unit (`currency`,
+#' wet mass in mg by default), converted with the uncertainty of the factors
+#' as in [convert_currency()].
 #'
 #' @param abundance A data frame with one row per sample and taxon unit, with
 #'   columns:
@@ -67,10 +70,16 @@ estimate_biomass_columns <- c(
 #'     a sample.
 #'   * `taxon_id`: key of the taxon unit in `taxa`.
 #'   * `abundance` (numeric, >= 0 or `NA`): counting units per `per`.
-#'   * `per` (character): unit of area or volume of the abundance, e.g.
-#'     `"L"`, `"mL"`, `"m2"` or `"100 m2"`; the biomass is given per this
-#'     unit. To add up groups sampled per volume and per area, put them on one
-#'     basis first with [convert_abundance()].
+#'   * `per` (character): what the abundance refers to, the size of the
+#'     sample: a volume or an area, with or without a number before the unit
+#'     (`"mL"`, `"L"`, `"m3"`, `"cm2"`, `"m2"`, `"ha"`), or `"site"` for counts
+#'     of a whole site. Write what was sampled: the individuals in a trap of
+#'     30 x 10 cm are per `"300 cm2"`, those of two such traps counted
+#'     together per `"600 cm2"`, those in 10 L of filtered water per
+#'     `"10 L"`, a density per litre per `"L"`. The biomass is given per this
+#'     basis. To add up groups sampled differently, or to get the totals of a
+#'     site from the share of it that was sampled, put them on one basis
+#'     first with [convert_abundance()].
 #'   Other columns (treatment, habitat...) are kept. The life stage, the sex
 #'   and the counting unit belong to the taxon unit, in `taxa`.
 #' @param taxa A data frame with one row per taxon unit (a taxon, or a taxon
@@ -91,19 +100,39 @@ estimate_biomass_columns <- c(
 #'   * `cells_per_unit` (>= 1): for phytoplankton counted in natural units,
 #'     the mean number of cells of a unit, where it was counted; the unit is
 #'     then estimated as that many cells (see Details). `NA` otherwise.
-#'   * `length_mean` (> 0), `length_unit` (`"um"`, `"mm"` or `"cm"`) and
-#'     `length_type` (`"body_length"`, `"shell_length"`, `"shell_height"`,
-#'     `"fork_length"`, `"total_length"`, `"standard_length"` or
-#'     `"snout_vent_length"`), with `length_sd` or `length_cv` (spread of the
-#'     lengths): the mean length of the unit in all the samples; `NA` where
-#'     it was not measured.
 #'   Other columns, such as `scientific_name`, are kept, and
-#'   `scientific_name` is added to the result.
-#' @param lengths `NULL` (default) or a data frame of mean lengths measured
-#'   in particular samples, which take precedence over those of `taxa`:
-#'   `taxon_id`, `site`, `date` (optional; `NA` applies to all the dates of
-#'   the site), `length_mean`, `length_unit`, `length_type` and, optionally,
-#'   `length_sd` or `length_cv`, as in `taxa`.
+#'   `scientific_name` is added to the result. Mean lengths in `taxa`
+#'   (`length_mean`, `length_unit`, `length_type`, `length_sd`, `length_cv`)
+#'   are deprecated: they are still used, after any row of `lengths`, with a
+#'   warning; give them in `lengths`.
+#' @param lengths `NULL` (default) or a data frame with the lengths of the
+#'   taxon units, one row per mean length or per measured length:
+#'   * `taxon_id`: key of the taxon unit in `taxa`.
+#'   * `site` and `date` (optional): where the lengths apply. A row without
+#'     `site` applies to all the samples of the unit, one with `site` and
+#'     without `date` to all the dates of that site, and one with both to that
+#'     sample. For each sample the most specific lengths are used.
+#'   * Either `length_mean` (> 0), the mean length of the unit, the usual case,
+#'     with its spread in `length_sd` or `length_cv` when known; or `length`
+#'     (> 0), the length of measured individuals, with `n` (default 1) the
+#'     number of individuals of that length: one row per individual, or per
+#'     length class with its count. A unit and sample have one or the other.
+#'   * `length_unit` (`"um"`, `"mm"` or `"cm"`) and `length_type`
+#'     (`"body_length"`, `"shell_length"`, `"shell_height"`, `"fork_length"`,
+#'     `"total_length"`, `"standard_length"` or `"snout_vent_length"`), one
+#'     type per unit and sample.
+#' @param currency Currency of all the rows of the result: `"wet_mass"`
+#'   (default; the only one that all the groups reach), `"dry_mass"`,
+#'   `"afdm"`, `"carbon"` or `"energy"`. Rows that cannot be converted to it
+#'   (phytoplankton to dry mass or AFDM, amphibians to AFDM or carbon,
+#'   phytoplankton counted in natural units without `cells_per_unit` to carbon
+#'   or energy) are not estimated, with the reason. See [convert_currency()].
+#' @param unit `NULL` (default: mg for masses, J for energy) or the unit of
+#'   all the rows: `"pg"`, `"ng"`, `"ug"`, `"mg"` or `"g"` for masses;
+#'   `"mJ"`, `"J"`, `"kJ"` or `"MJ"` for energy.
+#' @param habitat `NULL` (default: unknown) or the habitat of the organisms,
+#'   `"freshwater"`, `"marine"` or `"transitional"`, for the conversion models
+#'   that have a habitat effect (see [convert_currency()]).
 #' @param bias_correction Back-transformation of the length-mass relations,
 #'   required when lengths are used: `"none"` (the relation gives the median
 #'   mass of the individuals of a given length) or `"lognormal"` (their mean:
@@ -137,14 +166,18 @@ estimate_biomass_columns <- c(
 #'     amphibians; `NA` otherwise (and for estimates from lengths, whose
 #'     relations have no stage effect; the lengths of copepod nauplii use
 #'     relations of their own).
-#'   * `length_mm`, `length_type` (the length used: from `lengths` for that
-#'     sample or, if none, from `taxa`), `length_status` (`"within"` the
-#'     lengths of the reference relations used, `"outside"`, or `NA`).
+#'   * `length_mm`, `length_type`, `length_basis` and `length_n`: the length
+#'     used (mm), its type, whether it is a mean length (`"mean"`) or comes
+#'     from measured individuals (`"individuals"`: then `length_mm` is the
+#'     length of their mean mass and `length_n` their number), and
+#'     `length_status` (`"within"` the lengths of the reference relations
+#'     used, `"outside"`, or `NA`).
 #'   * `match_level`, `match_name`: the node of the reference the estimate
 #'     comes from (the lowest taxonomic level shared with the reference), and
 #'     `n_reference` (records or equations below it) and `sources`.
-#'   * `currency` (`"biovolume"`, `"dry_mass"`, `"wet_mass"`) and `unit`
-#'     (`"um3"`, `"mg"`, `"g"`).
+#'   * `currency` and `unit`, the same in all the rows, and, for the rows
+#'     whose models are in another currency, `converted_from`, `conversion`
+#'     (the factors used) and `conversion_sources`, as in [convert_currency()].
 #'   * `ind_mean`, `ind_median`, `ind_lower`, `ind_upper`: mean, median and
 #'     prediction interval of the mean individual mass of a population of the
 #'     taxon, in `unit`.
@@ -234,11 +267,22 @@ estimate_biomass_columns <- c(
 #' with the taxon). A taxon that matches no node is not estimated. With a length, the node used is the lowest one whose
 #' reference relations cover that length.
 #'
-#' **Mean length.** If \eqn{L} is a mean length and the spread of lengths is
+#' **Lengths.** If \eqn{L} is a mean length and the spread of lengths is
 #' given, the mean mass is multiplied by \eqn{(1 + CV^2)^{\beta(\beta-1)/2}}{(1 + CV^2)^(beta (beta - 1)/2)}
 #' (lognormal lengths; `corrections = "jensen"`); without the spread the mean
 #' mass is underestimated (by 29 % with \eqn{\beta = 3}{beta = 3} and CV = 0.3),
-#' which is noted.
+#' which is noted. With the lengths \eqn{L_i} of \eqn{n_i} measured
+#' individuals, the mean mass is the mean of their masses, which under the
+#' relation is that at the length
+#' \eqn{L_* = (\sum n_i L_i^\beta / \sum n_i)^{1/\beta}}{L* = (sum n_i L_i^beta / sum n_i)^(1/beta)}
+#' (`length_mm`), with the uncertainty of the relation at that length; the
+#' node used is the lowest one whose relations cover all their lengths.
+#'
+#' **Currency.** The models give phytoplankton biovolume, dry mass of
+#' invertebrates and wet mass of fish and amphibians; every row is then
+#' converted to `currency` and `unit` as [convert_currency()] does, so that
+#' all the rows can be added up and compared. Biovolume goes to wet mass with
+#' the density of water (1 mm\out{<sup>3</sup>} = 1 mg).
 #'
 #' @section Missing values and zeros:
 #' An abundance of 0 gives a biomass of 0 when the mass is estimated; a
@@ -308,18 +352,23 @@ estimate_biomass_columns <- c(
 #' est
 #' head(as.data.frame(est)[, c("site", "taxon_id", "method", "match_level",
 #'                             "ind_median", "ind_lower", "ind_upper", "unit")])
-estimate_biomass <- function(abundance, taxa, lengths = NULL, bias_correction, level = 0.95,
-                             extrapolate = FALSE, reference = get_reference()) {
+estimate_biomass <- function(abundance, taxa, lengths = NULL, currency = "wet_mass", unit = NULL,
+                             habitat = NULL, bias_correction, level = 0.95, extrapolate = FALSE,
+                             reference = get_reference()) {
   check_data_frame(abundance)
   check_data_frame(taxa)
   if (!is.null(lengths)) check_data_frame(lengths)
+  check_conversion_args(currency, habitat, unit, to_arg = "currency")
   check_level(level)
   check_flag(extrapolate)
   check_reference(reference)
   tx <- check_taxa_table(taxa)
   ab <- check_abundance_table(abundance, tx)
   ln <- if (is.null(lengths)) NULL else check_lengths_table(lengths, tx, ab)
-  rows <- resolve_rows(ab, tx, ln)
+  warn_taxa_lengths(tx)
+  lg <- bind_length_groups(group_lengths(taxa_length_rows(tx), "taxa"),
+                           group_lengths(ln, "lengths"))
+  rows <- resolve_rows(ab, tx, lg)
   if (any(!is.na(rows$length_mm))) {
     if (missing(bias_correction)) {
       abort_input(paste(
@@ -333,18 +382,24 @@ estimate_biomass <- function(abundance, taxa, lengths = NULL, bias_correction, l
   } else {
     check_choice(bias_correction, bias_correction_levels)
   }
-  pred <- predict_rows(rows, tx, reference, bias_correction, extrapolate)
+  pred <- predict_rows(rows, tx, reference, bias_correction, extrapolate, ind = lg$ind)
   out <- assemble_estimates(ab, tx, rows, pred, level, reference)
-  n_not <- sum(out$status == "not_estimated")
+  est <- new_bmassa_estimate(out, rows, pred, reference,
+                             lineage = tx[rows$ti, c(main_ranks, "col_id")],
+                             settings = list(level = level, bias_correction = bias_correction,
+                                             extrapolate = extrapolate, reference = reference$info),
+                             lengths_ind = lg$ind)
+  # All the rows in one currency and unit (version 0.5.0).
+  est <- convert_estimate(est, currency, habitat, unit)
+  attr(est, "n_failed") <- NULL
+  n_not <- sum(est$estimates$status == "not_estimated")
   if (n_not > 0L) {
     warn_not_estimable(sprintf(
       "%d of %d rows were not estimated; see the `reason` column of the result.",
-      n_not, nrow(out)
+      n_not, nrow(est$estimates)
     ))
   }
-  new_bmassa_estimate(out, rows, pred, reference, lineage = tx[rows$ti, c(main_ranks, "col_id")],
-                        settings = list(level = level, bias_correction = bias_correction,
-                                        extrapolate = extrapolate, reference = reference$info))
+  est
 }
 
 # Input tables ----------------------------------------------------------------
@@ -550,32 +605,230 @@ check_abundance_table <- function(abundance, tx, call = sys.call(-1)) {
   ab
 }
 
+# The table of lengths (version 0.5.0): each row is either the mean length of
+# a taxon unit (`length_mean`, with its spread if known) or the length of
+# measured individuals (`length`, with `n` individuals of that length, 1 by
+# default: one row per individual, or per length class with its count).
+# `site` and `date` say where the lengths apply: a row without `site` applies
+# to all the samples of the unit, one with `site` and without `date` to all
+# the dates of the site, and one with both to that sample.
 check_lengths_table <- function(lengths, tx, ab = NULL, call = sys.call(-1)) {
-  check_columns(lengths, c("taxon_id", "site", "length_mean", "length_unit", "length_type"),
-                arg = "lengths", call = call)
+  force(call)
+  check_columns(lengths, c("taxon_id", "length_unit", "length_type"), arg = "lengths", call = call)
+  if (!any(c("length_mean", "length") %in% names(lengths))) {
+    abort_input(paste(
+      "`lengths` needs `length_mean` (the mean length of a taxon unit) or `length` (the",
+      "lengths of measured individuals), or both."), call = call)
+  }
   if ("life_stage" %in% names(lengths)) {
     abort_input(paste(
       "`lengths` has `life_stage`: the stage belongs to the taxon unit, in `taxa`;",
       "give each stage its own `taxon_id` and its lengths under it."), call = call)
   }
   ln <- as_plain_data_frame(lengths)
-  check_text_column(ln, "taxon_id", "lengths", call = call)
-  check_text_column(ln, "site", "lengths", call = call)
-  check_length_columns(ln, "lengths", required = TRUE, call = call)
-  if ("date" %in% names(ln) && !is.null(ab) && !"date" %in% names(ab)) {
-    abort_input("`lengths` has `date` but `abundance` does not: the samples have no dates.",
-                call = call)
+  nl <- nrow(ln)
+  # Columns left empty (all NA, read as logical) are numeric.
+  for (col in intersect(c("length_mean", "length", "n", "length_sd", "length_cv"), names(ln))) {
+    if (is.logical(ln[[col]]) && all(is.na(ln[[col]]))) ln[[col]] <- as.numeric(ln[[col]])
   }
-  missing_ids <- which(!as_text(ln$taxon_id) %in% tx$taxon_id)
+  check_text_column(ln, "taxon_id", "lengths", call = call)
+  ln$taxon_id <- as_text(ln$taxon_id)
+  if ("site" %in% names(ln)) {
+    check_text_column(ln, "site", "lengths", allow_na = TRUE, call = call)
+    ln$site <- as_text(ln$site)
+  } else {
+    ln$site <- rep(NA_character_, nl)
+  }
+  if ("date" %in% names(ln)) {
+    if (is.list(ln$date) || !is.atomic(ln$date)) {
+      abort_input("Column 'date' of `lengths` must be a vector of dates, days or text.", call = call)
+    }
+    if (!is.null(ab) && !"date" %in% names(ab)) {
+      abort_input("`lengths` has `date` but `abundance` does not: the samples have no dates.",
+                  call = call)
+    }
+    nosite <- which(!is.na(ln$date) & is.na(ln$site))
+    if (length(nosite) > 0L) {
+      abort_input(sprintf(paste(
+        "`lengths` has a `date` without `site` in %s: a date belongs to the sample of a site",
+        "(leave both empty for lengths that apply to all the samples)."), format_rows(nosite)),
+        rows = nosite, call = call)
+    }
+  }
+  for (col in c("length_mean", "length")) {
+    if (col %in% names(ln)) {
+      check_numeric_column(ln, col, lower = 0, include_lower = FALSE, allow_na = TRUE,
+                           arg = "lengths", call = call)
+      ln[[col]] <- as.numeric(ln[[col]])
+    } else {
+      ln[[col]] <- rep(NA_real_, nl)
+    }
+  }
+  both <- which(!is.na(ln$length_mean) & !is.na(ln$length))
+  if (length(both) > 0L) {
+    abort_input(sprintf(paste(
+      "`lengths` gives both `length_mean` and `length` in %s: a row is either the mean length",
+      "of a taxon unit or the length of measured individuals."), format_rows(both)),
+      rows = both, call = call)
+  }
+  none <- which(is.na(ln$length_mean) & is.na(ln$length))
+  if (length(none) > 0L) {
+    abort_input(sprintf("`lengths` has no length (`length_mean` or `length`) in %s; drop them.",
+                        format_rows(none)), rows = none, call = call)
+  }
+  for (col in c("length_unit", "length_type")) {
+    rows <- which(is.na(ln[[col]]))
+    if (length(rows) > 0L) {
+      abort_input(sprintf("Column '%s' of `lengths` is missing in %s.", col, format_rows(rows)),
+                  rows = rows, call = call)
+    }
+  }
+  check_values_in(ln, "length_unit", names(length_unit_mm), arg = "lengths", call = call)
+  check_values_in(ln, "length_type", length_type_levels, arg = "lengths", call = call)
+  ind <- !is.na(ln$length)
+  for (col in c("length_sd", "length_cv")) {
+    if (col %in% names(ln)) {
+      check_numeric_column(ln, col, lower = 0, allow_na = TRUE, arg = "lengths", call = call)
+      bad <- which(ind & !is.na(ln[[col]]))
+      if (length(bad) > 0L) {
+        abort_input(sprintf(paste(
+          "`lengths` gives `%s` for lengths of individuals in %s: the spread is for a mean",
+          "length (`length_mean`); the individuals give their own."), col, format_rows(bad)),
+          rows = bad, call = call)
+      }
+    }
+  }
+  if (all(c("length_sd", "length_cv") %in% names(ln))) {
+    both <- which(!is.na(ln$length_sd) & !is.na(ln$length_cv))
+    if (length(both) > 0L) {
+      abort_input(sprintf("`lengths` gives both `length_sd` and `length_cv` in %s; keep one.",
+                          format_rows(both)), rows = both, call = call)
+    }
+  }
+  if ("n" %in% names(ln)) {
+    check_numeric_column(ln, "n", lower = 0, include_lower = FALSE, allow_na = TRUE,
+                         arg = "lengths", call = call)
+    bad <- which(!ind & !is.na(ln$n))
+    if (length(bad) > 0L) {
+      abort_input(sprintf(paste(
+        "`lengths` gives `n` for a mean length in %s: `n` is the number of individuals of a",
+        "row of `length` (a length class)."), format_rows(bad)), rows = bad, call = call)
+    }
+    ln$n <- as.numeric(ln$n)
+    ln$n[ind & is.na(ln$n)] <- 1
+  } else {
+    ln$n <- ifelse(ind, 1, NA_real_)
+  }
+  missing_ids <- which(!ln$taxon_id %in% tx$taxon_id)
   if (length(missing_ids) > 0L) {
     abort_input(sprintf(
       "Some `taxon_id` of `lengths` are not in `taxa` (%s in %s).",
-      format_items(quote_items(unique(as_text(ln$taxon_id)[missing_ids]))), format_rows(missing_ids)
+      format_items(quote_items(unique(ln$taxon_id[missing_ids]))), format_rows(missing_ids)
     ), rows = missing_ids, call = call)
   }
-  check_unique_rows(ln, intersect(c("taxon_id", "site", "date"), names(ln)), "lengths",
-                    call = call)
+  # One kind of length and one length type per unit and sample, and one mean.
+  date <- if ("date" %in% names(ln)) as_text(ln$date) else rep(NA_character_, nl)
+  key <- paste(ln$taxon_id, ln$site, date, sep = "\u001f")
+  mixed <- which(key %in% key[ind] & key %in% key[!ind])
+  if (length(mixed) > 0L) {
+    abort_input(sprintf(paste(
+      "`lengths` has both a mean length and lengths of individuals for the same taxon unit",
+      "and sample in %s: give one or the other."), format_rows(mixed)), rows = mixed, call = call)
+  }
+  n_type <- tapply(as_text(ln$length_type), key, function(x) length(unique(x)))
+  multi <- which(n_type[key] > 1L)
+  if (length(multi) > 0L) {
+    abort_input(sprintf(paste(
+      "`lengths` has more than one length type for the same taxon unit and sample in %s:",
+      "use one type of length per unit and sample."), format_rows(multi)), rows = multi,
+      call = call)
+  }
+  dup <- which(!ind & (duplicated(key) | duplicated(key, fromLast = TRUE)))
+  if (length(dup) > 0L) {
+    abort_input(sprintf(paste(
+      "`lengths` has more than one mean length for the same taxon unit and sample in %s",
+      "(`taxon_id`, `site` and `date`). Combine them, or give the lengths of the",
+      "individuals in `length`."), format_rows(dup)), rows = dup, call = call)
+  }
   ln
+}
+
+# Mean lengths of `taxa` (deprecated in version 0.5.0) as rows of `lengths`
+# without site: they apply to all the samples of the unit, after any row of
+# `lengths`.
+taxa_length_rows <- function(tx) {
+  has <- if ("length_mean" %in% names(tx)) which(!is.na(tx$length_mean)) else integer(0)
+  if (length(has) == 0L) {
+    return(NULL)
+  }
+  out <- data.frame(taxon_id = tx$taxon_id[has], site = NA_character_,
+                    length_mean = as.numeric(tx$length_mean[has]), length = NA_real_, n = NA_real_,
+                    length_unit = as_text(tx$length_unit)[has],
+                    length_type = as_text(tx$length_type)[has], stringsAsFactors = FALSE)
+  for (col in c("length_sd", "length_cv")) {
+    if (col %in% names(tx)) out[[col]] <- as.numeric(tx[[col]][has])
+  }
+  out
+}
+
+warn_taxa_lengths <- function(tx, call = sys.call(-1)) {
+  if ("length_mean" %in% names(tx) && any(!is.na(tx$length_mean))) {
+    warn_deprecated(paste(
+      "Lengths in `taxa` are deprecated and will not be read in a future version: give them",
+      "in `lengths`, where a row without `site` applies to all the samples of the taxon unit",
+      "(rows of `lengths` take precedence)."), call = call)
+  }
+}
+
+# The lengths of each taxon unit and sample: one group per taxon unit, site
+# and date of `lengths` (or of `taxa`), with its kind (`"mean"` or
+# `"individuals"`), the length type, the mean length (mm) and its coefficient
+# of variation, or the number of individuals and the range of their lengths;
+# and the individual lengths (mm) of each group.
+group_lengths <- function(ln, origin) {
+  groups <- data.frame(taxon_id = character(0), site = character(0), date = character(0),
+                       source = character(0), basis = character(0), length_type = character(0),
+                       length_mm = numeric(0), length_cv = numeric(0), length_n = numeric(0),
+                       length_lo = numeric(0), length_hi = numeric(0), stringsAsFactors = FALSE)
+  ind <- data.frame(group = integer(0), length_mm = numeric(0), n = numeric(0))
+  if (is.null(ln) || nrow(ln) == 0L) {
+    return(list(groups = groups, ind = ind))
+  }
+  date <- if ("date" %in% names(ln)) as_text(ln$date) else rep(NA_character_, nrow(ln))
+  key <- paste(ln$taxon_id, ln$site, date, sep = "\u001f")
+  gid <- match(key, unique(key))
+  first <- !duplicated(gid)
+  to_mm <- unname(length_unit_mm[as_text(ln$length_unit)])
+  is_ind <- !is.na(ln$length)
+  cv <- rep(NA_real_, nrow(ln))
+  if ("length_cv" %in% names(ln)) cv <- ln$length_cv
+  if ("length_sd" %in% names(ln)) cv <- ifelse(is.na(cv), ln$length_sd / ln$length_mean, cv)
+  groups <- data.frame(taxon_id = ln$taxon_id[first], site = ln$site[first], date = date[first],
+                       source = origin, basis = ifelse(is_ind[first], "individuals", "mean"),
+                       length_type = as_text(ln$length_type)[first],
+                       length_mm = ln$length_mean[first] * to_mm[first], length_cv = cv[first],
+                       length_n = NA_real_, length_lo = NA_real_, length_hi = NA_real_,
+                       stringsAsFactors = FALSE)
+  groups$length_lo <- groups$length_hi <- groups$length_mm
+  ind <- data.frame(group = gid[is_ind], length_mm = ln$length[is_ind] * to_mm[is_ind],
+                    n = ln$n[is_ind])
+  if (nrow(ind) > 0L) {
+    g <- sort(unique(ind$group))
+    w <- tapply(ind$n, ind$group, sum)[as.character(g)]
+    groups$length_n[g] <- w
+    groups$length_lo[g] <- tapply(ind$length_mm, ind$group, min)[as.character(g)]
+    groups$length_hi[g] <- tapply(ind$length_mm, ind$group, max)[as.character(g)]
+    groups$length_mm[g] <- tapply(ind$length_mm * ind$n, ind$group, sum)[as.character(g)] / w
+  }
+  list(groups = groups, ind = ind)
+}
+
+# Both sets of groups in one: those of `taxa` first.
+bind_length_groups <- function(a, b) {
+  off <- nrow(a$groups)
+  bi <- b$ind
+  bi$group <- bi$group + off
+  list(groups = rbind(a$groups, b$groups), ind = rbind(a$ind, bi))
 }
 
 # Code of the stage of a unit in the reference data: the stage, or the sex of
@@ -587,62 +840,103 @@ unit_stage <- function(life_stage, sex) {
   out
 }
 
-# Length (mm), type and coefficient of variation of the rows `i` of a table
-# with the length columns.
-length_values <- function(d, i) {
-  mm <- d$length_mean[i] * unname(length_unit_mm[as_text(d$length_unit)[i]])
-  cv <- rep(NA_real_, length(i))
-  if ("length_cv" %in% names(d)) cv <- d$length_cv[i]
-  if ("length_sd" %in% names(d)) cv <- ifelse(is.na(cv), d$length_sd[i] / d$length_mean[i], cv)
-  list(mm = mm, type = as_text(d$length_type)[i], cv = cv)
+
+# Empty length columns of the rows given to predict_rows().
+add_length_columns <- function(rows) {
+  n <- nrow(rows)
+  rows$length_mm <- rep(NA_real_, n)
+  rows$length_type <- rep(NA_character_, n)
+  rows$length_cv <- rep(NA_real_, n)
+  rows$length_basis <- rep(NA_character_, n)
+  rows$length_n <- rep(NA_real_, n)
+  rows$length_lo <- rep(NA_real_, n)
+  rows$length_hi <- rep(NA_real_, n)
+  rows$length_group <- rep(NA_integer_, n)
+  rows
+}
+
+# Fill the length columns of rows `i` from groups `g` of group_lengths().
+set_row_lengths <- function(rows, i, g, groups) {
+  for (col in c("length_mm", "length_type", "length_cv", "length_basis", "length_n",
+                "length_lo", "length_hi")) {
+    src <- if (col == "length_basis") "basis" else col
+    rows[[col]][i] <- groups[[src]][g]
+  }
+  rows$length_group[i] <- g
+  rows
 }
 
 # One row per abundance row with what the prediction needs: taxon, domain,
-# counting unit, stage, and the length (mm) that applies, if any: that of the
-# sample in `lengths` (its date, or all its dates), otherwise that of `taxa`.
-resolve_rows <- function(ab, tx, ln) {
+# counting unit, stage, and the lengths that apply, if any: the most specific
+# group of `lengths` (the sample, the site in all its dates, or all the
+# samples), otherwise the mean length of `taxa` (deprecated).
+resolve_rows <- function(ab, tx, lg) {
   n <- nrow(ab)
   ti <- match(as_text(ab$taxon_id), tx$taxon_id)
   domain <- unname(broad_group_domain[tx$broad_group[ti]])
   rows <- data.frame(row = seq_len(n), taxon_id = as_text(ab$taxon_id), ti = ti,
                      site = as_text(ab$site), domain = domain,
                      count_unit = tx$count_unit[ti], cells_per_unit = tx$cells_per_unit[ti],
-                     stage = unit_stage(tx$life_stage, tx$sex)[ti],
-                     length_mm = rep(NA_real_, n), length_type = rep(NA_character_, n),
-                     length_cv = rep(NA_real_, n), stringsAsFactors = FALSE)
-  if (n == 0L) {
-    return(rows)
-  }
-  has <- if ("length_mean" %in% names(tx)) which(!is.na(tx$length_mean[ti])) else integer(0)
-  if (length(has) > 0L) {
-    v <- length_values(tx, ti[has])
-    rows$length_mm[has] <- v$mm
-    rows$length_type[has] <- v$type
-    rows$length_cv[has] <- v$cv
-  }
-  if (is.null(ln) || nrow(ln) == 0L) {
+                     stage = unit_stage(tx$life_stage, tx$sex)[ti], stringsAsFactors = FALSE)
+  rows <- add_length_columns(rows)
+  g <- lg$groups
+  if (n == 0L || nrow(g) == 0L) {
     return(rows)
   }
   a_date <- if ("date" %in% names(ab)) as_text(ab$date) else rep(NA_character_, n)
-  l_date <- if ("date" %in% names(ln)) as_text(ln$date) else rep(NA_character_, nrow(ln))
-  l_key <- paste(as_text(ln$taxon_id), as_text(ln$site), l_date, sep = "\u001f")
-  k <- match(paste(rows$taxon_id, rows$site, a_date, sep = "\u001f"), l_key)
-  all_dates <- is.na(k)
-  k[all_dates] <- match(paste(rows$taxon_id, rows$site, NA, sep = "\u001f")[all_dates], l_key)
-  has <- which(!is.na(k))
-  if (length(has) > 0L) {
-    v <- length_values(ln, k[has])
-    rows$length_mm[has] <- v$mm
-    rows$length_type[has] <- v$type
-    rows$length_cv[has] <- v$cv
+  sep <- "\u001f"
+  g_key <- paste(g$taxon_id, g$site, g$date, g$source, sep = sep)
+  choose <- rep(NA_integer_, n)
+  # From the least to the most specific: `taxa`, all the samples, the site in
+  # all its dates, the sample.
+  keys <- list(paste(rows$taxon_id, NA, NA, "taxa", sep = sep),
+               paste(rows$taxon_id, NA, NA, "lengths", sep = sep),
+               paste(rows$taxon_id, rows$site, NA, "lengths", sep = sep),
+               paste(rows$taxon_id, rows$site, a_date, "lengths", sep = sep))
+  for (k in keys) {
+    m <- match(k, g_key)
+    choose[!is.na(m)] <- m[!is.na(m)]
   }
+  has <- which(!is.na(choose))
+  if (length(has) > 0L) rows <- set_row_lengths(rows, has, choose[has], g)
   rows
+}
+
+# Length of the mean mass of a set of individual lengths (mm, with weights n)
+# for a relation of slope b: the mean of L^b, back to a length.
+mean_mass_length <- function(mm, n, b) {
+  if (abs(b) < 1e-8) {
+    return(exp(sum(n * log(mm)) / sum(n)))
+  }
+  (sum(n * mm^b) / sum(n))^(1 / b)
 }
 
 # Prediction ----------------------------------------------------------------------
 
 # Prediction for each row: model, node, linear predictor and variance parts.
-predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
+# `ind` holds the individual lengths of the length groups (group_lengths()).
+# Rows of the same taxon unit with the same lengths (or none) have the same
+# prediction, whatever their site or date: it is computed once for each and
+# copied (a survey repeats each taxon in many samples).
+predict_rows <- function(rows, tx, reference, bias_correction, extrapolate, ind = NULL) {
+  if (is.null(rows$length_basis)) rows <- add_length_columns(rows)
+  cols <- intersect(c("ti", "domain", "count_unit", "cells_per_unit", "stage", "length_mm",
+                      "length_type", "length_cv", "length_basis", "length_n", "length_lo",
+                      "length_hi", "length_group"), names(rows))
+  key <- do.call(paste, c(unname(as.list(rows[cols])), sep = "\u001f"))
+  first <- which(!duplicated(key))
+  if (length(first) == nrow(rows)) {
+    return(predict_unique_rows(rows, tx, reference, bias_correction, extrapolate, ind))
+  }
+  res <- predict_unique_rows(rows[first, , drop = FALSE], tx, reference, bias_correction,
+                             extrapolate, ind)
+  idx <- match(key, key[first])
+  pred <- res$pred[idx, , drop = FALSE]
+  rownames(pred) <- NULL
+  list(pred = pred, missing_keys = res$missing_keys[idx])
+}
+
+predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolate, ind = NULL) {
   n <- nrow(rows)
   nodes <- reference$nodes
   comps <- reference$components
@@ -652,10 +946,16 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
   int <- rep(NA_integer_, n)
   pr <- data.frame(model = chr, method = chr, stage_used = chr, length_status = chr, node = int,
                    stage_node = int, contrast = chr, match_level = chr, match_name = chr, n_reference = int,
-                   sources = chr, xc = rep(0, n), offset = rep(0, n), eta = num, v_param = num, v_missing = num,
+                   sources = chr, length_used = num, xc = rep(0, n), offset = rep(0, n), eta = num,
+                   v_param = num, v_missing = num,
                    v_population = num, v_source = num, corrections = chr, uncertainty = chr,
                    status = rep("not_estimated", n), reason = chr, note = chr,
                    stringsAsFactors = FALSE)
+  if (is.null(rows$length_basis)) rows <- add_length_columns(rows)
+  basis <- rows$length_basis
+  basis[is.na(basis) & !is.na(rows$length_mm)] <- "mean"
+  lo <- ifelse(is.na(rows$length_lo), rows$length_mm, rows$length_lo)
+  hi <- ifelse(is.na(rows$length_hi), rows$length_mm, rows$length_hi)
   missing_keys <- vector("list", n)
   if (n == 0L) {
     return(list(pred = pr, missing_keys = missing_keys))
@@ -788,13 +1088,18 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     for (i in idx) {
       jj <- j
       if (pr$method[i] == "length") {
-        cov <- find_covering_node(j, rows$length_mm[i], lt_m[i], nodes, comps)
+        cov <- find_covering_node(j, lo[i], hi[i], lt_m[i], nodes, comps)
         if (is.na(cov) && !extrapolate) {
           rt <- nodes[nodes$model == m & nodes$level == "root" & nodes$node == lt_m[i], ]
+          what <- if (basis[i] == "individuals") {
+            sprintf("lengths of individuals %s-%s mm", format(signif(lo[i], 3)), format(signif(hi[i], 3)))
+          } else {
+            sprintf("length %s mm", format(signif(rows$length_mm[i], 3)))
+          }
           pr$reason[i] <- sprintf(paste(
-            "length %s mm outside the lengths of the reference relations of %s and its",
+            "%s outside the lengths of the reference relations of %s and its",
             "relatives (%s-%s mm for %s); use extrapolate = TRUE to estimate it anyway"),
-            format(signif(rows$length_mm[i], 3)), nodes$node[j], format(signif(rt$length_min, 3)),
+            what, nodes$node[j], format(signif(rt$length_min, 3)),
             format(signif(rt$length_max, 3)), gsub("_", " ", lt_m[i]))
           next
         }
@@ -822,7 +1127,17 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     lwr <- pr$method[i] == "length"
     lt_row <- if (lwr) reference$lwr_types[reference$lwr_types$model == m &
                                               reference$lwr_types$length_type == lt_m[i], ]
-    xc <- if (lwr) log(rows$length_mm[i]) - lt_row$centre else 0
+    if (lwr) {
+      # A set of individual lengths enters as the length of their mean mass
+      # under the relation of the node.
+      L <- rows$length_mm[i]
+      if (basis[i] == "individuals") {
+        v <- ind[ind$group == rows$length_group[i], , drop = FALSE]
+        L <- mean_mass_length(v$length_mm, v$n, nodes$path_slope[j])
+      }
+      pr$length_used[i] <- L
+    }
+    xc <- if (lwr) log(pr$length_used[i]) - lt_row$centre else 0
     eta <- nodes$path_intercept[j] + pr$offset[i]
     vp <- nodes$path_var[j]
     if (lwr) {
@@ -871,7 +1186,11 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate) {
     corr <- character(0)
     if (lwr) {
       b <- nodes$path_slope[j]
-      if (!is.na(rows$length_cv[i])) {
+      if (basis[i] == "individuals") {
+        pr$note[i] <- append_note(pr$note[i], sprintf(
+          "mean mass of %s individuals measured (%s-%s mm)", format(signif(rows$length_n[i], 4)),
+          format(signif(lo[i], 3)), format(signif(hi[i], 3))))
+      } else if (!is.na(rows$length_cv[i])) {
         eta <- eta + b * (b - 1) / 2 * log1p(rows$length_cv[i]^2)
         corr <- c(corr, "jensen")
       } else {
@@ -955,7 +1274,7 @@ match_lineage <- function(lin, cand, levels, col_id = NA_character_) {
 # without random slopes (amphibian species, mostly one mean length each) the
 # shape of the relation comes from the closest ancestor with slopes, so its
 # range of lengths is the one that counts.
-find_covering_node <- function(j, length_mm, length_type, nodes, comps) {
+find_covering_node <- function(j, length_lo, length_hi, length_type, nodes, comps) {
   m <- nodes$model[j]
   slope_lv <- unique(comps$level[comps$model == m & comps$parameter == "slope"])
   parent_of <- function(k) {
@@ -975,8 +1294,8 @@ find_covering_node <- function(j, length_mm, length_type, nodes, comps) {
   repeat {
     rng <- cur
     while (nodes$level[rng] != "root" && !nodes$level[rng] %in% slope_lv) rng <- parent_of(rng)
-    if (!is.na(nodes$length_min[rng]) && length_mm >= nodes$length_min[rng] &&
-        length_mm <= nodes$length_max[rng]) {
+    if (!is.na(nodes$length_min[rng]) && length_lo >= nodes$length_min[rng] &&
+        length_hi <= nodes$length_max[rng]) {
       return(cur)
     }
     if (nodes$level[cur] == "root") {
@@ -1029,8 +1348,10 @@ assemble_estimates <- function(ab, tx, rows, pred, level, reference) {
   out$method <- pr$method
   out$model <- pr$model
   out$stage_used <- pr$stage_used
-  out$length_mm <- rows$length_mm
+  out$length_mm <- ifelse(is.na(pr$length_used), rows$length_mm, pr$length_used)
   out$length_type <- rows$length_type
+  out$length_basis <- rows$length_basis
+  out$length_n <- rows$length_n
   out$length_status <- pr$length_status
   out$match_level <- pr$match_level
   out$match_name <- pr$match_name
@@ -1058,11 +1379,14 @@ assemble_estimates <- function(ab, tx, rows, pred, level, reference) {
   out
 }
 
-new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, settings) {
+new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, settings,
+                                lengths_ind = NULL) {
   pr <- pred$pred
   sim <- data.frame(row = rows$row, taxon_id = rows$taxon_id, site = rows$site,
                     stage_used = pr$stage_used, model = pr$model, method = pr$method,
-                    length_type = rows$length_type, node = pr$node, stage_node = pr$stage_node,
+                    length_type = rows$length_type, length_used = pr$length_used,
+                    length_cv = rows$length_cv, length_basis = rows$length_basis,
+                    length_group = rows$length_group, node = pr$node, stage_node = pr$stage_node,
                     contrast = pr$contrast, cells_per_unit = rows$cells_per_unit,
                     xc = pr$xc, offset = pr$offset, eta = pr$eta, v_param = pr$v_param, v_missing = pr$v_missing,
                     v_population = pr$v_population, v_source = pr$v_source,
@@ -1079,9 +1403,11 @@ new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, setti
                             stringsAsFactors = FALSE)
   )
   diagnostics$by_method_level <- diagnostics$by_method_level[diagnostics$by_method_level$Freq > 0, ]
+  if (is.null(lengths_ind)) lengths_ind <- data.frame(group = integer(0), length_mm = numeric(0),
+                                                       n = numeric(0))
   structure(list(estimates = estimates, settings = settings, diagnostics = diagnostics,
                  simulation = list(rows = sim, missing_keys = pred$missing_keys,
-                                   lineage = `rownames<-`(lineage, NULL)),
+                                   lineage = `rownames<-`(lineage, NULL), lengths = lengths_ind),
                  reference = reference),
             class = "bmassa_estimate")
 }
@@ -1110,10 +1436,10 @@ print.bmassa_estimate <- function(x, ...) {
   }
   cv <- x$settings$conversion
   if (!is.null(cv)) {
-    unit <- if (is.null(cv$unit) && identical(cv$to, "energy")) "J" else cv$unit
-    cat(sprintf("Converted to %s%s: %d rows; habitat %s\n", gsub("_", " ", cv$to),
-                if (is.null(unit)) "" else paste0(" (", unit, ")"),
-                sum(!is.na(e$converted_from)), if (is.null(cv$habitat)) "unknown" else cv$habitat))
+    unit <- if (is.null(cv$unit)) default_unit(cv$to) else cv$unit
+    cat(sprintf("Currency: %s (%s); %d rows converted from the currency of their models; habitat %s\n",
+                gsub("_", " ", cv$to), unit, sum(!is.na(e$converted_from)),
+                if (is.null(cv$habitat)) "unknown" else cv$habitat))
   }
   if (any(!ok)) {
     r <- table(e$reason[!ok])

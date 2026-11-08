@@ -1,0 +1,205 @@
+---
+title: "Validation with Tuesday Lake"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Validation with Tuesday Lake}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(width = 90, digits = 3)
+```
+
+```{r setup}
+library(bmassa)
+```
+
+Are the masses that *bmassa* predicts consistent with masses measured in the
+field? Tuesday Lake (Michigan, USA) is one of the few lakes whose whole
+pelagic community was described with the mean body mass and the abundance
+of every taxon: the phytoplankton, the zooplankton and the fish, sampled in
+1984 and in 1986 (Cohen et al. 2003; Jonsson et al. 2005). None of its
+masses is in the reference data of *bmassa*, so it is an independent test: if
+the prediction intervals are right, about 95 % of the measured masses fall
+inside the 95 % intervals, and the biomass of each group inside the interval
+of its total.
+
+## The data
+
+The package ships the nodes of the two webs as distributed in the R package
+*cheddar* (Hudson et al. 2013; BSD 2-Clause licence): `M` is the mean wet mass
+of an individual in kg (in the phytoplankton, of an "algal unit", a cell or
+a colony, from its volume) and `N` the individuals per m³.
+
+```{r data}
+path <- function(file) system.file("extdata", "tuesday_lake", file, package = "bmassa")
+nodes <- read.csv(path("nodes.csv"))
+nodes[c(1, 40, 50, 56), ]
+table(nodes$year, nodes$category)
+```
+
+## Taxa
+
+The names of *cheddar* are cleaned before they are matched: without "sp.",
+numbers and the forms in brackets, and with one misspelling corrected
+(*Cyclops varians rubellus* for *Cyclops varicans rubellus*, a synonym of
+*Microcyclops rubellus*). The unclassified flagellates have no taxon and are
+left out.
+
+```{r names}
+clean_name <- function(x) {
+  x <- sub("-spiny", "", x, fixed = TRUE)
+  x <- sub(" \\((solitary|colonial)\\)$", "", x)
+  x <- sub(" sp\\. ?[0-9]*$", "", x)
+  x[grepl("^Unclassified", x)] <- NA_character_
+  x[x == "Cyclops varians rubellus"] <- "Microcyclops rubellus"
+  x
+}
+units <- nodes[!duplicated(nodes$node), c("node", "category", "family")]
+units$taxon_id <- units$node
+units$broad_group <- c(producer = "phytoplankton", invertebrate = "zooplankton",
+                       vert.ecto = "fish")[units$category]
+units$scientific_name <- clean_name(units$node)
+units <- units[!is.na(units$scientific_name), ]
+```
+
+`standardize_taxa()` gives the classification of the Catalogue of Life, with
+the family of *cheddar* as a hint for homonyms. It needs internet, so the
+vignette reads its result (run on 2026-11-07):
+
+```{r standardize, eval = FALSE}
+taxa <- standardize_taxa(units[c("taxon_id", "broad_group", "scientific_name", "family")])
+```
+
+```{r standardize-stored}
+taxa <- read.csv(path("taxa.csv"), colClasses = "character")
+taxa[!is.na(taxa$note), c("scientific_name", "col_name", "match_type")][1:6, ]
+```
+
+```{r check-stored, include = FALSE}
+stopifnot(identical(taxa$taxon_id, units$taxon_id),
+          identical(taxa$scientific_name, units$scientific_name))
+```
+
+Jonsson et al. (2005) measured the phytoplankton per algal unit, so it is
+counted in natural units; *Chaoborus* are larvae. Nothing else is known
+about the stages: the copepods are therefore taken as adults.
+
+```{r taxa}
+taxa$count_unit <- ifelse(taxa$broad_group == "phytoplankton", "natural_unit", "individual")
+taxa$life_stage <- ifelse(taxa$genus %in% "Chaoborus", "larva", NA_character_)
+taxa$group <- ifelse(taxa$broad_group != "zooplankton", taxa$broad_group,
+              ifelse(taxa$phylum %in% "Rotifera", "rotifers",
+              ifelse(taxa$class %in% "Branchiopoda", "cladocerans",
+              ifelse(taxa$class %in% "Copepoda", "copepods", "Chaoborus"))))
+table(taxa$group)
+```
+
+## Masses: measured against predicted
+
+The abundances per m³ of each year, and the mean mass of every taxon in
+wet mass, in µg, without lengths:
+
+```{r estimate}
+ab <- nodes[nodes$node %in% taxa$taxon_id, ]
+ab <- data.frame(site = as.character(ab$year), taxon_id = ab$node, abundance = ab$N_m3, per = "m3",
+                 M_ug = ab$M_kg * 1e9)
+ab$group <- taxa$group[match(ab$taxon_id, taxa$taxon_id)]
+est <- estimate_biomass(ab, taxa, unit = "ug")
+est
+```
+
+The colonies of *Conochilus* measured in 1986 are compared with nothing:
+*bmassa* estimates individuals.
+
+```{r inside}
+e <- as.data.frame(est)
+e <- e[e$taxon_id != "Conochilus (colonial)", ]
+e$inside <- e$M_ug >= e$ind_lower & e$M_ug <= e$ind_upper
+e$ratio <- e$ind_median / e$M_ug
+groups <- c("phytoplankton", "rotifers", "cladocerans", "copepods", "Chaoborus", "fish")
+cover <- do.call(rbind, lapply(groups, function(g) {
+  s <- e[e$group == g, ]
+  data.frame(group = g, compared = nrow(s), inside_95 = mean(s$inside),
+             median_ratio = stats::median(s$ratio),
+             width_95 = stats::median(s$ind_upper / s$ind_lower))
+}))
+cover
+c(compared = nrow(e), inside_95 = mean(e$inside))
+```
+
+`inside_95` is the share of the measured masses inside the 95 % prediction
+interval, `median_ratio` the median of predicted over measured, and
+`width_95` the median ratio of the upper to the lower limit. About nine in
+ten measured masses fall inside the intervals. The intervals are wide,
+because without lengths a taxon is predicted from the typical masses of its
+species or relatives: they say how much a mass of an unmeasured population
+can differ from the typical one.
+
+```{r plot, fig.width = 7, fig.height = 5, fig.alt = "Measured mean individual mass of each taxon of Tuesday Lake against the median predicted by bmassa, in µg on log scales, with the 95 % prediction intervals; most points lie close to the line of equality and inside their intervals"}
+col <- c(phytoplankton = "#1b9e77", rotifers = "#d95f02", cladocerans = "#7570b3",
+         copepods = "#e7298a", Chaoborus = "#66a61e", fish = "#a6761d")
+op <- par(mar = c(4, 4, 1, 1))
+plot(e$M_ug, e$ind_median, log = "xy", pch = 19, col = col[e$group],
+     xlim = range(e$M_ug, e$ind_lower, e$ind_upper), ylim = range(e$ind_lower, e$ind_upper),
+     xlab = "Measured mean mass (µg)", ylab = "Predicted mean mass (µg)")
+segments(e$M_ug, e$ind_lower, e$M_ug, e$ind_upper, col = col[e$group])
+abline(0, 1, lty = 2)
+legend("topleft", names(col), col = col, pch = 19, bty = "n", cex = 0.8)
+par(op)
+```
+
+The masses outside their intervals:
+
+```{r outside}
+out <- e[!e$inside, c("site", "taxon_id", "group", "M_ug", "ind_median", "ind_lower",
+                      "ind_upper", "match_level")]
+out[order(abs(log(out$ind_median / out$M_ug)), decreasing = TRUE), ]
+```
+
+Most are colonial algae (*Chrysosphaerella*, *Dinobryon*, *Gloeocystis*,
+*Synedra*), measured whole, whose natural units in the reference are single
+cells or small groups: `cells_per_unit` in `taxa` gives the cells of a
+colony counted whole. The *Keratella* are predicted heavier than measured,
+like the rotifers in general, and the copepods about twice as heavy: taken
+as adults, a count that includes copepodites is overestimated (as
+copepodites, with `life_stage = "copepodite"`, most come out lighter than
+measured, and their measured means lie between the two). The largemouth bass
+of 1986, introduced adults, are much heavier than the fish of the reference
+without lengths.
+
+## Biomass: measured against predicted totals
+
+The biomass of each group, the sum of `M × N` over its taxa, against the
+total of *bmassa* for the same taxa, whose interval keeps the correlations
+between the taxa estimated from the same relatives:
+
+```{r totals}
+tot <- summarize_biomass(est, by = c("site", "group"), na_rm = TRUE, n_draws = 10000, seed = 1)
+measured <- stats::aggregate(B ~ site + group, data = transform(e, B = M_ug * abundance), FUN = sum)
+tot <- merge(tot[, c("site", "group", "biomass_unit", "biomass_median", "biomass_lower",
+                     "biomass_upper")], measured, by = c("site", "group"))
+tot$inside <- tot$B >= tot$biomass_lower & tot$B <= tot$biomass_upper
+tot[, c("site", "group", "B", "biomass_median", "biomass_lower", "biomass_upper", "inside")]
+```
+
+The measured biomass of every group falls inside the interval of its total
+in both years, except that of the fish in 1986, the bass. The intervals of
+the totals are narrower, relative to the estimate, than those of single taxa
+when the group has many taxa with independent errors (the phytoplankton), and
+as wide when one taxon makes the group (*Chaoborus*).
+
+## References
+
+- Cohen JE, Jonsson T, Carpenter SR (2003). Ecological community description
+  using the food web, species abundance, and body size. *Proceedings of the
+  National Academy of Sciences* 100, 1781-1786.
+- Hudson LN, Emerson R, Jenkins GB, Layer K, Ledger ME, Pichler DE, Thompson
+  MSA, O'Gorman EJ, Woodward G, Reuman DC (2013). *Cheddar*: analysis and
+  visualisation of ecological communities in R. *Methods in Ecology and
+  Evolution* 4(1), 99-104. <https://doi.org/10.1111/2041-210X.12005>
+- Jonsson T, Cohen JE, Carpenter SR (2005). Food webs, body size, and
+  species abundance in ecological community description. *Advances in
+  Ecological Research* 36, 1-84.

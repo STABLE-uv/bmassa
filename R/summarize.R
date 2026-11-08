@@ -3,9 +3,11 @@
 #' Total biomass by site or any other grouping
 #'
 #' `summarize_biomass()` adds up the biomass of the rows of each group, with
-#' one total per currency and unit: biovolume, dry mass and wet mass are never
-#' added together. It gives the mean, median and prediction interval of each
-#' total by simulation, keeping the correlations between rows.
+#' one total per currency and unit of biomass ([estimate_biomass()] gives all
+#' its rows in one currency and unit; abundances per volume and per area stay
+#' apart unless put on one basis with [convert_abundance()]). It gives the
+#' mean, median and prediction interval of each total by simulation, keeping
+#' the correlations between rows.
 #'
 #' @param data Result of [estimate_biomass()] or [convert_currency()].
 #' @param by Character vector with the names of the grouping columns, e.g.

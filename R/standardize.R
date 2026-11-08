@@ -57,7 +57,7 @@ synonym_status <- c("SYNONYM", "HETEROTYPIC_SYNONYM", "HOMOTYPIC_SYNONYM", "PROP
 #' @details
 #' The name sent is the name given without subgenus, without the words of life
 #' stages ("larvae", "males"...) and, for infraspecific names, reduced to the
-#' species (the models of bmassa stop at species). "Genus sp.", "Genus
+#' species (the models of *bmassa* stop at species). "Genus sp.", "Genus
 #' spp." and names with "cf." or "aff." are looked up as the genus: the
 #' identification is uncertain beyond it. The broad group gives hints
 #' (Animalia for animals; Chordata for fish and amphibians; Amphibia for
@@ -283,7 +283,7 @@ colxr_rounds <- function(state, rows, name, rank, form, group, hints, group_only
     for (k in seq_along(rows)) {
       i <- rows[k]
       if (record_first && is.null(state$first[[i]])) state$first[[i]] <- got[[k]]
-      ok <- accept_colxr(got[[k]], name[i], form[i], group[i])
+      ok <- accept_colxr(got[[k]], name[i], form[i], group[i], rank[i])
       if (!is.null(ok)) state$answer[[i]] <- ok
     }
   }
@@ -398,15 +398,18 @@ parse_colxr_usage <- function(r) {
 
 # The acceptable usage among the answer and its alternatives (in the order of
 # the service), or NULL. A genus is preferred to a homonymous subgenus
-# (Chironomus). Other acceptable taxa with the same name in another class or
-# order are reported in `homonyms`.
-accept_colxr <- function(parsed, target, form, group) {
+# (Chironomus), and a name whose ending implies a rank (Orthocladiinae, a
+# subfamily) takes a usage of that rank before one of another rank (the COL
+# XR has a placeholder genus Orthocladiinae). Other acceptable taxa with the
+# same name in another class or order are reported in `homonyms`.
+accept_colxr <- function(parsed, target, form, group, rank = NA_character_) {
   cand <- Filter(function(a) usage_acceptable(a, target, form, group),
                  c(list(parsed$main), parsed$alternatives))
   if (!length(cand)) return(NULL)
   rk <- vapply(cand, function(a) a$rank, character(1))
   tier <- vapply(cand, preference_tier, integer(1), group = group)
-  cand <- cand[order(tier, rk == "SUBGENUS")]
+  other_rank <- if (identical(form, "suffix") && !is.na(rank)) !rk %in% rank else rep(FALSE, length(rk))
+  cand <- cand[order(tier, other_rank, rk == "SUBGENUS")]
   best <- cand[[1]]
   where <- function(a) paste(a$classification[c("KINGDOM", "CLASS", "ORDER")], collapse = "|")
   other <- Filter(function(a) where(a) != where(best) && !identical(a$rank, "SUBGENUS"), cand[-1])

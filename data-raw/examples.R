@@ -7,15 +7,19 @@
 # eutrophic Mediterranean lake; abundances and lengths chosen to be
 # plausible). They are NOT field data and must not be used as such.
 
-# The input tables of estimate_biomass(), for two sites of the
-# same lake: the taxon units (a taxon, or a taxon in one life stage and sex, with
-# its counting unit and, if measured, its mean length), the abundances of each
-# unit by site, and the lengths measured in a particular site (not field data). The
-# classification follows the Catalogue of Life (COL26.6 XR), with the orders
-# that the COL XR leaves empty (Cyclopoida, Hygrophila) from other
-# classifications, and Squalius placed in Leuciscidae, as in other
-# classifications. `col_id` is the identifier of each taxon in the COL26.6 XR,
-# as returned by standardize_taxa() on 2026-11-02 (all exact matches).
+# The input tables of estimate_biomass(), for two sites of the same lake: the
+# taxon units (a taxon, or a taxon in one life stage and sex, with its counting
+# unit), the abundances of each unit by site, and the lengths (version 0.5.0):
+# mean lengths that apply to all the samples of a unit (rows without site),
+# mean lengths measured in each site (the chub Squalius pyrenaicus), and the
+# lengths of the individuals measured in one site, by length class (Gammarus
+# in L1). Not field data. The classification follows the Catalogue of Life
+# (COL26.6 XR), with the orders that the COL XR leaves empty (Cyclopoida,
+# Hygrophila) from other classifications, and Squalius placed in Leuciscidae,
+# as in other classifications. `col_id` is the identifier of each taxon in the
+# COL26.6 XR, as returned by standardize_taxa() on 2026-11-02 (all exact
+# matches); those of the 16 taxa that are nodes of the reference are the same
+# in the COL26.10 XR of the reference of version 0.4.0.
 lineage <- function(...) {
   x <- c(...)
   stopifnot(length(x) == 7L)
@@ -60,13 +64,6 @@ units <- data.frame(
                  "larva"),
   sex = NA_character_,
   count_unit = c(rep("cell", 5), rep("individual", 15)),
-  # Mean lengths of the units in both sites (NA: not measured).
-  length_mean = c(rep(NA, 7), 2.2, NA, 12, 6, 16, NA, NA, NA, 15, NA, NA, 58, NA),
-  length_unit = c(rep(NA, 7), "mm", NA, "mm", "mm", "mm", NA, NA, NA, "cm", NA, NA, "mm", NA),
-  length_type = c(rep(NA, 7), "body_length", NA, "body_length", "body_length", "body_length",
-                  NA, NA, NA, "fork_length", NA, NA, "snout_vent_length", NA),
-  length_sd = c(rep(NA, 9), 3, NA, 3, NA, NA, NA, 4, NA, NA, NA, NA),
-  length_cv = c(rep(NA, 7), 0.25, rep(NA, 10), 0.15, NA),
   stringsAsFactors = FALSE
 )
 example_taxa <- units
@@ -87,14 +84,22 @@ example_abundance <- data.frame(
   stringsAsFactors = FALSE
 )
 example_abundance <- example_abundance[, c("site", "taxon_id", "abundance", "per")]
-# Lengths measured in each site: the chub Squalius pyrenaicus (t17).
+# Lengths. Rows without site: the mean length of a unit in all the samples
+# (Daphnia, Chironomus, Cloeon, Ischnura, Luciobarbus and the adult frogs);
+# rows with site: the mean length of the chub in each site, and the lengths of
+# the Gammarus measured in L1, by length class (`n` individuals of each
+# length).
 example_length_table <- data.frame(
-  taxon_id = c("t17", "t17"),
-  site = c("L1", "L2"),
-  length_mean = c(110, 85),
-  length_unit = "mm",
-  length_type = "fork_length",
-  length_sd = c(20, 15),
+  taxon_id = c("t08", "t10", "t11", "t12", "t16", "t19", "t17", "t17", rep("t13", 5)),
+  site = c(rep(NA, 6), "L1", "L2", rep("L1", 5)),
+  length_mean = c(2.2, 12, 6, 16, 15, 58, 110, 85, rep(NA, 5)),
+  length = c(rep(NA, 8), 4, 6, 8, 10, 12),
+  n = c(rep(NA, 8), 2, 4, 3, 2, 1),
+  length_unit = c("mm", "mm", "mm", "mm", "cm", "mm", "mm", "mm", rep("mm", 5)),
+  length_type = c("body_length", "body_length", "body_length", "body_length", "fork_length",
+                  "snout_vent_length", "fork_length", "fork_length", rep("body_length", 5)),
+  length_sd = c(NA, 3, NA, 3, 4, NA, 20, 15, rep(NA, 5)),
+  length_cv = c(0.25, NA, NA, NA, NA, 0.15, NA, NA, rep(NA, 5)),
   stringsAsFactors = FALSE
 )
 example_survey <- list(abundance = example_abundance, taxa = example_taxa,

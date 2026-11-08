@@ -12,8 +12,8 @@ This is a new package (first submission to CRAN).
 ## Notes for the reviewers
 
 * `standardize_taxa()` queries the GBIF name-matching API. Its example runs
-  only when curl, jsonlite and an internet connection are available, and a
-  failure of the service gives an error of class `bmassa_error_network`,
+  only when 'curl', 'jsonlite' and an internet connection are available, and
+  a failure of the service gives an error of class `bmassa_error_network`,
   which the example turns into a message. The tests that need the internet
   are skipped on CRAN.
 * The reference tables in `R/sysdata.rda` hold the parameters of

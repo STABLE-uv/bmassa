@@ -9,7 +9,10 @@ test_that("all the sources, or those of an estimate", {
   est <- suppressWarnings(estimate_biomass(ex$abundance, ex$taxa, ex$lengths, bias_correction = "none"))
   s <- cite_sources(est)
   e <- as.data.frame(est)
-  used <- unique(unlist(strsplit(e$sources[!is.na(e$ind_median)], ";")))
+  # The sources of the models and of the conversion to wet mass.
+  ok <- !is.na(e$ind_median)
+  used <- unique(unlist(strsplit(c(e$sources[ok], e$conversion_sources[ok & !is.na(e$conversion_sources)]),
+                                 ";")))
   expect_setequal(s$source_id, used)
   expect_true(all(s$n_rows >= 1L))
   expect_true(all(s$source_id %in% all$source_id))

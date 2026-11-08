@@ -26,21 +26,31 @@ counted) for phytoplankton, where it is required; \code{"individual"} or
 \item \code{cells_per_unit} (>= 1): for phytoplankton counted in natural units,
 the mean number of cells of a unit, where it was counted; the unit is
 then estimated as that many cells (see Details). \code{NA} otherwise.
-\item \code{length_mean} (> 0), \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and
-\code{length_type} (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"},
-\code{"fork_length"}, \code{"total_length"}, \code{"standard_length"} or
-\code{"snout_vent_length"}), with \code{length_sd} or \code{length_cv} (spread of the
-lengths): the mean length of the unit in all the samples; \code{NA} where
-it was not measured.
 Other columns, such as \code{scientific_name}, are kept, and
-\code{scientific_name} is added to the result.
+\code{scientific_name} is added to the result. Mean lengths in \code{taxa}
+(\code{length_mean}, \code{length_unit}, \code{length_type}, \code{length_sd}, \code{length_cv})
+are deprecated: they are still used, after any row of \code{lengths}, with a
+warning; give them in \code{lengths}.
 }}
 
-\item{lengths}{\code{NULL} (default) or a data frame of mean lengths measured
-in particular samples, which take precedence over those of \code{taxa}:
-\code{taxon_id}, \code{site}, \code{date} (optional; \code{NA} applies to all the dates of
-the site), \code{length_mean}, \code{length_unit}, \code{length_type} and, optionally,
-\code{length_sd} or \code{length_cv}, as in \code{taxa}.}
+\item{lengths}{\code{NULL} (default) or a data frame with the lengths of the
+taxon units, one row per mean length or per measured length:
+\itemize{
+\item \code{taxon_id}: key of the taxon unit in \code{taxa}.
+\item \code{site} and \code{date} (optional): where the lengths apply. A row without
+\code{site} applies to all the samples of the unit, one with \code{site} and
+without \code{date} to all the dates of that site, and one with both to that
+sample. For each sample the most specific lengths are used.
+\item Either \code{length_mean} (> 0), the mean length of the unit, the usual case,
+with its spread in \code{length_sd} or \code{length_cv} when known; or \code{length}
+(> 0), the length of measured individuals, with \code{n} (default 1) the
+number of individuals of that length: one row per individual, or per
+length class with its count. A unit and sample have one or the other.
+\item \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and \code{length_type}
+(\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"}, \code{"fork_length"},
+\code{"total_length"}, \code{"standard_length"} or \code{"snout_vent_length"}), one
+type per unit and sample.
+}}
 
 \item{level}{Level of the intervals whose width is reported (default 0.95).}
 
@@ -48,12 +58,14 @@ the site), \code{length_mean}, \code{length_unit}, \code{length_type} and, optio
 }
 \value{
 A data frame of class \code{bmassa_coverage} with one row per taxon unit
-of \code{taxa} (from its length, if it has one, or without it; phytoplankton
-without \code{count_unit}, twice: per cell and per natural unit) and one per
-row of \code{lengths}. Columns: \code{taxon_id}, \code{broad_group}, \code{scientific_name} (if
-in \code{taxa}), \code{method} (\code{"typical"} or \code{"length"}), \code{count_unit}, \code{site}
-(and \code{date}, if \code{lengths} has it) of the rows of \code{lengths}, \code{life_stage},
-\code{sex}, \code{length_mm}, \code{length_type}, \code{model}, \code{stage_used}, \code{match_level},
+of \code{taxa} (from the lengths of \code{lengths} without site, if it has them,
+or without lengths; phytoplankton without \code{count_unit}, twice: per cell
+and per natural unit) and one per taxon unit and site (or sample) of
+\code{lengths}. Columns: \code{taxon_id}, \code{broad_group}, \code{scientific_name} (if in
+\code{taxa}), \code{method} (\code{"typical"} or \code{"length"}), \code{count_unit}, \code{site} (and
+\code{date}, if \code{lengths} has it) of the lengths, \code{life_stage}, \code{sex},
+\code{length_mm}, \code{length_type}, \code{length_basis}, \code{length_n} (as in
+\code{\link[=estimate_biomass]{estimate_biomass()}}), \code{model}, \code{stage_used}, \code{match_level},
 \code{match_name}, \code{n_reference}, \code{factor} (the interval is the median divided
 and multiplied by this factor), \code{level}, \code{status} (\code{"estimable"} or
 \code{"not_estimable"}), \code{reason} and \code{note}. Its \code{print()} method summarises
@@ -72,7 +84,9 @@ Each unit is checked as \code{\link[=estimate_biomass]{estimate_biomass()}} woul
 life stage, sex and counting unit, insects without a stage as larvae, and
 amphibians without a length estimable only as adults. The width does not
 depend on the back-transformation chosen in \code{\link[=estimate_biomass]{estimate_biomass()}}, which
-only shifts the estimate.
+only shifts the estimate, and is that of the currency of the models
+(phytoplankton biovolume, dry mass of invertebrates, wet mass of fish and
+amphibians): a conversion to another currency widens it.
 }
 \examples{
 cov <- check_coverage(example_survey$taxa, example_survey$lengths)

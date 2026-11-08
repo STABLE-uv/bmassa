@@ -12,7 +12,17 @@ cells_and_units <- rbind(ex$taxa[ex$taxa$taxon_id == "t01", ],
                          transform(ex$taxa[ex$taxa$taxon_id == "t01", ], taxon_id = "t01n",
                                    count_unit = "natural_unit"))
 ref <- get_reference()
-e0 <- as.data.frame(est)
+# The estimate in the currencies of the models, before the conversion that
+# estimate_biomass() applies to all its rows (wet mass in mg by default).
+native_of <- function(x) {
+  x$estimates <- x$native
+  x$native <- NULL
+  x$simulation$conversion <- NULL
+  x$settings$conversion <- NULL
+  x
+}
+est_n <- native_of(est)
+e0 <- as.data.frame(est_n)
 row_of <- function(id, site = "L1") which(e0$taxon_id == id & e0$site == site)
 tau2_of <- function(e, i) 2 * log(e$ind_mean[i] / e$ind_median[i])
 comp <- function(m, l) {
@@ -74,7 +84,7 @@ test_that("an inverse conversion changes the sign of the factor, not its varianc
 })
 
 test_that("fish go to carbon through dry mass, and the two factors add up", {
-  cv <- suppressWarnings(convert_currency(est, to = "carbon", habitat = "freshwater"))
+  cv <- suppressWarnings(convert_currency(est, to = "carbon", habitat = "freshwater", unit = "g"))
   e1 <- as.data.frame(cv)
   i <- row_of("t16")
   eta <- 0
@@ -93,7 +103,7 @@ test_that("fish go to carbon through dry mass, and the two factors add up", {
 })
 
 test_that("phytoplankton cells follow Menden-Deuer and Lessard (2000), Table 4", {
-  cv <- suppressWarnings(convert_currency(est, to = "carbon"))
+  cv <- suppressWarnings(convert_currency(est, to = "carbon", unit = "pg"))
   e1 <- as.data.frame(cv)
   # Cyclotella meneghiniana, a diatom: log10 C (pg) = -0.541 + 0.811 log10 V.
   i <- row_of("t01")
@@ -114,7 +124,7 @@ test_that("phytoplankton cells follow Menden-Deuer and Lessard (2000), Table 4",
 })
 
 test_that("phytoplankton wet mass is the biovolume at 1 g/cm3, for cells and natural units", {
-  wm <- suppressWarnings(convert_currency(est, to = "wet_mass"))
+  wm <- suppressWarnings(convert_currency(est, to = "wet_mass", unit = "pg"))
   e1 <- as.data.frame(wm)
   phy <- which(e0$broad_group == "phytoplankton" & !is.na(e0$ind_median))
   # 1 um3 = 1 pg at the density of water (EN 16695, section 6.6): the same
@@ -138,19 +148,20 @@ test_that("phytoplankton wet mass is the biovolume at 1 g/cm3, for cells and nat
   # The density has no error: the draws are those of the biovolumes, and the
   # mean of a total is the sum of its rows.
   ld1 <- withr::with_seed(5, draw_log_mass(mg, phy, 500, "shared"))
-  ld0 <- withr::with_seed(5, draw_log_mass(est, phy, 500, "shared"))
+  ld0 <- withr::with_seed(5, draw_log_mass(est_n, phy, 500, "shared"))
   expect_equal(ld1, ld0 + log(1e-9), tolerance = 1e-12)
   s <- summarize_biomass(mg, by = c("site", "broad_group"), na_rm = TRUE, seed = 4)
-  s0 <- summarize_biomass(est, by = c("site", "broad_group"), na_rm = TRUE, seed = 4)
+  s0 <- summarize_biomass(est_n, by = c("site", "broad_group"), na_rm = TRUE, seed = 4)
   k <- s$broad_group == "phytoplankton"
   expect_equal(s$biomass_mean[k], 1e-9 * s0$biomass_mean[s0$broad_group == "phytoplankton"])
   expect_true(all(s$biomass_unit[k] == "mg/mL"))
   # Natural units are converted too (the conversion is linear).
   ab <- data.frame(site = "a", taxon_id = c("t01", "t01n"), abundance = 10, per = "mL")
-  e <- estimate_biomass(ab, cells_and_units)
-  w <- as.data.frame(convert_currency(e, to = "wet_mass"))
-  expect_equal(w$ind_median, as.data.frame(e)$ind_median)
+  e <- estimate_biomass(ab, cells_and_units, unit = "pg")
+  w <- as.data.frame(e)
+  expect_equal(w$ind_median, e$native$ind_median)
   expect_true(all(w$unit == "pg"))
+  expect_equal(w$converted_from, c("biovolume", "biovolume"))
   expect_true("cen2015" %in% cite_sources(wm)$source_id)
 })
 
@@ -171,7 +182,7 @@ test_that("rotifers go to wet mass with dry mass 10 % of it, 3.9 % in Asplanchna
   expect_match(e1$note[rot[1]], "not quantified")
   expect_false(any(grepl("conversion", e1$uncertainty[rot])))
   ld1 <- withr::with_seed(6, draw_log_mass(wm, rot, 300, "shared"))
-  ld0 <- withr::with_seed(6, draw_log_mass(est, rot, 300, "shared"))
+  ld0 <- withr::with_seed(6, draw_log_mass(est_n, rot, 300, "shared"))
   expect_equal(ld1, ld0 - log(0.1), tolerance = 1e-12)
   # Asplanchna: 3.9 % (Dumont et al. 1975, p. 94).
   tx <- ex$taxa[ex$taxa$taxon_id == "t07", ]
@@ -184,7 +195,8 @@ test_that("rotifers go to wet mass with dry mass 10 % of it, 3.9 % in Asplanchna
   ab <- data.frame(site = "a", taxon_id = "asp", abundance = 5, per = "L")
   e <- suppressWarnings(estimate_biomass(ab, tx))
   w <- as.data.frame(convert_currency(e, to = "wet_mass"))
-  expect_equal(w$ind_median, as.data.frame(e)$ind_median / 0.039)
+  expect_equal(w$ind_median, e$native$ind_median / 0.039)
+  expect_equal(w$ind_median, as.data.frame(e)$ind_median)
   expect_match(w$conversion, "3.9 %.*Asplanchna")
   expect_equal(w$conversion_sources, "dumont1975;usepa2016")
   # Their AFDM, carbon and energy still come from the conversion models.
@@ -205,7 +217,7 @@ test_that("amphibians go to dry mass and energy with the values of frogs and toa
   expect_equal(0.15 * exp(-v / 2), 0.1409, tolerance = 1e-3)
   s2e <- log(1 + (0.45 / 4.6)^2)
   ve <- s2e * (1 + 1 / 3)
-  dm <- suppressWarnings(convert_currency(est, to = "dry_mass"))
+  dm <- suppressWarnings(convert_currency(est, to = "dry_mass", unit = "g"))
   e1 <- as.data.frame(dm)
   expect_equal(e1$ind_mean[amph], 0.15 * e0$ind_mean[amph])
   expect_equal(e1$biomass_mean[amph], 0.15 * e0$biomass_mean[amph])
@@ -236,16 +248,16 @@ test_that("amphibians go to dry mass and energy with the values of frogs and toa
   # two sites) share all of it; with "independent" only the error of the mean
   # of the studies (s2/3), which all the amphibian rows share.
   d <- withr::with_seed(8, draw_log_mass(dm, amph, 20000, "shared")) -
-    withr::with_seed(8, draw_log_mass(est, amph, 20000, "shared"))
+    withr::with_seed(8, draw_log_mass(est_n, amph, 20000, "shared"))
   expect_equal(colMeans(d), rep(log(0.15) - v / 2, 2L), tolerance = 0.01)
   expect_equal(stats::var(d[, 1]), v, tolerance = 0.05)
   expect_equal(d[, 1], d[, 2])
   di <- withr::with_seed(8, draw_log_mass(dm, amph, 20000, "independent")) -
-    withr::with_seed(8, draw_log_mass(est, amph, 20000, "independent"))
+    withr::with_seed(8, draw_log_mass(est_n, amph, 20000, "independent"))
   expect_equal(stats::var(di[, 2]), v, tolerance = 0.05)
   expect_equal(stats::cov(di[, 1], di[, 2]), s2 / 3, tolerance = 0.1)
   de <- withr::with_seed(9, draw_log_mass(en, amph, 20000, "shared")) -
-    withr::with_seed(9, draw_log_mass(est, amph, 20000, "shared"))
+    withr::with_seed(9, draw_log_mass(est_n, amph, 20000, "shared"))
   expect_equal(mean(de[, 1]), log(0.15) - v / 2 + log(1e6 * 4.6 * 4.184e-3) - ve / 2,
                tolerance = 0.01)
   expect_equal(stats::var(de[, 1]), v + ve, tolerance = 0.05)
@@ -255,9 +267,9 @@ test_that("amphibians go to dry mass and energy with the values of frogs and toa
   expect_match(cv$reason[amph[1]], "too few conversion factors for amphibians to carbon")
   # From dry to wet mass (an estimate in dry mass): the opposite shift and the
   # same variance, so the mean wet mass is the mean dry mass / 0.15 * exp(v).
-  x <- est
+  x <- est_n
   x$estimates$currency[amph] <- "dry_mass"
-  w <- as.data.frame(suppressWarnings(convert_currency(x, to = "wet_mass")))
+  w <- as.data.frame(suppressWarnings(convert_currency(x, to = "wet_mass", unit = "g")))
   expect_equal(w$ind_median[amph], e0$ind_median[amph] / (0.15 * exp(-v / 2)))
   expect_equal(w$ind_mean[amph], e0$ind_mean[amph] / 0.15 * exp(v))
   expect_match(w$conversion[amph[1]], "^dry_mass->wet_mass: amphibians")
@@ -287,8 +299,8 @@ test_that("rows that cannot be converted get NA and a reason, with one warning",
   expect_true(all(is.na(af$ind_median[amph])))
   expect_true(all(af$status[amph] == "not_estimated"))
   expect_match(af$reason[amph[1]], "too few conversion factors for amphibians to afdm")
-  # Wet mass: amphibians and fish stay as they are.
-  wm <- suppressWarnings(convert_currency(est, to = "wet_mass"))
+  # Wet mass: amphibians and fish stay as they are (in g).
+  wm <- suppressWarnings(convert_currency(est, to = "wet_mass", unit = "g"))
   e2 <- as.data.frame(wm)
   vert <- e0$broad_group %in% c("fish", "amphibian")
   expect_equal(e2$ind_median[vert], e0$ind_median[vert])
@@ -336,7 +348,7 @@ test_that("phytoplankton cells go to energy through their carbon (hand calculati
   s2 <- log(1 + (1.108 / 11.40)^2)
   v <- s2 * (1 + 1 / 10)
   f <- 11.40 * 4.184e-9 # J per pg of carbon
-  c1 <- as.data.frame(suppressWarnings(convert_currency(est, to = "carbon")))
+  c1 <- as.data.frame(suppressWarnings(convert_currency(est, to = "carbon", unit = "pg")))
   en <- suppressWarnings(convert_currency(est, to = "energy"))
   j <- as.data.frame(en)
   i <- row_of("t01")
@@ -402,7 +414,7 @@ test_that("rows sharing a conversion node have correlated factors", {
   expect_equal(nrow(st), 2L)
   expect_equal(st$node[1], st$node[2])
   expect_equal(ref$conversion_nodes$node[st$node[1]], "Daphnia")
-  ld0 <- withr::with_seed(5, draw_log_mass(e, 1:2, 20000, "shared"))
+  ld0 <- withr::with_seed(5, draw_log_mass(native_of(e), 1:2, 20000, "shared"))
   ld1 <- withr::with_seed(5, draw_log_mass(cv, 1:2, 20000, "shared"))
   # The added covariance is the variance of the shared parts of the factor:
   # the path of the node and the habitat.

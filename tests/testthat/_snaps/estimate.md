@@ -1,7 +1,7 @@
 # input errors are classed and informative
 
     Code
-      estimate_biomass(ab, limno_l)
+      estimate_biomass(ab, limno, ln5)
     Condition
       Error in `estimate_biomass()`:
       ! `bias_correction` is required when lengths are used: "none" (median mass of the individuals of a given length) or "lognormal" (their mean, needed for biomass).
@@ -11,9 +11,10 @@
     Code
       print(est)
     Output
-      <bmassa_estimate> 40 rows: 37 estimated (13 from lengths, 24 without lengths), 3 not estimated
+      <bmassa_estimate> 40 rows: 37 estimated (14 from lengths, 23 without lengths), 3 not estimated
       Lowest level shared with the reference: species 27, genus 6, family 4
       Interval: prediction 95 %, for the mean individual mass of a population; bias_correction = "lognormal"
+      Currency: wet mass (mg); 30 rows converted from the currency of their models; habitat unknown
       Not estimated:
           1  abundance is missing
           2  amphibian larvae and juveniles have no reference masses without lengths

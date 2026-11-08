@@ -75,19 +75,23 @@
 #'   * `sources`: `source_id`, `citation`, `doi`, `licence`.
 #'   * `info`: versions (`data_version`, `col_release` of the Catalogue of
 #'     Life eXtended Release used for the taxonomy, `fitted_on`,
-#'     `conversions_fitted_on`, `lme4`).
+#'     `conversions_fitted_on`, and `lme4`, the version of *lme4* used).
 #'
 #' @details
 #' The models were fitted outside the package (`data-raw/fit_models.R` and
-#' `data-raw/fit_conversions.R` in the source repository) with lme4 by
-#' REML: masses (or biovolumes) without lengths, and conversion factors, with
-#' nested random intercepts by taxonomic level, and length-mass relations with
-#' random intercepts and slopes by level within length type, from three points
-#' of each published or fitted equation inside its range of lengths. The estimate and variance of each path come from the joint
-#' conditional distribution of the fixed and random effects, so the effects of
-#' a node and of its ancestors are not treated as independent. Records
-#' identified above species have nodes of their own in the fit, which are not
-#' kept here because no user taxon can match them.
+#' `data-raw/fit_conversions.R` in the source repository) with the R package
+#' *lme4* (Bates et al. 2015) by REML: masses (or biovolumes) without lengths,
+#' and conversion factors, with nested random intercepts by taxonomic level,
+#' and length-mass relations with random intercepts and slopes by level within
+#' length type, from three points of each published or fitted equation inside
+#' its range of lengths. The estimate and variance of each path come from the
+#' joint conditional distribution of the fixed and random effects, so the
+#' effects of a node and of its ancestors are not treated as independent.
+#' Records identified above species have nodes of their own in the fit, which
+#' are not kept here because no user taxon can match them.
+#' @references Bates D, Mächler M, Bolker B, Walker S (2015). Fitting linear
+#'   mixed-effects models using *lme4*. *Journal of Statistical Software*
+#'   67(1), 1-48. \doi{10.18637/jss.v067.i01}
 #'
 #' @export
 #' @examples

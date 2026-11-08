@@ -8,15 +8,9 @@ summarize_biomass.bmassa_estimate <- function(data, by = "site", level = 0.95, n
                                                 population_effect = "shared", population_by = NULL,
                                                 na_rm = FALSE, seed = NULL, ...) {
   check_dots_empty(...)
-  if (!is.character(by) || length(by) == 0L || anyNA(by)) {
-    abort_input("`by` must be a character vector of column names.")
-  }
+  check_by(by)
   check_level(level)
-  if (!is.numeric(n_draws) || length(n_draws) != 1L || is.na(n_draws) || n_draws < 100 ||
-      n_draws != round(n_draws)) {
-    abort_input(sprintf("`n_draws` must be a whole number of at least 100, not %s.",
-                        describe_value(n_draws)))
-  }
+  check_n_draws(n_draws)
   check_choice(population_effect, population_effect_levels)
   check_flag(na_rm)
   check_seed(seed)
@@ -179,9 +173,9 @@ draw_log_mass <- function(x, est, n_draws, population_effect, group = NULL) {
     }
   }
   # 3. Missing levels: one deviation per missing node.
-  all_keys <- unlist(keys)
-  for (k in unique(all_keys)) {
-    cols <- which(vapply(keys, function(z) k %in% z, logical(1)))
+  rows_of <- rows_by_key(keys)
+  for (k in names(rows_of)) {
+    cols <- rows_of[[k]]
     parts <- strsplit(k, "\u001f", fixed = TRUE)[[1]]
     m <- parts[1]
     l <- parts[3]
@@ -244,10 +238,11 @@ add_conversion_errors <- function(out, x, est, cv, n_draws, population_effect, g
   e <- matrix(0, nrow = n_draws, ncol = nrow(st))
   err <- draw_node_errors(unique(st$node[!is.na(st$node)]), cn, n_draws)
   for (k in which(!is.na(st$node))) e[, k] <- err[[as.character(st$node[k])]][, 1]
-  for (key in unique(unlist(keys))) {
+  steps_of <- rows_by_key(keys)
+  for (key in names(steps_of)) {
     parts <- strsplit(key, "\u001f", fixed = TRUE)[[1]]
     v <- cc$value[cc$model == parts[1] & cc$level == parts[2] & cc$parameter == "intercept"]
-    ks <- which(vapply(keys, function(z) key %in% z, logical(1)))
+    ks <- steps_of[[key]]
     e[, ks] <- e[, ks] + stats::rnorm(n_draws, 0, sqrt(if (length(v)) v else 0))
   }
   sim <- x$simulation$rows
@@ -269,6 +264,17 @@ add_conversion_errors <- function(out, x, est, cv, n_draws, population_effect, g
   col <- match(st$row, est)
   for (k in seq_len(nrow(st))) out[, col[k]] <- out[, col[k]] + st$sign[k] * e[, k]
   out
+}
+
+# For each key of missing levels (in the order of their first appearance), the
+# elements of `keys` (a list of character vectors) that contain it.
+rows_by_key <- function(keys) {
+  all_keys <- unlist(keys)
+  if (!length(all_keys)) {
+    return(list())
+  }
+  idx <- rep(seq_along(keys), lengths(keys))
+  lapply(split(idx, factor(all_keys, levels = unique(all_keys))), unique)
 }
 
 # Errors of the paths of the nodes `used` and of their ancestors, drawn from

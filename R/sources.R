@@ -21,9 +21,9 @@
 #' An estimate rests on the data below the node it comes from; the variance
 #' components of the model use all of its data. Some sources are compilations:
 #' van Leeuwen et al. (2025) and Moreau et al. (2021) give the original
-#' reference of each value. bmassa holds only the parameters of the models
-#' fitted to these data (and the equations published in the sources), not
-#' the data themselves.
+#' reference of each value. *bmassa* holds only the parameters of the models
+#' fitted to these data (and the equations published in the sources), not the
+#' data themselves.
 #'
 #' @export
 #' @examples

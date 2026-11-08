@@ -14,17 +14,17 @@ with the orders it leaves empty taken from other classifications, and
 \emph{Squalius} given in Leuciscidae), \code{col_id} (identifier of the taxon in
 the COL26.6 XR), \code{life_stage} (\code{NA} when not stated; the frog
 \emph{Pelophylax perezi} is twice, as adults and as larvae), \code{sex} (not
-stated), \code{count_unit} (\code{"cell"} for phytoplankton, \code{"individual"}) and
-the mean length of seven units in both sites: \code{length_mean},
-\code{length_unit} (\code{"mm"}, \code{"cm"}), \code{length_type}, \code{length_sd} and
-\code{length_cv}.}
+stated) and \code{count_unit} (\code{"cell"} for phytoplankton, \code{"individual"}).}
 \item{abundance}{40 rows: \code{site} (\code{"L1"}, \code{"L2"}), \code{taxon_id},
 \code{abundance} (counting units per \code{per}; 0 for a taxon looked for and not
 seen, \code{NA} for one not counted) and \code{per} (\code{"mL"}, \code{"L"}, \code{"m2"},
 \code{"100 m2"}).}
-\item{lengths}{2 rows of mean lengths measured in each site (the chub
-\emph{Squalius pyrenaicus}): \code{taxon_id}, \code{site}, \code{length_mean},
-\code{length_unit}, \code{length_type} and \code{length_sd}.}
+\item{lengths}{13 rows: \code{taxon_id}, \code{site}, \code{length_mean}, \code{length},
+\code{n}, \code{length_unit} (\code{"mm"}, \code{"cm"}), \code{length_type}, \code{length_sd} and
+\code{length_cv}. Six mean lengths without site (they apply to both sites),
+the mean length of the chub \emph{Squalius pyrenaicus} in each site, and the
+lengths of the \emph{Gammarus} measured in L1, by length class (\code{n}
+individuals of each \code{length}).}
 }
 }
 \source{
@@ -37,7 +37,7 @@ example_survey
 Constructed data (not field data) for two sites of a shallow lake, in the
 input format of \code{\link[=estimate_biomass]{estimate_biomass()}} and \code{\link[=check_coverage]{check_coverage()}}: phytoplankton
 counted in cells, zooplankton, macroinvertebrates, fish and amphibians,
-with mean lengths for some of the animals.
+with lengths for some of the animals.
 }
 \examples{
 str(example_survey, max.level = 1)

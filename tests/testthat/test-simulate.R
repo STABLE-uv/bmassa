@@ -14,12 +14,8 @@ test_that("the draws of each row reproduce its analytic distribution", {
 })
 
 test_that("the total of one row has the mean of its biomass", {
-  one <- est
-  one$estimates <- est$estimates[est$estimates$taxon_id == "t16" & est$estimates$site == "L1", ]
-  # The simulation reads the rows by position: keep the matching row.
-  k <- which(est$estimates$taxon_id == "t16" & est$estimates$site == "L1")
-  one$simulation$rows <- est$simulation$rows[k, ]
-  one$simulation$missing_keys <- est$simulation$missing_keys[k]
+  k <- which(ex$abundance$taxon_id == "t16" & ex$abundance$site == "L1")
+  one <- estimate_biomass(ex$abundance[k, ], ex$taxa, ex$lengths, bias_correction = "lognormal")
   s <- summarize_biomass(one, by = "site", n_draws = 20000, seed = 3)
   expect_identical(s$biomass_mean, one$estimates$biomass_mean)
   expect_equal(s$biomass_median, one$estimates$biomass_median, tolerance = 0.03)
@@ -47,9 +43,11 @@ test_that("the mean of a total is the sum of the means of its rows, as that of t
   expect_equal(unname(sims), unname(exact), tolerance = 0.01)
 })
 
-test_that("totals never add currencies, and missing rows make a total incomplete", {
+test_that("totals keep the units apart, and missing rows make a total incomplete", {
   s <- summarize_biomass(est, by = "site", seed = 1)
-  expect_setequal(unique(s$currency), c("biovolume", "dry_mass", "wet_mass"))
+  # One currency for all the rows; one total per unit of abundance.
+  expect_equal(unique(s$currency), "wet_mass")
+  expect_setequal(s$biomass_unit, c("mg/mL", "mg/L", "mg/m2", "mg/100 m2"))
   expect_true(all(is.na(s$biomass_mean[s$status == "incomplete"])))
   s2 <- summarize_biomass(est, by = c("site", "broad_group"), na_rm = TRUE, seed = 1)
   expect_true(all(!is.na(s2$biomass_mean)))
@@ -78,10 +76,11 @@ test_that("the share of a new study is drawn once for the invertebrates with len
                    kingdom = "Animalia", phylum = c("Annelida", "Arthropoda"),
                    class = c("Clitellata", "Insecta"), order = c("Tubificida", "Diptera"),
                    family = c("Naididae", "Chironomidae"), genus = c("Limnodrilus", "Chironomus"),
-                   species = c("Limnodrilus hoffmeisteri", "Chironomus plumosus"),
-                   length_mean = c(20, 12), length_unit = "mm", length_type = "body_length")
+                   species = c("Limnodrilus hoffmeisteri", "Chironomus plumosus"))
+  ln <- data.frame(taxon_id = c("w1", "c1"), length_mean = c(20, 12), length_unit = "mm",
+                   length_type = "body_length")
   ab <- data.frame(site = "s", taxon_id = c("w1", "c1"), abundance = c(50, 50), per = "m2")
-  e <- estimate_biomass(ab, tx, bias_correction = "none")
+  e <- estimate_biomass(ab, tx, ln, currency = "dry_mass", bias_correction = "none")
   sim <- e$simulation$rows
   cc <- get_reference()$components
   v_study <- cc$value[cc$model == "invertebrate_lwr" & cc$level == "study"]
@@ -201,7 +200,8 @@ test_that("summarize_biomass() gives quantiles of the sums of the simulated biom
 # One taxon without lengths in three sites, two of them in the same habitat.
 ab3 <- data.frame(site = c("a", "b", "c"), taxon_id = "t15", abundance = 100, per = "m2",
                   habitat = c("x", "x", "y"))
-est3 <- estimate_biomass(ab3, ex$taxa)
+# In dry mass, the currency of its model (no conversion).
+est3 <- estimate_biomass(ab3, ex$taxa, currency = "dry_mass")
 
 test_that("population_by shares a population within a group and not between groups", {
   vp <- est3$simulation$rows$v_population[1]

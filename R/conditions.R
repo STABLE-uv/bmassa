@@ -57,6 +57,16 @@ warn_not_estimable <- function(message, ..., call = sys.call(-1)) {
   ))
 }
 
+# An input that still works but will stop working in a future version.
+warn_deprecated <- function(message, ..., call = sys.call(-1)) {
+  warning(warningCondition(
+    message,
+    ...,
+    class = c("bmassa_warning_deprecated", "bmassa_warning"),
+    call = call
+  ))
+}
+
 # Optional dependencies (Suggests) ------------------------------------------
 
 # Thin wrapper so that tests can simulate a missing package with

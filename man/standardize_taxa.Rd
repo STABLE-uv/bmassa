@@ -49,7 +49,7 @@ using it, in particular the rows with a \code{note}.
 \details{
 The name sent is the name given without subgenus, without the words of life
 stages ("larvae", "males"...) and, for infraspecific names, reduced to the
-species (the models of bmassa stop at species). "Genus sp.", "Genus
+species (the models of \emph{bmassa} stop at species). "Genus sp.", "Genus
 spp." and names with "cf." or "aff." are looked up as the genus: the
 identification is uncertain beyond it. The broad group gives hints
 (Animalia for animals; Chordata for fish and amphibians; Amphibia for

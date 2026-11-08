@@ -71,9 +71,11 @@ with \code{currency = NA}. A zero-row input gives a zero-row result.
 }
 \description{
 \code{summarize_biomass()} adds up the biomass of the rows of each group, with
-one total per currency and unit: biovolume, dry mass and wet mass are never
-added together. It gives the mean, median and prediction interval of each
-total by simulation, keeping the correlations between rows.
+one total per currency and unit of biomass (\code{\link[=estimate_biomass]{estimate_biomass()}} gives all
+its rows in one currency and unit; abundances per volume and per area stay
+apart unless put on one basis with \code{\link[=convert_abundance]{convert_abundance()}}). It gives the
+mean, median and prediction interval of each total by simulation, keeping
+the correlations between rows.
 }
 \details{
 \strong{Simulation.} Each draw takes, once, the error of every node of the

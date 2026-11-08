@@ -1,6 +1,6 @@
 # data-raw
 
-Scripts and hand transcriptions that build the data sets of bmassa. This
+Scripts and hand transcriptions that build the data sets of *bmassa*. This
 folder is excluded from the package tarball (`.Rbuildignore`).
 
 The package holds only the parameters of the fitted models, by taxon, with
@@ -13,19 +13,21 @@ the development repository of the package.
 
 | Script | Builds | Run from the package root |
 |---|---|---|
-| `references.R` | The reference tables of version 0.1.0, no longer in the package but read by `taxonomy_colxr.R` and `model_data.R`: `derived/taxonomy_0.1.0.csv`, `derived/typical_mass_0.1.0.csv` and `derived/length_mass_0.1.0.csv` (numbers with 17 significant digits, read back exactly), `derived/kremer_colonial_genera.csv` (the colonial genera of Kremer et al. 2014, read by `model_tables.R`), and the build log `references_log.md` | `Rscript data-raw/references.R` (package readxl; helpers of `names.R`) |
-| `examples.R` | `data/example_survey.rda` (constructed data, not field data; `col_id` of the taxa from the COL26.6 XR) | `Rscript data-raw/examples.R` (package usethis) |
-| `neon_fish_download.R` | `NEON2026/neon_fish_DP1.20107.001.rds` under `BMASSA_DATABASES`: the fish of NEON (DP1.20107.001) downloaded from the NEON API, tables `fsh_perFish`, `fsh_perPass` and `fsh_fieldData` with the release of each file | `Rscript data-raw/neon_fish_download.R` (packages httr and jsonlite; an API token in `NEON_TOKEN`) |
-| `fit_lwr.R` | `derived/lwr_fitted.csv` (length–mass equations fitted from individual measurements), `derived/conversions_cadses.csv` (dry mass to ash-free dry mass), `derived/fit_lwr_log.md` | `Rscript data-raw/fit_lwr.R` (package readxl; originals under `BMASSA_DATABASES`; the fish of NEON with `neon.R`) |
-| `typical_records.R` | `derived/typical_records.csv` (mean masses or biovolumes of individuals, cells or colonies, with the mean length where given; and the mean wet mass of fish populations of Arranz et al. 2022, Koning et al. 2024 and NEON, by sampling, for the model of fish without lengths), `derived/typical_records_log.md` | `Rscript data-raw/typical_records.R` (package readxl; the fish of NEON with `neon.R`) |
-| `published_lwr.R` | `derived/lwr_published.csv` (length–mass equations transcribed from articles), `derived/lwr_published_log.md` (checks against the typical records) | `Rscript data-raw/published_lwr.R`, after `typical_records.R` (package readxl) |
-| `conversions.R` | `derived/conversions.csv` (factors between wet, dry and ash-free dry mass, carbon and energy, with or without shell; `sample` links the factors of the same material), `derived/conversions_log.md` | `Rscript data-raw/conversions.R`, after `fit_lwr.R` (package readxl; reads also `energy_literature.csv` and `cummins1971_*.csv`, and the data bank of Brey et al. 2010 with `brey.R`) |
-| `taxonomy_colxr.R` | `derived/taxa_colxr.csv` (each name of the reference tables matched to the Catalogue of Life eXtended Release, with its classification and flags), `derived/colxr_matches.csv` (the answers of the GBIF API, also used as cache), `derived/colxr_version.csv` (version of the COL XR of those answers), `derived/taxa_colxr_log.md` | `Rscript data-raw/taxonomy_colxr.R`, after the other scripts (packages curl, jsonlite and readxl; internet only for names not yet in the cache, or for all with `BMASSA_COLXR_REFRESH = "true"`; new names are refused when the matching service has moved to another version of the COL XR than the cache, which is then refreshed whole) |
+| `references.R` | The reference tables of version 0.1.0, no longer in the package but read by `taxonomy_colxr.R` and `model_data.R`: `derived/taxonomy_0.1.0.csv`, `derived/typical_mass_0.1.0.csv` and `derived/length_mass_0.1.0.csv` (numbers with 17 significant digits, read back exactly), `derived/kremer_colonial_genera.csv` (the colonial genera of Kremer et al. 2014, read by `model_tables.R`), and the build log `references_log.md` | `Rscript data-raw/references.R` (R package *readxl*, Wickham and Bryan 2023; helpers of `names.R`) |
+| `examples.R` | `data/example_survey.rda` (constructed data, not field data; `col_id` of the taxa from the COL26.6 XR) | `Rscript data-raw/examples.R` (R package *usethis*, Wickham et al. 2023) |
+| `azoxystrobin.R` | `inst/extdata/azoxystrobin/`: the design and the raw counts of phytoplankton, zooplankton and macroinvertebrates of the mesocosm experiment of Amador et al. (2024; CC BY 4.0) from the workbook of the authors, and, with `BMASSA_AZOXY_TAXA = "true"`, `taxa.csv` (the classification of the taxon units of the vignette `azoxystrobin`, with internet) | `Rscript data-raw/azoxystrobin.R` (package *readxl*; the workbook in `BMASSA_AZOXY_XLSX`) |
+| `tuesday_lake.R` | `inst/extdata/tuesday_lake/`: `nodes.csv` (the communities TL84 and TL86 of the R package *cheddar*, Hudson et al. 2013, BSD 2-Clause) and `taxa.csv` (their classification for the vignette `tuesday-lake`, with internet) | `Rscript data-raw/tuesday_lake.R [folder with TL84.RData and TL86.RData]` (R packages *curl*, Ooms 2023, and *jsonlite*, Ooms 2014) |
+| `neon_fish_download.R` | `NEON2026/neon_fish_DP1.20107.001.rds` under `BMASSA_DATABASES`: the fish of NEON (DP1.20107.001) downloaded from the NEON API, tables `fsh_perFish`, `fsh_perPass` and `fsh_fieldData` with the release of each file | `Rscript data-raw/neon_fish_download.R` (R packages *httr*, Wickham 2023, and *jsonlite*; an API token in `NEON_TOKEN`) |
+| `fit_lwr.R` | `derived/lwr_fitted.csv` (length–mass equations fitted from individual measurements), `derived/conversions_cadses.csv` (dry mass to ash-free dry mass), `derived/fit_lwr_log.md` | `Rscript data-raw/fit_lwr.R` (package *readxl*; originals under `BMASSA_DATABASES`; the fish of NEON with `neon.R`) |
+| `typical_records.R` | `derived/typical_records.csv` (mean masses or biovolumes of individuals, cells or colonies, with the mean length where given; and the mean wet mass of fish populations of Arranz et al. 2022, Koning et al. 2024 and NEON, by sampling, for the model of fish without lengths), `derived/typical_records_log.md` | `Rscript data-raw/typical_records.R` (package *readxl*; the fish of NEON with `neon.R`) |
+| `published_lwr.R` | `derived/lwr_published.csv` (length–mass equations transcribed from articles), `derived/lwr_published_log.md` (checks against the typical records) | `Rscript data-raw/published_lwr.R`, after `typical_records.R` (package *readxl*) |
+| `conversions.R` | `derived/conversions.csv` (factors between wet, dry and ash-free dry mass, carbon and energy, with or without shell; `sample` links the factors of the same material), `derived/conversions_log.md` | `Rscript data-raw/conversions.R`, after `fit_lwr.R` (package *readxl*; reads also `energy_literature.csv` and `cummins1971_*.csv`, and the data bank of Brey et al. 2010 with `brey.R`) |
+| `taxonomy_colxr.R` | `derived/taxa_colxr.csv` (each name of the reference tables matched to the Catalogue of Life eXtended Release, with its classification and flags), `derived/colxr_matches.csv` (the answers of the GBIF API, also used as cache), `derived/colxr_version.csv` (version of the COL XR of those answers), `derived/taxa_colxr_log.md` | `Rscript data-raw/taxonomy_colxr.R`, after the other scripts (packages *curl*, *jsonlite* and *readxl*; internet only for names not yet in the cache, or for all with `BMASSA_COLXR_REFRESH = "true"`; new names are refused when the matching service has moved to another version of the COL XR than the cache, which is then refreshed whole) |
 | `hierarchy.R` | `derived/ref_taxa.csv` (one row per source and name of the reference tables: COL taxon, lowest rank, domain and the seven main ranks, with where each rank comes from), `derived/ref_taxa_log.md` | `Rscript data-raw/hierarchy.R`, after `taxonomy_colxr.R` |
-| `fit_conversions.R` | `derived/conversion_nodes.csv`, `derived/conversion_components.csv`, `derived/conversion_fixed.csv` (hierarchical models of the conversion factors, one per pair of currencies and domain, including energy per dry mass, ash-free dry mass and wet mass), `derived/conversion_used.csv` (the factors of each model), `derived/conversion_screening.csv` (the energy densities left out by the screening, and why), `derived/conversion_fit_log.md` | `Rscript data-raw/fit_conversions.R`, after `hierarchy.R` (packages lme4 and Matrix) |
+| `fit_conversions.R` | `derived/conversion_nodes.csv`, `derived/conversion_components.csv`, `derived/conversion_fixed.csv` (hierarchical models of the conversion factors, one per pair of currencies and domain, including energy per dry mass, ash-free dry mass and wet mass), `derived/conversion_used.csv` (the factors of each model), `derived/conversion_screening.csv` (the energy densities left out by the screening, and why), `derived/conversion_fit_log.md` | `Rscript data-raw/fit_conversions.R`, after `hierarchy.R` (R packages *lme4*, Bates et al. 2015, and *Matrix*, Bates et al. 2024) |
 | `model_data.R` | `derived/model_typical.csv` (typical masses and biovolumes by model, in the native currency, with their lineage), `derived/model_lwr.csv` (length–mass equations and amphibian population means by model), `derived/model_data_log.md` | `Rscript data-raw/model_data.R`, after `fit_conversions.R` |
-| `fit_models.R` | `derived/model_nodes.csv`, `derived/model_components.csv`, `derived/model_fixed.csv` (the fitted hierarchical models: estimates and covariances of each node of the reference, variance components, fixed effects), `derived/model_fit_log.md` | `Rscript data-raw/fit_models.R`, after `model_data.R` (packages lme4 and Matrix; about 1 minute) |
-| `model_tables.R` | `R/sysdata.rda`: the internal object `ref_tables` with the fitted models (nodes, components, fixed effects, ranges of lengths and sources by node, typical residual standard deviation of the length-mass equations fitted from individual data), the conversion models between mass currencies and to energy of invertebrates and fish, the carbon-volume equations of Menden-Deuer and Lessard (2000), the colonial genera of Kremer et al. (2014), the identifier of each node in the COL XR (`col_id`, from the cache of `taxonomy_colxr.R`) and the source registry, returned by `get_reference()` | `Rscript data-raw/model_tables.R`, after `fit_models.R` and `fit_conversions.R` (package usethis) |
+| `fit_models.R` | `derived/model_nodes.csv`, `derived/model_components.csv`, `derived/model_fixed.csv` (the fitted hierarchical models: estimates and covariances of each node of the reference, variance components, fixed effects), `derived/model_fit_log.md` | `Rscript data-raw/fit_models.R`, after `model_data.R` (packages *lme4* and *Matrix*; about 1 minute) |
+| `model_tables.R` | `R/sysdata.rda`: the internal object `ref_tables` with the fitted models (nodes, components, fixed effects, ranges of lengths and sources by node, typical residual standard deviation of the length-mass equations fitted from individual data), the conversion models between mass currencies and to energy of invertebrates and fish, the carbon-volume equations of Menden-Deuer and Lessard (2000), the colonial genera of Kremer et al. (2014), the identifier of each node in the COL XR (`col_id`, from the cache of `taxonomy_colxr.R`) and the source registry, returned by `get_reference()` | `Rscript data-raw/model_tables.R`, after `fit_models.R` and `fit_conversions.R` (package *usethis*) |
 | `check_permissions.R` | Report of the permissions of the sources and of the MD5 checks; with `--release`, an error if an included source was refused (see below) | `Rscript data-raw/check_permissions.R --release` |
 | `sources.R`, `brey.R`, `names.R`, `neon.R` | Helpers sourced by the scripts: the source registry and the original files; the reader of the data bank of Brey et al. (2010); the normalisation of taxon names of version 0.1.0; the reader of the fish of NEON (release used, fish identified to species, weights at the minimum of the scale, gross errors, the masses given to the fish below that minimum and the fish for the length-mass equations) | — |
 
@@ -194,7 +196,7 @@ shell of the CADSES molluscs are converted with the models of
 `fit_conversions.R`. Equations without a length range get the range of their
 relatives (genus, family or order).
 
-`fit_models.R` fits one model per domain and kind of data with lme4 (REML):
+`fit_models.R` fits one model per domain and kind of data with *lme4* (REML):
 typical masses with nested random intercepts by taxonomic level and a crossed
 random intercept of source (not in the models of invertebrates, whose sources
 measure different groups by different methods, and of fish, whose sources
@@ -220,6 +222,20 @@ The order of the scripts for version 0.2.0 is `fit_lwr.R`,
 `model_tables.R`; `examples.R` builds the example data sets.
 
 ## References
+
+Amador P, Vega C, Navarro Pacheco NI, Moratalla-López J, Palacios J, Crettaz
+Minaglia MC, López I, Díaz M, Rico A (2024). Effects of the fungicide
+azoxystrobin in two habitats representative of Mediterranean coastal
+wetlands: a mesocosm experiment. *Aquatic Toxicology* 267, 106828.
+<https://doi.org/10.1016/j.aquatox.2023.106828>
+
+Bates D, Mächler M, Bolker B, Walker S (2015). Fitting linear mixed-effects
+models using *lme4*. *Journal of Statistical Software* 67(1), 1-48.
+<https://doi.org/10.18637/jss.v067.i01>
+
+Bates D, Maechler M, Jagan M (2024). *Matrix*: sparse and dense matrix
+classes and methods. R package version 1.6-5.
+<https://CRAN.R-project.org/package=Matrix>
 
 Brey T, Müller-Wiegmann C, Zittier ZMC, Hagen W (2010). Body composition in
 aquatic organisms - a global data bank of relationships between mass,
@@ -249,9 +265,21 @@ Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
 dinoflagellates, diatoms, and other protist plankton. *Limnology and
 Oceanography* 45, 569-579. <https://doi.org/10.4319/lo.2000.45.3.0569>
 
+Hudson LN, Emerson R, Jenkins GB, Layer K, Ledger ME, Pichler DE, Thompson
+MSA, O'Gorman EJ, Woodward G, Reuman DC (2013). *Cheddar*: analysis and
+visualisation of ecological communities in R. *Methods in Ecology and
+Evolution* 4(1), 99-104. <https://doi.org/10.1111/2041-210X.12005>
+
 Moreau A, Dupuy C, Bocher P, Farau S (2021). Morphological, calorific and
 nutritive characteristics of 656 freshwater invertebrates taxa.
 *Biodiversity Data Journal* 9, e70214. <https://doi.org/10.3897/BDJ.9.e70214>
+
+Ooms J (2014). The *jsonlite* package: a practical and consistent mapping
+between JSON data and R objects. arXiv:1403.2805 [stat.CO].
+<https://arxiv.org/abs/1403.2805>
+
+Ooms J (2023). *curl*: a modern and flexible web client for R. R package
+version 5.2.0. <https://CRAN.R-project.org/package=curl>
 
 Rimet F, Druart J-C (2018). A trait database for phytoplankton of temperate
 lakes. *Annales de Limnologie - International Journal of Limnology* 54, 18.
@@ -269,3 +297,13 @@ van Leeuwen CHA, Csabai Z, Szloboda A, Móra A, Declerck SAJ (2025).
 Length-dry mass relationships of aquatic insects: geographic and taxonomic
 variation in a digital database. *Freshwater Biology* 70, e70056.
 <https://doi.org/10.1111/fwb.70056>
+
+Wickham H (2023). *httr*: tools for working with URLs and HTTP. R package
+version 1.4.7. <https://CRAN.R-project.org/package=httr>
+
+Wickham H, Bryan J (2023). *readxl*: read Excel files. R package version
+1.4.3. <https://CRAN.R-project.org/package=readxl>
+
+Wickham H, Bryan J, Barrett M, Teucher A (2023). *usethis*: automate package
+and project setup. R package version 2.2.2.
+<https://CRAN.R-project.org/package=usethis>

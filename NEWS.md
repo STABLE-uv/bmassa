@@ -1,3 +1,92 @@
+# bmassa 0.5.0
+
+## Changes that alter results
+
+* `estimate_biomass()` gives all its rows in one currency and unit: wet mass
+  in mg by default (the only currency that all the groups reach), or the one
+  chosen with the new argument `currency` (`"dry_mass"`, `"afdm"`,
+  `"carbon"`, `"energy"`), with `unit` and `habitat`. The rows are converted
+  from the currency of their models as `convert_currency()` does, with the
+  uncertainty of the factors; rows that cannot reach the currency are not
+  estimated, with the reason. Before, the result had phytoplankton in
+  biovolume, invertebrates in dry mass and vertebrates in wet mass (issue #1).
+* `convert_currency()` gives every row in mg (or J for energy) unless `unit`
+  says otherwise; before, each group kept the unit of its estimate.
+
+## New features
+
+* The table `lengths` holds all the lengths (issue #5): the mean length of a
+  taxon unit (`length_mean`, with `length_sd` or `length_cv`), the usual case,
+  or the lengths of measured individuals (`length`, with `n` individuals of
+  each length: one row per individual or per length class). `site` and `date`
+  are optional: a row without `site` applies to all the samples of the unit,
+  one with `site` to all the dates of the site, and one with both to that
+  sample; each sample takes the most specific lengths. With individual
+  lengths the mean mass is the mean of their masses (the mass at the length
+  of their mean mass, reported in `length_mm`), without assuming a
+  distribution; the new columns `length_basis` and `length_n` say which
+  lengths were used.
+* `summarize_size()` describes the size structure of each sample or group
+  (issue #4): the mean and the median size of the individuals, weighted by
+  their abundances, and, with `breaks`, the shares of the individuals and of
+  the biomass in size classes, with prediction intervals from the draws of
+  the masses. The size is the individual mass, in the currency of the
+  estimate, or the length. It uses the lengths of measured individuals and
+  the spread of mean lengths where `lengths` gives them; individuals known
+  only by the mean size of their taxon make the median and the classes
+  approximations (`approximation`, `share_taxon_mean`), and the share of
+  individuals without a size is reported (`share_excluded`).
+* Two vignettes with field data (issue #2): `vignette("tuesday-lake")`
+  compares the predicted masses and biomasses with those measured in Tuesday
+  Lake (91 % of the measured masses inside the 95 % intervals), and
+  `vignette("azoxystrobin")` goes from the raw counts of a mesocosm experiment
+  (Amador et al. 2024) to the effect of the fungicide on biomass and size
+  structure with a generalized linear mixed model of the R package *glmmTMB*
+  (Brooks et al. 2017, <https://doi.org/10.32614/RJ-2017-066>; now in
+  Suggests), with the uncertainty of the masses carried by refitting to the
+  draws of `simulate()`. Their data are in `inst/extdata` (`?azoxystrobin`,
+  CC BY 4.0; `?tuesday_lake`, from the R package *cheddar*, Hudson et al.
+  2013, <https://doi.org/10.1111/2041-210X.12005>, BSD 2-Clause; see the file
+  `COPYRIGHTS`).
+* `convert_abundance()` says in `per_assumption` what share of the site a
+  sample is when it gives the totals of a site (a trap of 300 cm² in a tank
+  of 1.54 m²: 1.95 %), and the help of `estimate_biomass()` and
+  `convert_abundance()` explains how to give in `per` the size of each sample,
+  the sampling effort (`"300 cm2"` for a trap of 30 × 10 cm, `"600 cm2"` for
+  two such traps counted together, `"10 L"` for 10 L of filtered water).
+
+## Bug fixes
+
+* `standardize_taxa()`: a name whose ending implies its rank (*Orthocladiinae*,
+  a subfamily) takes the usage of that rank before one of another rank (the
+  COL XR also has a placeholder genus *Orthocladiinae*, which was taken).
+
+## Performance
+
+* `estimate_biomass()` and `check_coverage()` predict each taxon unit (with
+  its lengths) once, however many samples it has: about 20 times faster with
+  12 000 rows of 104 taxa. `summarize_biomass()`, `simulate()` and the new
+  `summarize_size()` draw the deviations of missing taxonomic levels faster.
+  The results are the same.
+
+## Deprecated
+
+* Lengths in `taxa` (`length_mean`, `length_unit`, `length_type`,
+  `length_sd`, `length_cv`) still work in this version, after any row of
+  `lengths`, with a warning: give them in `lengths`, in rows without `site`.
+
+## Documentation
+
+* New version of the logo, with the hexagon filled.
+* R packages are named in italics in the vignettes, the README and the help
+  pages, and the external ones are cited, with their references.
+
+## Data
+
+* `example_survey$taxa` has no lengths; `example_survey$lengths` holds the
+  mean lengths of the units (rows without site), those of the chub in each
+  site and the lengths of the *Gammarus* measured in L1, by length class.
+
 # bmassa 0.4.0
 
 ## Changes that alter results
@@ -116,8 +205,8 @@
 
 ## Changes that alter results
 
-* The package is renamed from biomassa to bmassa (version 0.1.0 was
-  biomassa): `library(bmassa)`, and the classes of the results and
+* The package is renamed from *biomassa* to *bmassa* (version 0.1.0 was
+  *biomassa*): `library(bmassa)`, and the classes of the results and
   conditions start with `bmassa_` (`bmassa_estimate`, `bmassa_error_input`,
   ...).
 * Masses are in mg (invertebrates, dry mass; molluscs without shell) and g
@@ -250,9 +339,11 @@
   note.
 * `standardize_taxa()`: classification and identifier (`col_id`) of a list of
   taxa in the Catalogue of Life (COL XR), through the GBIF API. Needs the
-  suggested packages curl and jsonlite, and internet; when the service cannot
-  be reached or gives an answer that cannot be read, it stops with an error
-  of class `bmassa_error_network`.
+  suggested packages *curl* (Ooms 2023,
+  <https://CRAN.R-project.org/package=curl>) and *jsonlite* (Ooms 2014,
+  <https://arxiv.org/abs/1403.2805>), and internet; when the service cannot be
+  reached or gives an answer that cannot be read, it stops with an error of
+  class `bmassa_error_network`.
 * `estimate_biomass()` and `check_coverage()` look a taxon up by its `col_id`
   first, when `taxa` has one.
 * `check_coverage()`: the taxonomic level from which each taxon will be
@@ -276,11 +367,13 @@
 * The data sets of 0.1.0: `typical_mass`, `length_mass`, `carbon_volume` and
   `taxonomy` (their data are in the models of the reference), and
   `example_counts` and `example_lengths` (replaced by `example_survey`).
-* readxl is no longer a suggested package.
+* *readxl* (Wickham and Bryan 2023,
+  <https://CRAN.R-project.org/package=readxl>) is no longer a suggested
+  package.
 
 # bmassa 0.1.0
 
-First version, published as biomassa.
+First version, published as *biomassa*.
 
 ## Changes that alter results
 

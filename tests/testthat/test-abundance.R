@@ -51,6 +51,14 @@ test_that("between volume and area the depth of the site is used", {
 test_that("to and from the whole site the volume or the area of the site is used", {
   out <- convert_abundance(ab, to = "site", sites = tanks)
   expect_equal(out$per_factor, c(1.23e6, 1230, 1.54 / 0.25, 1230, 1.54))
+  # The share of the site that the sample is: 0.25 of 1.54 m2.
+  expect_match(out$per_assumption[3], "sample of 16.2 % of the area of the site (0.25 of 1.54 m2)",
+               fixed = TRUE)
+  # A trap of 30 x 10 cm in the same tank: 1.95 % of its area.
+  trap <- convert_abundance(data.frame(site = "a", abundance = 10, per = "300 cm2"), to = "site",
+                            sites = tanks)
+  expect_equal(trap$abundance, 10 * 1.54 / 0.03)
+  expect_match(trap$per_assumption, "sample of 1.95 %", fixed = TRUE)
   expect_identical(out$per, rep("site", 5))
   expect_identical(out$abundance_original, ab$abundance)
   expect_identical(out$per_original, ab$per)

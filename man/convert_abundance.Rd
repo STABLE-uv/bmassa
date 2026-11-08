@@ -8,11 +8,15 @@ convert_abundance(abundance, to, sites = NULL)
 }
 \arguments{
 \item{abundance}{The abundance table of \code{\link[=estimate_biomass]{estimate_biomass()}}: one row per
-site and taxon, with \code{site}, \code{abundance} and \code{per}. \code{per} gives the size
-of the sample that the abundance refers to, as a number and a unit or a
-unit alone (one of that unit): \code{"mL"}, \code{"L"}, \code{"m3"} (volumes), \code{"cm2"},
-\code{"m2"}, \code{"ha"} (areas), e.g. \code{"L"}, \code{"5 L"} or \code{"0.25 m2"}; or \code{"site"}
-for counts of the whole site (a mesocosm, say). Other columns are kept.}
+site and taxon, with \code{site}, \code{abundance} and \code{per}. \code{per} says what the
+abundance refers to: the size of the sample, a volume or an area, as a
+number and a unit or a unit alone (one of that unit), with the units
+\code{"mL"}, \code{"L"}, \code{"m3"} (volumes) and \code{"cm2"}, \code{"m2"}, \code{"ha"} (areas); or
+\code{"site"} for counts of the whole site (a mesocosm, say). Write what was
+sampled: the individuals in a trap of 30 x 10 cm are per \code{"300 cm2"},
+those of two such traps counted together per \code{"600 cm2"}, those in 10 L
+of filtered water per \code{"10 L"}, a density per litre per \code{"L"}. Other
+columns are kept.}
 
 \item{to}{The basis of the result, in the same form as \code{per}: a volume, an
 area or \code{"site"}.}
@@ -28,8 +32,9 @@ or from \code{"site"} (its volume or area).}
 The abundance table with the same rows in the same order,
 \code{abundance} and \code{per} on the new basis, and four more columns:
 \code{abundance_original}, \code{per_original}, \code{per_factor} (the abundance was
-multiplied by it) and \code{per_assumption} (what the conversion assumes, or
-\code{NA} within one dimension). A zero-row table gives zero rows.
+multiplied by it) and \code{per_assumption} (what the conversion assumes, such
+as the share of the site that the sample is, or \code{NA} within one
+dimension). A zero-row table gives zero rows.
 }
 \description{
 \code{convert_abundance()} expresses the abundances of an abundance table on one
@@ -48,8 +53,10 @@ and area it uses the depth \eqn{z} of the site (in m; the volume divided by
 the area if no depth is given): a density per L times \eqn{1000 z} is a
 density per m\out{<sup>2</sup>}, and the reverse. To \code{"site"}, a density
 per L is multiplied by the volume of the site and a density per
-m\out{<sup>2</sup>} by its area; from \code{"site"}, the count is divided by
-them.
+m\out{<sup>2</sup>} by its area, that is, a count is divided by the share
+of the site that the sample is (a trap of 300 cm\out{<sup>2</sup>} in a
+mesocosm of 1.54 m\out{<sup>2</sup>}: 1.95 \\%, so the count is multiplied
+by 51.3); from \code{"site"}, the count is divided by them.
 }
 \section{Assumptions}{
 

@@ -26,12 +26,10 @@ it).}
 have a habitat effect: if it is unknown its variance is added to the
 uncertainty; if it is given its estimate is used.}
 
-\item{unit}{\code{NULL} (default: mg for invertebrates, g for fish, pg per
-counting unit for the wet mass and carbon of phytoplankton and J for
-energy) or a unit for all the
-rows in \code{to}: for masses \code{"pg"}, \code{"ng"}, \code{"ug"}, \code{"mg"} or \code{"g"}; for
-energy \code{"mJ"}, \code{"J"}, \code{"kJ"} or \code{"MJ"}. A common unit is needed to
-compare or add up groups (with the same \code{per}).}
+\item{unit}{\code{NULL} (default: mg for masses, J for energy) or the unit of
+all the rows in \code{to}: for masses \code{"pg"}, \code{"ng"}, \code{"ug"}, \code{"mg"} or
+\code{"g"}; for energy \code{"mJ"}, \code{"J"}, \code{"kJ"} or \code{"MJ"}. All the rows share it,
+so groups can be compared and added up (with the same \code{per}).}
 }
 \value{
 An object of the same class
@@ -50,7 +48,10 @@ simulates the totals with the errors of the factors.
 \description{
 \code{convert_currency()} expresses the mean individual mass and the biomass of
 each row of an estimate in another currency: wet mass, dry mass, ash-free
-dry mass (AFDM), carbon or energy. Invertebrates and fish are converted with
+dry mass (AFDM), carbon or energy. \code{\link[=estimate_biomass]{estimate_biomass()}} already gives all
+its rows in one currency (\code{currency}, wet mass by default) with these
+conversions; \code{convert_currency()} changes it afterwards, starting again
+from the currency of the models. Invertebrates and fish are converted with
 hierarchical models of the conversion factors fitted to the data of Brey et
 al. (2010), Hrycik et al. (2024), Coughlan et al. (2021), Cummins and
 Wuycheck (1971), Evans-White et al. (2005) and the CADSES data sets: a
@@ -208,6 +209,7 @@ et al. (2010) does not record the preservation.
 }
 
 \examples{
+# Wet mass in mg, the default of estimate_biomass()
 est <- estimate_biomass(example_survey$abundance, example_survey$taxa,
                         example_survey$lengths, bias_correction = "lognormal")
 carbon <- convert_currency(est, to = "carbon", unit = "ug")
@@ -220,8 +222,9 @@ energy <- convert_currency(est, to = "energy", unit = "J")
 head(as.data.frame(energy)[, c("site", "taxon_id", "converted_from", "ind_median",
                                "ind_lower", "ind_upper", "unit", "status")])
 
-# Wet mass in mg; phytoplankton at the density of water (1 mm3/L = 1 mg/L)
-wet <- convert_currency(est, to = "wet_mass", unit = "mg")
+# Back to wet mass, in g; phytoplankton at the density of water
+# (1 mm3/L = 1 mg/L)
+wet <- convert_currency(carbon, to = "wet_mass", unit = "g")
 head(as.data.frame(wet)[, c("site", "taxon_id", "converted_from", "ind_median",
                             "unit", "conversion")])
 }

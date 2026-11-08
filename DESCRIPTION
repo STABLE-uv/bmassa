@@ -1,6 +1,6 @@
 Package: bmassa
 Title: Biomass of Aquatic Taxa from Abundances and Body Sizes
-Version: 0.4.0
+Version: 0.5.0
 Authors@R: c(
     person("Pablo", "Amador Crespo", email = "pamadorc@gmail.com",
            role = c("aut", "cre", "cph"),
@@ -23,6 +23,8 @@ Description: Estimates the mean individual mass and the biomass of aquatic
     (2025) <doi:10.1111/fwb.70056>; phytoplankton carbon follows
     Menden-Deuer and Lessard (2000) <doi:10.4319/lo.2000.45.3.0569>.
 License: MIT + file LICENSE
+Copyright: See the file COPYRIGHTS for the data in inst/extdata, which come
+    from other sources under their own licences.
 URL: https://github.com/STABLE-uv/bmassa
 BugReports: https://github.com/STABLE-uv/bmassa/issues
 Encoding: UTF-8
@@ -35,6 +37,7 @@ Imports:
     withr
 Suggests:
     curl,
+    glmmTMB,
     jsonlite,
     knitr,
     rmarkdown,

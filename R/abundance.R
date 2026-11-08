@@ -16,11 +16,15 @@ abundance_added_columns <- c("abundance_original", "per_original", "per_factor",
 #' unit.
 #'
 #' @param abundance The abundance table of [estimate_biomass()]: one row per
-#'   site and taxon, with `site`, `abundance` and `per`. `per` gives the size
-#'   of the sample that the abundance refers to, as a number and a unit or a
-#'   unit alone (one of that unit): `"mL"`, `"L"`, `"m3"` (volumes), `"cm2"`,
-#'   `"m2"`, `"ha"` (areas), e.g. `"L"`, `"5 L"` or `"0.25 m2"`; or `"site"`
-#'   for counts of the whole site (a mesocosm, say). Other columns are kept.
+#'   site and taxon, with `site`, `abundance` and `per`. `per` says what the
+#'   abundance refers to: the size of the sample, a volume or an area, as a
+#'   number and a unit or a unit alone (one of that unit), with the units
+#'   `"mL"`, `"L"`, `"m3"` (volumes) and `"cm2"`, `"m2"`, `"ha"` (areas); or
+#'   `"site"` for counts of the whole site (a mesocosm, say). Write what was
+#'   sampled: the individuals in a trap of 30 x 10 cm are per `"300 cm2"`,
+#'   those of two such traps counted together per `"600 cm2"`, those in 10 L
+#'   of filtered water per `"10 L"`, a density per litre per `"L"`. Other
+#'   columns are kept.
 #' @param to The basis of the result, in the same form as `per`: a volume, an
 #'   area or `"site"`.
 #' @param sites `NULL` (default) or a data frame with one row per site:
@@ -33,8 +37,9 @@ abundance_added_columns <- c("abundance_original", "per_original", "per_factor",
 #' @return The abundance table with the same rows in the same order,
 #'   `abundance` and `per` on the new basis, and four more columns:
 #'   `abundance_original`, `per_original`, `per_factor` (the abundance was
-#'   multiplied by it) and `per_assumption` (what the conversion assumes, or
-#'   `NA` within one dimension). A zero-row table gives zero rows.
+#'   multiplied by it) and `per_assumption` (what the conversion assumes, such
+#'   as the share of the site that the sample is, or `NA` within one
+#'   dimension). A zero-row table gives zero rows.
 #'
 #' @details
 #' With the size of the sample \eqn{s} (in L or m\out{<sup>2</sup>}) the
@@ -44,8 +49,10 @@ abundance_added_columns <- c("abundance_original", "per_original", "per_factor",
 #' the area if no depth is given): a density per L times \eqn{1000 z} is a
 #' density per m\out{<sup>2</sup>}, and the reverse. To `"site"`, a density
 #' per L is multiplied by the volume of the site and a density per
-#' m\out{<sup>2</sup>} by its area; from `"site"`, the count is divided by
-#' them.
+#' m\out{<sup>2</sup>} by its area, that is, a count is divided by the share
+#' of the site that the sample is (a trap of 300 cm\out{<sup>2</sup>} in a
+#' mesocosm of 1.54 m\out{<sup>2</sup>}: 1.95 \%, so the count is multiplied
+#' by 51.3); from `"site"`, the count is divided by them.
 #'
 #' @section Assumptions:
 #' Going from volume to area (or to a site total) takes the density of the
@@ -240,11 +247,15 @@ basis_factor <- function(from_dim, from_size, to_dim, to_size, sizes, site,
     if (from_dim == "volume") {
       v <- get("volume_L", "volume")
       return(list(factor = v / from_size,
-                  assumption = sprintf("density of the sample for the whole site (%s L)", fmt(v))))
+                  assumption = sprintf(paste("sample of %s %% of the volume of the site (%s of %s",
+                                             "L), its density taken for the whole site"),
+                                       fmt(100 * from_size / v), fmt(from_size), fmt(v))))
     }
     a <- get("area_m2", "area")
     return(list(factor = a / from_size,
-                assumption = sprintf("density of the sample for the whole site (%s m2)", fmt(a))))
+                assumption = sprintf(paste("sample of %s %% of the area of the site (%s of %s",
+                                           "m2), its density taken for the whole site"),
+                                     fmt(100 * from_size / a), fmt(from_size), fmt(a))))
   }
   # From "site" to a volume or an area.
   if (to_dim == "volume") {

@@ -1,8 +1,8 @@
 ---
-title: "Biomass of aquatic taxa with bmassa"
+title: "Biomass of aquatic taxa: workflow and decisions"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Biomass of aquatic taxa with bmassa}
+  %\VignetteIndexEntry{Biomass of aquatic taxa: workflow and decisions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,7 +16,7 @@ options(width = 90, digits = 3)
 library(bmassa)
 ```
 
-bmassa estimates the biomass of the taxa of a survey (phytoplankton,
+*bmassa* estimates the biomass of the taxa of a survey (phytoplankton,
 zooplankton, macroinvertebrates, fish and amphibians) from their
 abundances, with prediction intervals. For each taxon it predicts the mean
 individual mass of a population, from its mean length when there is one and
@@ -24,11 +24,12 @@ from typical masses otherwise, with hierarchical models fitted to published
 compilations and data sets. A taxon without reference data of its own is
 predicted from its closest relatives, and its interval widens accordingly.
 
-Masses are in the native currency of each group: biovolume (µm³) for
-phytoplankton, dry mass (mg; molluscs without shell) for invertebrates and
-wet mass (g) for fish and amphibians. `convert_currency()` expresses them in
-another currency, such as carbon or energy, with the uncertainty of the
-conversion.
+The models predict each group in the currency of its reference data:
+biovolume for phytoplankton, dry mass (molluscs without shell) for
+invertebrates and wet mass for fish and amphibians. All the rows of an
+estimate are then converted to one currency, wet mass in mg by default (the
+only one that all the groups reach), or dry mass, ash-free dry mass, carbon
+or energy, with the uncertainty of the conversion factors.
 
 The workflow:
 
@@ -36,13 +37,19 @@ The workflow:
    Life (needs internet).
 2. `check_coverage()`: from which taxonomic level each taxon will be
    estimated, and how wide its interval will be.
-3. `estimate_biomass()`: mean individual mass and biomass of each row.
-4. `convert_currency()`: another currency, if needed.
+3. `estimate_biomass()`: mean individual mass and biomass of each row, in
+   one currency.
+4. `convert_currency()`: the same estimate in another currency, if needed.
 5. `summarize_biomass()`: totals by site or any grouping.
-6. `cite_sources()`: what to cite.
+6. `summarize_size()`: size structure by site or any grouping.
+7. `cite_sources()`: what to cite.
 
 The example data (`example_survey`) are constructed for two sites of a lake;
-they are not field data.
+they are not field data. Two other vignettes use field data:
+`vignette("tuesday-lake")` compares the predictions with the masses and
+biomasses measured in Tuesday Lake, and `vignette("azoxystrobin")` goes from
+the raw counts of a mesocosm experiment to the effect of a fungicide on
+biomass and size structure.
 
 ## Input tables
 
@@ -55,23 +62,24 @@ identified; `species` is the full binomial). Optional columns:
   when present, the taxon is looked up by it first;
 - `life_stage` and `sex`;
 - `count_unit`, required in phytoplankton: `"cell"` or `"natural_unit"`
-  (colony or filament as counted);
-- the mean length of the unit in all the samples (`length_mean`,
-  `length_unit`, `length_type`), where it was measured, with its spread
-  (`length_sd` or `length_cv`), which corrects the mass of the mean length,
-  smaller than the mean mass.
+  (colony or filament as counted), and `cells_per_unit`, the cells of a
+  natural unit where they were counted.
 
 ```{r taxa}
 tx <- example_survey$taxa
-tx[, c("taxon_id", "broad_group", "genus", "species", "life_stage", "count_unit",
-       "length_mean", "length_unit", "length_type")]
+tx[, c("taxon_id", "broad_group", "genus", "species", "life_stage", "count_unit")]
 ```
 
 **Abundances**: one row per sample and unit: `site` (and `date`, for sites
-sampled on several dates), `taxon_id`, `abundance` and `per`, the unit of
-area or volume of the abundance. A zero is a unit looked for and not seen;
-`NA`, one not counted. Other columns, such as the treatment or the habitat,
-are kept.
+sampled on several dates), `taxon_id`, `abundance` and `per`. `per` says
+what the abundance refers to, that is, how much was sampled: a volume or an
+area, with or without a number before the unit. Write what was sampled: a
+density per litre is per `"L"`, the individuals in 10 L of filtered water
+per `"10 L"`, those in a trap of 30 × 10 cm per `"300 cm2"` (two such traps
+counted together, `"600 cm2"`), and the counts of a whole site (a mesocosm,
+say) per `"site"`. The biomass comes per the same basis. A zero is a unit
+looked for and not seen; `NA`, one not counted. Other columns, such as the
+treatment or the habitat, are kept.
 
 ```{r abundance}
 ab <- example_survey$abundance
@@ -79,9 +87,23 @@ head(ab)
 ab[ab$site == "L2" & ab$taxon_id %in% c("t05", "t08"), ]
 ```
 
-**Lengths of particular samples** (optional): mean lengths measured in a
-site (and date), which take precedence over the length of the unit there.
-Here the chub, measured in each site:
+**Lengths** (optional), of two kinds:
+
+- the mean length of a unit (`length_mean`), the usual case, with its
+  spread where it is known (`length_sd` or `length_cv`), which corrects the
+  mass of the mean length, smaller than the mean mass;
+- the lengths of measured individuals (`length`), one row per individual or
+  per length class, with the number of individuals of each (`n`, 1 if
+  absent).
+
+Both need `length_unit` and `length_type` (body length, total length, fork
+length, snout-vent length...). `site` and `date` are optional: a row without
+`site` applies to all the samples of the unit, one with `site` to all the
+dates of that site, and one with both to that sample; each sample takes the
+most specific lengths given for it, and a unit without lengths is estimated
+from typical masses. Here mean lengths of six units, those of the chub
+(`t17`) in each site and the *Gammarus* (`t13`) measured in L1 by length
+class:
 
 ```{r lengths}
 ln <- example_survey$lengths
@@ -121,7 +143,7 @@ s$note[2:3]
 `note` before going on, and keep the result with your data: a new release of
 the COL XR may change names. Its result is the classification of the taxa
 table; add the counting unit of the phytoplankton and, where they apply, the
-stage, sex and mean length of each unit.
+stage and sex of each unit, and give the lengths in their own table.
 
 ## Before estimating: coverage
 
@@ -154,9 +176,17 @@ There is no default.
 est <- estimate_biomass(ab, tx, ln, bias_correction = "lognormal")
 est
 e <- as.data.frame(est)
-e[e$site == "L1", c("taxon_id", "method", "match_level", "ind_median", "ind_lower",
-                    "ind_upper", "unit")]
+e[e$site == "L1", c("taxon_id", "method", "match_level", "length_mm", "length_basis",
+                    "ind_median", "ind_lower", "ind_upper", "unit")]
 ```
+
+With the lengths of individuals (`t13` in L1), the mean mass is the mean of
+the masses of the individuals, without assuming a distribution of lengths,
+and `length_mm` is the length whose mass is that mean; elsewhere, `t13` is
+estimated without lengths. All the rows are in wet mass (mg): the
+phytoplankton biovolumes and the dry masses of the invertebrates were
+converted, so their intervals include the uncertainty of the conversion
+factors (`converted_from` and `conversion` say how).
 
 The interval is a prediction interval for the mean individual mass of a
 new population of the taxon. It includes the uncertainty of the model
@@ -209,19 +239,16 @@ Some decisions behind those rows, which you can change through the data:
 - A length outside the range of the reference relations of the taxon and
   its relatives is not estimated unless `extrapolate = TRUE`.
 
-The intervals of the animals of site L1, in mg (the masses of fish and
-amphibians, in g, multiplied by 1000):
+The intervals of the animals of site L1, in mg of wet mass:
 
-```{r plot, fig.width = 7, fig.height = 4.5, fig.alt = "Median and 95 % prediction interval of the mean individual mass of each animal taxon at site L1, in mg on a log scale: narrow for the taxa with lengths, wide for those without"}
-l1 <- e[e$site == "L1" & !is.na(e$ind_median) & e$unit != "um3", ]
-to_mg <- ifelse(l1$unit == "g", 1000, 1)
-l1[c("ind_median", "ind_lower", "ind_upper")] <- l1[c("ind_median", "ind_lower", "ind_upper")] * to_mg
+```{r plot, fig.width = 7, fig.height = 4.5, fig.alt = "Median and 95 % prediction interval of the mean individual mass of each animal taxon at site L1, in mg of wet mass on a log scale: narrow for the taxa with lengths, wide for those without"}
+l1 <- e[e$site == "L1" & !is.na(e$ind_median) & e$broad_group != "phytoplankton", ]
 l1 <- l1[order(l1$ind_median), ]
 y <- seq_len(nrow(l1))
 col <- ifelse(l1$method == "length", "black", "grey55")
 op <- par(mar = c(4, 11, 1, 1))
 plot(l1$ind_median, y, log = "x", xlim = range(l1$ind_lower, l1$ind_upper), pch = 19, col = col,
-     yaxt = "n", ylab = "", xlab = "Mean individual mass (mg)")
+     yaxt = "n", ylab = "", xlab = "Mean individual mass (mg of wet mass)")
 segments(l1$ind_lower, y, l1$ind_upper, y, col = col)
 axis(2, at = y, labels = l1$scientific_name, las = 1, cex.axis = 0.75, font = 3)
 legend("topleft", c("from its length", "without length"), col = c("black", "grey55"), pch = 19,
@@ -231,21 +258,21 @@ par(op)
 
 ## Other currencies
 
-`convert_currency()` converts with hierarchical models of the conversion
-factors (ratios of dry to wet mass, ash-free dry mass to dry mass, carbon to
-dry mass...) fitted to the data of Brey et al. (2010), Hrycik et al.
-(2024), Coughlan et al. (2021), Evans-White et al. (2005) and the CADSES
-data sets. A taxon gets the factor of its closest relatives, and the
-uncertainty of the factor adds to that of the mass. Factors measured on
-animals kept in ethanol or formalin were left out where the source says so:
-preservation changes their wet and dry mass by amounts that depend on the
-preservative, the time and the species (Dermott and Paterson 1974).
-Phytoplankton biovolumes go to wet mass with the density of
+`estimate_biomass()` and `convert_currency()` convert with hierarchical
+models of the conversion factors (ratios of dry to wet mass, ash-free dry
+mass to dry mass, carbon to dry mass...) fitted to the data of Brey et al.
+(2010), Hrycik et al. (2024), Coughlan et al. (2021), Evans-White et al.
+(2005) and the CADSES data sets. A taxon gets the factor of its closest
+relatives, and the uncertainty of the factor adds to that of the mass.
+Factors measured on animals kept in ethanol or formalin were left out where
+the source says so: preservation changes their wet and dry mass by amounts
+that depend on the preservative, the time and the species (Dermott and
+Paterson 1974). Phytoplankton biovolumes go to wet mass with the density of
 water, 1 g/cm3 (1 mm3/L = 1 mg/L), the convention of EN 16695 and of most
 monitoring programmes; measured densities of algal cells are up to 10 %
-higher (Oliver et al. 1981), an uncertainty not included. Rotifers, which have
-no wet to dry mass factors in the reference data, go to wet mass with the
-convention of US EPA (2016): dry mass 10 % of the wet mass (3.9 % in
+higher (Oliver et al. 1981), an uncertainty not included. Rotifers, which
+have no wet to dry mass factors in the reference data, go to wet mass with
+the convention of US EPA (2016): dry mass 10 % of the wet mass (3.9 % in
 *Asplanchna*, after Dumont et al. 1975). Amphibians, which have too few
 factors in the reference data for a model, go between wet and dry mass with
 the water content of frogs and toads compiled by US EPA (1993; mean of three
@@ -254,8 +281,11 @@ with that spread among populations and the uncertainty of the mean added to
 the interval (salamanders and newts get it as an extrapolation).
 Phytoplankton cells (and natural units with `cells_per_unit`) are converted
 to carbon with the equations of Menden-Deuer and Lessard (2000), whose own
-uncertainty is not known (only that of the biovolume is carried). A common
-unit is needed to compare groups:
+uncertainty is not known (only that of the biovolume is carried). `currency`
+in `estimate_biomass()` gives the estimate in another currency, and
+`convert_currency()` converts an estimate already made; both start from the
+currency of the models, so converting an estimate twice does not compound
+conversions:
 
 ```{r carbon}
 est_c <- convert_currency(est, to = "carbon", unit = "ug")
@@ -298,7 +328,8 @@ ee[ee$site == "L1" & ee$status == "estimated",
 ## Totals
 
 `summarize_biomass()` adds up the biomass by site, broad group or any other
-grouping, never across currencies or units. The interval of a total comes
+grouping (all the rows of an estimate are in one currency and unit). The
+interval of a total comes
 from simulations in which the rows that share a node of the reference (two
 species estimated from the same family), a missing taxon, a population or a
 conversion factor share the same draws: their errors are correlated, and the
@@ -327,17 +358,56 @@ tot[, c("site", "broad_group", "biomass_unit", "biomass_mean", "biomass_lower",
 - `seed` makes the draws reproducible and restores the random state of the
   session afterwards.
 
+## Size structure
+
+`summarize_size()` describes the sizes of the individuals of each group: the
+mean and the median size, weighted by the abundances, and, with `breaks`, the
+shares of the individuals and of the biomass in each size class (closed on
+the left). The size is the mass of an individual, in the currency of the
+estimate, or its length (`size = "length"`, only for the rows with lengths,
+one length type per group). The sizes of the individuals of a row come from
+the lengths of measured individuals where `lengths` gives them, from a
+lognormal distribution of lengths for a mean length with its spread, and
+otherwise from the mean size of the taxon unit: then all its individuals
+have one size, and the median and the classes are approximations
+(`approximation = TRUE`, with the share of such individuals in
+`share_taxon_mean`). Individuals without a size (rows not estimated, or
+without lengths for `size = "length"`) are left out and counted in
+`share_excluded`.
+
+```{r size}
+sz <- summarize_size(est, by = c("site", "broad_group"), seed = 1)
+sz
+as.data.frame(sz)[, c("site", "broad_group", "mean_size", "mean_size_lower", "mean_size_upper",
+                      "median_size", "share_excluded", "share_taxon_mean")]
+```
+
+The intervals come from the draws of the masses, as for the totals. With
+lengths, the lengths and abundances are taken as known, so only the shares of
+biomass have intervals. The macroinvertebrates of L1 by classes of 4 mm, with
+the *Gammarus* measured there:
+
+```{r size-classes}
+sl <- summarize_size(est, by = c("site", "broad_group"), size = "length",
+                     breaks = seq(4, 20, by = 4), seed = 1)
+cl <- sl$classes
+cl[cl$site == "L1" & cl$broad_group == "macroinvertebrate",
+   c("class", "share_individuals", "share_biomass", "share_biomass_lower", "share_biomass_upper")]
+```
+
 ## A common basis
 
 Biomasses per litre and per square metre cannot be added up. To add the
 groups of a site, as the nodes of a food web, `convert_abundance()` puts
 all the abundances on one basis before estimating: per a volume, per an
 area or per whole site. `per` gives the size of each sample (`"L"`,
-`"5 L"`, `"0.25 m2"`...), and a table of sites gives what the conversion
+`"10 L"`, `"300 cm2"`...), and a table of sites gives what the conversion
 needs: the depth (or the volume and the area) to go between volumes and
 areas, and the volume or the area to go to the total of a site, as in
-mesocosms. Here everything per square metre, with the mean depth of each
-site:
+mesocosms. To the total of a site, a count is divided by the share of the
+site that the sample is (a trap of 300 cm² in a tank of 1.54 m²: 1.95 %),
+which `per_assumption` states. Here everything per square metre, with the
+mean depth of each site:
 
 ```{r basis}
 sites <- data.frame(site = c("L1", "L2"), depth = c(1.5, 0.8), depth_unit = "m")
@@ -364,8 +434,7 @@ own populations, and all groups are in wet mass in mg per square metre:
 
 ```{r simulate, warning = FALSE}
 ab_m2$habitat <- ifelse(ab_m2$site == "L1", "lake", "spring")
-est_w <- convert_currency(estimate_biomass(ab_m2, tx, ln, bias_correction = "lognormal"),
-                          to = "wet_mass", unit = "mg")
+est_w <- estimate_biomass(ab_m2, tx, ln, bias_correction = "lognormal")
 sim <- simulate(est_w, nsim = 1000, seed = 1, population_by = "habitat")
 sim
 d <- as.data.frame(sim, draws = 1:2)
@@ -389,27 +458,27 @@ nodes and variance components, the conversion models and the sources.
 
 ## How the models were fitted and checked
 
-The models were fitted outside the package with lme4 (REML), one per domain
-and kind of data: masses without lengths with nested random intercepts by
-taxonomic level, crossed with the source (except in invertebrates, whose
-sources measure different groups of taxa by different methods, and in fish,
-whose sources come from different regions and share few species, so that
-each taxon keeps the level of the sources that measured it), and in fish with
-a random intercept of population for the populations sampled many times
-(NEON); length-mass relations with random
+The models were fitted outside the package with the R package *lme4* (Bates
+et al. 2015; REML), one per domain and kind of data: masses without lengths
+with nested random intercepts by taxonomic level, crossed with the source
+(except in invertebrates, whose sources measure different groups of taxa by
+different methods, and in fish, whose sources come from different regions
+and share few species, so that each taxon keeps the level of the sources
+that measured it), and in fish with a random intercept of population for the
+populations sampled many times (NEON); length-mass relations with random
 intercepts and slopes by taxonomic level within each type of length, from
 three points of each equation inside its range of lengths, with an effect of
 equation (in invertebrates, the fit has no effect of study, so that each
 species keeps the level of its own equations, and the variance between
 studies of a second fit with that effect is the part of a new study, shared
 by all the rows in the totals: in cross-validation, the equations of a study
-left out deviate together); conversion factors with nested random
-intercepts and a crossed effect of habitat, without an effect of source (two
-to four sources per model, most of the factors from the data bank of Brey et
-al. 2010, which compiles many studies). The package keeps, for each node of
-each model, the estimate of its path from the root and its conditional
-variance (and its covariance with the path of its parent, which the
-simulation of totals needs), and predicts with base R.
+left out deviate together); conversion factors with nested random intercepts
+and a crossed effect of habitat, without an effect of source (two to four
+sources per model, most of the factors from the data bank of Brey et al.
+2010, which compiles many studies). The package keeps, for each node of each
+model, the estimate of its path from the root and its conditional variance
+(and its covariance with the path of its parent, which the simulation of
+totals needs), and predicts with base R.
 
 In cross-validation (scripts in `dev/validation/` of the source repository),
 the 95 % intervals covered 92-97 % of new populations of species in the
@@ -427,6 +496,25 @@ was:
 | Invertebrates, dry mass without lengths | 13 |
 | Phytoplankton, cell biovolume | 20 |
 | Phytoplankton, natural-unit biovolume | 38 |
+
+## From version 0.4.0
+
+- The lengths of `taxa` (`length_mean`, `length_unit`, `length_type`,
+  `length_sd`, `length_cv`) still work, with a warning, and will be removed:
+  give them in `lengths`, in rows without `site`, which apply to all the
+  samples of the unit. Without a table of lengths by site, those columns of
+  `taxa` become the table (with one, add them to it with `site = NA`):
+
+```{r migrate, eval = FALSE}
+cols <- c("length_mean", "length_unit", "length_type", "length_sd")
+ln <- tx[!is.na(tx$length_mean), c("taxon_id", cols)]
+tx[cols] <- NULL
+```
+
+- `estimate_biomass()` gives all the rows in wet mass (mg) by default, not in
+  the currency of each model; `currency` and `unit` choose another, and
+  `convert_currency()` gives every row in mg (or J) unless `unit` says
+  otherwise.
 
 ## From version 0.1.0
 
@@ -448,6 +536,9 @@ taxon or its relatives.
 
 ## References
 
+- Bates D, Mächler M, Bolker B, Walker S (2015). Fitting linear
+  mixed-effects models using *lme4*. *Journal of Statistical Software*
+  67(1), 1-48. <https://doi.org/10.18637/jss.v067.i01>
 - Brey T, Müller-Wiegmann C, Zittier ZMC, Hagen W (2010). Body composition in
   aquatic organisms - a global data bank of relationships between mass,
   elemental composition and energy content. *Journal of Sea Research* 64,

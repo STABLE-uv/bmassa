@@ -75,7 +75,7 @@ which \code{\link[=estimate_biomass]{estimate_biomass()}} notes.
 \item \code{sources}: \code{source_id}, \code{citation}, \code{doi}, \code{licence}.
 \item \code{info}: versions (\code{data_version}, \code{col_release} of the Catalogue of
 Life eXtended Release used for the taxonomy, \code{fitted_on},
-\code{conversions_fitted_on}, \code{lme4}).
+\code{conversions_fitted_on}, and \code{lme4}, the version of \emph{lme4} used).
 }
 }
 \description{
@@ -87,19 +87,25 @@ those data. Use it to inspect what a prediction rests on.
 }
 \details{
 The models were fitted outside the package (\code{data-raw/fit_models.R} and
-\code{data-raw/fit_conversions.R} in the source repository) with lme4 by
-REML: masses (or biovolumes) without lengths, and conversion factors, with
-nested random intercepts by taxonomic level, and length-mass relations with
-random intercepts and slopes by level within length type, from three points
-of each published or fitted equation inside its range of lengths. The estimate and variance of each path come from the joint
-conditional distribution of the fixed and random effects, so the effects of
-a node and of its ancestors are not treated as independent. Records
-identified above species have nodes of their own in the fit, which are not
-kept here because no user taxon can match them.
+\code{data-raw/fit_conversions.R} in the source repository) with the R package
+\emph{lme4} (Bates et al. 2015) by REML: masses (or biovolumes) without lengths,
+and conversion factors, with nested random intercepts by taxonomic level,
+and length-mass relations with random intercepts and slopes by level within
+length type, from three points of each published or fitted equation inside
+its range of lengths. The estimate and variance of each path come from the
+joint conditional distribution of the fixed and random effects, so the
+effects of a node and of its ancestors are not treated as independent.
+Records identified above species have nodes of their own in the fit, which
+are not kept here because no user taxon can match them.
 }
 \examples{
 ref <- get_reference()
 ref
 ref$models[, c("model", "kind", "currency", "unit", "levels")]
 head(ref$nodes[ref$nodes$level == "genus", c("model", "node", "n_units", "sources")])
+}
+\references{
+Bates D, Mächler M, Bolker B, Walker S (2015). Fitting linear
+mixed-effects models using \emph{lme4}. \emph{Journal of Statistical Software}
+67(1), 1-48. \doi{10.18637/jss.v067.i01}
 }
