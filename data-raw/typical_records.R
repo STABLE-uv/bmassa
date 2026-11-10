@@ -12,7 +12,9 @@
 # Columns: `mean` and the other statistics are masses of one counting unit
 # (individual, cell or natural unit) in `unit`; `n` counts `n_unit`
 # (individuals, samples or unknown). `sampling`: the sampling of the record
-# when a site was sampled more than once (NEON: year, season and gear).
+# when a site was sampled more than once (NEON: year, season and gear;
+# tadpoles of Knapp et al. 2021: date). `length_mean` and `length_sd`: mean
+# and standard deviation of the lengths of the individuals, where given.
 # `use_in_model = FALSE` marks records that would count the same animals twice
 # or are not individuals (see `note`).
 
@@ -30,7 +32,7 @@ num <- function(x) suppressWarnings(as.numeric(x))
 cols <- c("source_id", "taxon", "name_as_given", "identified_to", "life_stage", "count_unit",
           "currency", "unit", "shell_included", "preservation", "mean", "median", "se", "sd",
           "min", "max", "n", "n_unit", "scope", "site", "sampling", "country", "length_type",
-          "length_mean", "length_unit", "original_reference", "use_in_model", "note")
+          "length_mean", "length_sd", "length_unit", "original_reference", "use_in_model", "note")
 
 # A data frame with all the columns above; missing ones filled with NA.
 std <- function(...) {
@@ -605,6 +607,52 @@ if (use_source("neon_fish", reg)) {
       paste(sprintf("%s %d", names(table(part[, 3])), as.integer(table(part[, 3]))), collapse = ", "))
   say("- Population means from %.2f to %.0f g (median %.1f); the masses given to the fish below the minimum are more than half of the fish in %d populations.",
       min(m$mean), max(m$mean), stats::median(m$mean), sum(imp > 0.5))
+  say("")
+}
+
+# 6. Knapp et al. (2021): tadpoles of four wetlands of Georgia (USA) ------------
+# One record per sample (species, wetland and date) of the tadpoles measured
+# one by one (data-raw/knapp.R): mean, SD and range of their dry mass (mg, body
+# and tail without the gut) and mean and SD of their total length (mm), before
+# the metamorphic climax (Gosner stages 23-41), as in fit_lwr.R. These are the
+# tadpoles chosen for the elemental analyses, a few of each stage present, not
+# a random sample of the population: the mean lengths of the samples are the
+# data of the model of typical lengths of tadpoles (model_data.R), used for
+# tadpoles without lengths (decision of 2026-11-09).
+
+if (use_source("knapp2021", reg)) {
+  say("## Knapp et al. (2021), tadpoles")
+  say("")
+  source("data-raw/knapp.R")
+  tp <- read_knapp_tadpoles(source_files("knapp2021", reg)[1])
+  tp <- tp[!is.na(tp$gosner) & tp$gosner <= 41, ]
+  when <- ifelse(is.na(tp$date), "date not recorded", format(tp$date))
+  key <- paste(tp$taxon, tp$wetland, when, sep = "\r")
+  g <- split(seq_len(nrow(tp)), key)
+  sd1 <- function(x) if (length(x) > 1L) stats::sd(x) else NA_real_
+  rows <- lapply(g, function(i) {
+    r <- tp[i[1], ]
+    std(source_id = "knapp2021", taxon = r$taxon, name_as_given = r$name_as_given,
+        identified_to = "species", life_stage = "larva", count_unit = "individual",
+        currency = "dry_mass", unit = "mg", shell_included = FALSE, preservation = "frozen",
+        mean = mean(tp$dry_mass_mg[i]), sd = sd1(tp$dry_mass_mg[i]), min = min(tp$dry_mass_mg[i]),
+        max = max(tp$dry_mass_mg[i]), n = length(i), n_unit = "individuals", scope = "sample",
+        site = paste("wetland", r$wetland), sampling = when[i[1]], country = "USA",
+        length_type = "total_length", length_mean = mean(tp$total_length_mm[i]),
+        length_sd = sd1(tp$total_length_mm[i]), length_unit = "mm", use_in_model = TRUE,
+        note = sprintf("Body and tail after gut dissection; Gosner stages %s; sheet rows %s",
+                       paste(sort(unique(range(tp$gosner[i]))), collapse = "-"),
+                       paste(range(tp$row[i]), collapse = "-")))
+  })
+  records$knapp <- do.call(rbind, rows)
+  k <- records$knapp
+  cv <- k$length_sd / k$length_mean
+  say("- %d tadpoles of Gosner stages 23-41 of %d species in %d samples (species, wetland and date), 1 to %d tadpoles each (median %d); %d samples of %d or more tadpoles.",
+      nrow(tp), length(unique(k$taxon)), nrow(k), max(k$n), as.integer(stats::median(k$n)),
+      sum(k$n >= 2), 2L)
+  say("- Mean total lengths of the samples from %.0f to %.0f mm; coefficient of variation of the lengths within a sample (samples of 2 or more): median %.2f, root mean square %.2f.",
+      min(k$length_mean), max(k$length_mean), stats::median(cv, na.rm = TRUE),
+      sqrt(mean(cv^2, na.rm = TRUE)))
   say("")
 }
 

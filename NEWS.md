@@ -1,3 +1,154 @@
+# bmassa 0.6.0
+
+## Changes that alter results
+
+* The carbon of invertebrates and fish comes from more data, those of the
+  nitrogen and phosphorus below: the models of carbon per dry mass have 1336
+  factors of invertebrates (563 of freshwater animals) instead of 911 (144),
+  and 132 of fish (62) instead of 97 (27). Of the 61 taxon units of animals
+  of the vignette `azoxystrobin`, the carbon per dry mass changes by less
+  than 5 % in 54 and by less than 10 % in all but the ostracods (from 38 % to
+  33 %); planarians (*Dugesia*), without factors before, now go to carbon.
+* The model of invertebrates without lengths gains the typical mass of the
+  harpacticoid copepods of Hébert et al. (2016), left out before for lack of
+  a classification (Harpacticoida is not in the COL XR; now placed in
+  Podoplea, as for the nitrogen and phosphorus below). Taxa estimated from
+  their species or genus do not change; some estimated from their order or
+  class do: in the vignette `azoxystrobin`, the copepod nauplii (class
+  Copepoda) 0.73 times their previous mass, the ostracods 0.83, the
+  cyclopoid and calanoid copepods (orders) 0.85 and 0.90, *Dugastella
+  valentina* 1.04; the other 57 units of invertebrates change by less than
+  2 %.
+* Amphibians given as larvae, or without a stage and without a snout-vent
+  length, are tadpoles if they are frogs or toads, and are estimated (below);
+  before, they were not. `bias_correction` is therefore required when a
+  survey has tadpoles without lengths. Larvae of salamanders and newts, and
+  juveniles, are still not estimated.
+* The conversion models of invertebrates gain the soft tissue of freshwater
+  molluscs from articles and theses (Ravera et al. 2007, Benke et al. 1999,
+  Doherty 1986 and nine others, listed by `cite_sources()`): 34 factors of
+  17 species of dry to wet mass, AFDM to dry mass, carbon and energy (and
+  three shares of the shell in the dry mass). The edible flesh of snails,
+  animals exposed to diuron or to high calcium in experiments and clams
+  starved in the laboratory are left out. The zebra and quagga mussels of
+  the Szczecin Lagoon of Coughlan et al. (2021) are now transitional instead
+  of freshwater. The fit of the carbon per dry mass of invertebrates now
+  reaches the better of its two optima (the previous fit had stopped at one
+  without variance between phyla, with a worse REML criterion for the same
+  data), which changes most the taxa matched only by their phylum. In the
+  vignette `azoxystrobin`, the AFDM of *Melanopsis*, *Theodoxus* and
+  *Physella acuta* (estimated from the class Gastropoda) rises by 2 %, and
+  the carbon of *Physella acuta* by 3 %, of the ostracods by 5 % and of the
+  water mites by 3 %; the other estimates change by less than 1 %.
+* Snails from their shell height are about twice as heavy as before. The
+  snails of the length-mass data (the CADSES lagoons) were weighed with their
+  shell, taken out before with the ratio of the dry mass without shell to the
+  ash-free dry mass with shell of freshwater bivalves, which left them 0.05 to
+  0.19 of their dry mass. Now it is taken out with the share of the soft
+  tissue in the dry mass of snails, from articles and a thesis on their shells
+  (Kołodziejczyk 1984, Sokolowski et al. 2003, Kamler 1969, James et al.
+  1998, listed by `cite_sources()`), by their family, order or class: 0.17 to
+  0.20. As that share does not follow the shell of each species, it is capped
+  by the ash of the taxon: the soft tissue cannot hold more organic matter
+  than the whole snail, which lowers it to 0.10-0.16 in four snails with
+  heavy shells (*Tritia neritea*, *Bittium reticulatum*, *Theodoxus
+  fluviatilis* and *Pirenella*). A snail estimated from the class Gastropoda
+  (such as *Physella acuta* or *Melanopsis*) is 1.82 times as heavy at the
+  same shell height, and *Theodoxus* 2.26 times; those with thin shells are
+  probably still underestimated (see the known limitations in the README).
+  Bivalves change by less than 5 %.
+* The ash-free dry mass of the soft tissue of snails is 0.75 of their dry
+  mass instead of 0.68 (class Gastropoda; 3 to 8 % more in the orders and
+  species with factors): four snails of the CADSES leaf packs without an
+  order in the data set had been taken as molluscs without shell, so their
+  ash with the shell entered the model of the soft tissue (and a sea slug had
+  been taken as shelled). The factors of Coughlan et al. (2021) pooled over
+  the sites of a species are no longer used along with those of each site,
+  which they repeat (as with the length-mass equations, they would only stand
+  in for species without sites of three or more individuals), and the dry
+  mass of the soft tissue over the wet mass with shell gains 60 snails weighed
+  one by one (Crichton 2003): with both, the molluscs of Hrycik et al.
+  (2024), weighed wet with their shell, have 3 % more dry mass.
+* All the models are fitted from four starting points (`fit_model()` in
+  `data-raw/fit_models.R`), keeping the fit with the best REML criterion. The
+  length-mass models of fish and of adult amphibians reach better optima than
+  their previous fits (REML criterion -2441.2 instead of -2378.9, and -26.2
+  instead of -15.0): fish known by their family get narrower intervals (95 %
+  factor 1.4 instead of 2.0) and those known only by their order wider ones
+  (2.8 instead of 2.0); in the example survey, *Squalius pyrenaicus* (by its
+  genus) is 3 % heavier and *Pelophylax perezi* 0.8 % lighter. The other
+  models have no better optimum.
+* In the vignette `azoxystrobin`, without lengths: *Melanopsis* and
+  *Theodoxus* 1.5 % heavier and *Physella acuta* 0.7 % (more dry mass in the
+  molluscs of Hrycik et al. 2024), and their AFDM 10 to 11 % more; the AFDM
+  of the other animals changes by -1.9 to +1.1 %, and the rest by less than
+  0.1 %.
+* The conversion models of invertebrates gain the ash and water of freshwater
+  zooplankton from articles and a report (Riccardi and Mangoni 1999, Birge
+  and Juday 1922, Watanabe et al. 1978 and Hasan et al. 2023, listed by
+  `cite_sources()`): 29 factors of AFDM to dry mass of 14 taxa of cladocerans
+  and copepods, and 4 of dry to wet mass of *Daphnia* and *Moina*. The energy
+  densities of Riccardi and Mangoni (1999), calculated from the elemental
+  composition, and the moisture of zooplankton air-dried on filter paper and
+  stored before it was weighed (Ovie and Ovie 2006) are not used. The dry
+  mass of *Daphnia* is 0.132 of its wet mass instead of 0.145: in the
+  vignette `azoxystrobin`, *Daphnia* has 9.7 % more wet mass (as *Daphnia
+  magna* in the example survey), *Ceriodaphnia*, *Simocephalus* and
+  *Scapholeberis* 4.6 % and the other cladocerans 2.1 %; the AFDM of the
+  animals changes by -0.2 to +0.5 %, and the rest by less than 0.1 %.
+* The models of carbon, nitrogen and phosphorus per dry mass gain the aquatic
+  animals of the Limno-STOICH database (Corman et al. 2026; release of
+  2025-12-11), averaged by population: 9091 factors of 65 of its data
+  sources, some unpublished. The models of invertebrates have 4999, 5005 and
+  1707 factors instead of 1337, 1346 and 581, those of fish 343, 553 and 191
+  instead of 132, 342 and 93, and those of tadpoles gain the wood frog
+  (*Boreorana sylvatica*, *Lithobates sylvaticus* in the database) and
+  *Pseudacris maculata* (carbon and nitrogen, Gosner stages 25 to 42). Left out: data sets already used, parts of animals (also when
+  entered as whole organisms), eggs and parasites, terrestrial animals and
+  the emerged adults of aquatic insects, fish analysed as muscle (Kiffney et
+  al. 2002; Volk and Kiffney 2012), molluscs with the carbon and nitrogen of a
+  shell, and amphibians other than those tadpoles. The intervals of carbon and
+  nitrogen narrow (invertebrates known by their family: 95 % factor 1.33
+  instead of 1.48 for carbon) and those of phosphorus widen (2.27 instead of
+  1.89). In the vignette `azoxystrobin`, the carbon of the animals changes by
+  -13 to +6 % (54 of 62 within 5 %), their nitrogen by -21 to +12 % and their
+  phosphorus by -33 to +25 % (median -10 %); in the example survey, the carbon
+  of *Limnodrilus hoffmeisteri* is 15 % lower and the phosphorus of
+  *Gammarus* 21 % higher. The masses do not change.
+* The conversion models gain the ash and energy of four triclads (Calow and
+  Jennings 1974) and the carbon of 14 species of fish of Polish lakes
+  (Penczak et al. 1985): 22 factors. Farmed animals fed formulated diets
+  (bass, bullfrog tadpoles), triclads starved in the laboratory and trout
+  farmed in cages are left out, and so are a leech already in the data bank of
+  Brey et al. (2010) and the water mites and triclads of Morante et al. (2012).
+  The estimates of the vignette `azoxystrobin` and of the example survey
+  change by less than 1 %: the AFDM and energy of *Dugesia* by +0.6 %, the
+  carbon of the fish of the example survey by up to +0.9 %.
+
+## New features
+
+* Nitrogen and phosphorus: `currency` in `estimate_biomass()` and `to` in
+  `convert_currency()` take `"nitrogen"` and `"phosphorus"`, with models of
+  their content per dry mass of invertebrates and fish (issue #3). They are
+  fitted to the data bank of Brey et al. (2010), the compilation of Hébert
+  et al. (2016) for crustacean zooplankton, the appendix of Evans-White et
+  al. (2005) for stream invertebrates and data sets and tables of the
+  elemental composition of freshwater animals (Beck et al. 2022; González et
+  al. 2018, 2025; Moody et al. 2018; May et al. 2026; and others, listed by
+  `cite_sources()`) and the Limno-STOICH database (Corman et al. 2026, below),
+  averaged by population. Phytoplankton and adult
+  amphibians are not converted to them, nor rotifers to phosphorus.
+* Tadpoles: estimated in dry mass (without the gut) from their total length,
+  with a length-mass model fitted to tadpoles of 11 species of four wetlands
+  of Georgia, USA, measured one by one before the metamorphic climax (Knapp
+  et al. 2021). Without lengths, from the typical length of their taxon, a
+  model of the mean total length of the tadpoles of each sample of the same
+  data (`method = "typical_length"`, `length_basis = "typical"`), with its
+  uncertainty. They go to carbon, nitrogen and phosphorus with models of
+  their own (13 species, with Vanni et al. 2002 through González et al.
+  2025), but not to wet mass, ash-free dry mass or energy (no factors of
+  tadpoles in the reference).
+
 # bmassa 0.5.0
 
 ## Changes that alter results

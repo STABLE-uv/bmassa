@@ -146,7 +146,10 @@ if (length(cad)) {
   say("## CADSES lagoons")
   say("")
   # Class of molluscs: from the box-corer classification (by taxon, then by
-  # order), completed by hand for taxa without classification.
+  # order), completed by hand for taxa without classification (from version
+  # 0.6.0 also four snails of the leaf packs without order, which were taken
+  # as molluscs without shell). Molluscs have shell, except the sea slugs
+  # (Nudibranchia, from version 0.6.0).
   all_cad <- do.call(rbind, lapply(cad, function(x) {
     data.frame(source_id = x$source_id, taxon = x$scientificName, phylum = x$phylum,
                class = if ("class" %in% names(x)) x$class else NA_character_,
@@ -158,7 +161,10 @@ if (length(cad)) {
   class_by_order <- c(class_by_order, Mesogastropoda = "Gastropoda",
                       Sacoglossa = "Gastropoda", Nudibranchia = "Gastropoda")
   class_by_taxon <- c(class_by_taxon, Tellina = "Bivalvia", Mya = "Bivalvia",
-                      Bivalvia = "Bivalvia", Ancylinae = "Gastropoda")
+                      Bivalvia = "Bivalvia", Ancylinae = "Gastropoda",
+                      Gastropoda = "Gastropoda", "Eulimella ventricosa" = "Gastropoda",
+                      "Gibbula adansonii" = "Gastropoda", Lepetidae = "Gastropoda")
+  slug_orders <- "Nudibranchia"
   mollusc_class <- function(taxon, order, phylum) {
     cl <- unname(class_by_taxon[taxon])
     cl[is.na(cl)] <- unname(class_by_order[order[is.na(cl)]])
@@ -176,7 +182,8 @@ if (length(cad)) {
     AFDW <- num(x$ashFreeDryWeight)
     incons <- !is.na(AFDW) & !is.na(DW) & AFDW > DW
     cl <- mollusc_class(x$scientificName, x$order, x$phylum)
-    hard <- !is.na(cl) | barnacle(x$scientificName, x$order)
+    slug <- x$order %in% slug_orders
+    hard <- (!is.na(cl) & !slug) | barnacle(x$scientificName, x$order)
     phylum_known <- !is.na(x$phylum) | !is.na(cl)
     shell <- ifelse(hard, TRUE, ifelse(phylum_known, FALSE, NA))
     # Insect and other taxa without phylum are not molluscs (checked by hand):
@@ -184,7 +191,7 @@ if (length(cad)) {
                   "Mysta picta", "Ceratopogonidae", "Paguroidea", "Lestes", "Trichoptera",
                   "Tipulidae", "Jaera hopeana")
     shell[is.na(shell) & x$scientificName %in% no_shell] <- FALSE
-    ltype <- ifelse(cl %in% "Gastropoda", "shell_height",
+    ltype <- ifelse(cl %in% "Gastropoda" & !slug, "shell_height",
                     ifelse(cl %in% "Bivalvia", "shell_length", "body_length"))
     d <- data.frame(source_id = id, taxon = x$scientificName, length_type = ltype,
                     length_unit = "mm", mass_currency = "dry_mass", mass_unit = "mg",
@@ -535,6 +542,38 @@ if (use_source("santini2018", reg)) {
   f <- fit_dataset(d, population = FALSE)
   report_fits(f, "santini2018")
   all_fits[["santini2018"]] <- f
+}
+
+# 7. Knapp et al. (2021): tadpoles, individual measurements ---------------------
+# Total length (mm) and dry mass (mg) of the body and tail after the gut was
+# dissected out, of tadpoles of 11 species of four wetlands of Georgia (USA),
+# 2017-2018, read from the compilation of the elemental composition of
+# freshwater animals (data-raw/knapp.R). Only tadpoles before the metamorphic
+# climax (Gosner stages 23-41, before the forelimbs emerge): at the climax the
+# tail is resorbed, the total length shrinks and the mass does not (at a given
+# length, tadpoles of stages 42-43 weighed 1.3 to 1.7 times those of the same
+# species before; decision of 2026-11-09). Equations by species and, for the
+# species measured in more than one wetland, by wetland.
+
+if (use_source("knapp2021", reg)) {
+  say("")
+  say("## Knapp et al. (2021), tadpoles")
+  say("")
+  source("data-raw/knapp.R")
+  tp <- read_knapp_tadpoles(source_files("knapp2021", reg)[1])
+  pre <- !is.na(tp$gosner) & tp$gosner <= 41
+  say("- %d tadpoles measured alone (pooled homogenates left out) of %d species; %d before the metamorphic climax (Gosner 23-41) used; %d at the climax (Gosner 42-43) and %d of unknown stage left out.",
+      nrow(tp), length(unique(tp$taxon)), sum(pre), sum(!is.na(tp$gosner) & tp$gosner >= 42),
+      sum(is.na(tp$gosner)))
+  tp <- tp[pre, ]
+  d <- data.frame(source_id = "knapp2021", taxon = tp$taxon, length_type = "total_length",
+                  length_unit = "mm", mass_currency = "dry_mass", mass_unit = "mg",
+                  shell_included = FALSE, preservation = "frozen", life_stage = "larva",
+                  site = paste("wetland", tp$wetland), country = "USA", L = tp$total_length_mm,
+                  M = tp$dry_mass_mg, stringsAsFactors = FALSE)
+  f <- fit_dataset(d)
+  report_fits(f, "knapp2021")
+  all_fits[["knapp2021"]] <- f
 }
 
 # Output -------------------------------------------------------------------------

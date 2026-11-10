@@ -138,7 +138,7 @@ draw_log_mass <- function(x, est, n_draws, population_effect, group = NULL) {
     v <- comps$value[comps$model == m & comps$level == l & comps$parameter == p]
     if (length(v)) v else 0
   }
-  lwr <- sim$method == "length"
+  lwr <- sim$method %in% c("length", "typical_length")
   out <- matrix(sim$eta, nrow = n_draws, ncol = nrow(sim), byrow = TRUE)
   # 1. Errors of the nodes, from the root down.
   err <- draw_node_errors(unique(sim$node), nodes, n_draws)
@@ -147,6 +147,28 @@ draw_log_mass <- function(x, est, n_draws, population_effect, group = NULL) {
     eu <- err[[as.character(u)]]
     out[, cols] <- out[, cols] + eu[, 1]
     if (ncol(eu) == 2L) out[, cols] <- out[, cols] + eu[, 2] %o% sim$xc[cols]
+  }
+  # 1b. Typical lengths of tadpoles without lengths (version 0.6.0): the
+  # errors of the node of the model of typical lengths and of its missing
+  # levels, shared like those of the masses, enter the log mass times the
+  # slope of the length-mass relation (their part between populations is in
+  # `v_population`, step 4).
+  tl <- if (is.null(sim$length_node)) integer(0) else which(!is.na(sim$length_node))
+  if (length(tl)) {
+    err_l <- draw_node_errors(unique(sim$length_node[tl]), nodes, n_draws)
+    for (u in unique(sim$length_node[tl])) {
+      cols <- tl[sim$length_node[tl] == u]
+      out[, cols] <- out[, cols] + err_l[[as.character(u)]][, 1] %o% sim$length_slope[cols]
+    }
+    lkeys <- x$simulation$length_missing_keys[est]
+    if (is.null(lkeys)) lkeys <- vector("list", length(est))
+    rows_of_l <- rows_by_key(lkeys)
+    for (k in names(rows_of_l)) {
+      cols <- rows_of_l[[k]]
+      parts <- strsplit(k, "\u001f", fixed = TRUE)[[1]]
+      e <- stats::rnorm(n_draws, 0, sqrt(comp_value(parts[1], parts[3], "intercept")))
+      out[, cols] <- out[, cols] + e %o% sim$length_slope[cols]
+    }
   }
   # 2. Stage effects.
   for (s in unique(stats::na.omit(sim$stage_node))) {

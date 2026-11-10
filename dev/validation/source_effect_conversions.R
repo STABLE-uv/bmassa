@@ -17,7 +17,7 @@
 # The data are those of the fitted models (data-raw/derived/conversion_used.csv,
 # after the screening of fit_conversions.R).
 # Writes dev/validation/source_effect_conversions.md.
-# From the package root: Rscript dev/validation/source_effect_conversions.R  (about 10 min)
+# From the package root: Rscript dev/validation/source_effect_conversions.R  (about 2 h)
 
 Sys.setenv(BMASSA_FIT_ONLY_FUNCTIONS = "true")
 source("data-raw/fit_models.R")
@@ -32,20 +32,27 @@ d_all <- data.frame(record_id = u$conversion_id, source_id = u$source_id, taxon 
                     stringsAsFactors = FALSE)
 d_all <- add_lineage(d_all, rt)
 stopifnot(attr(d_all, "lost") == 0)
+# Tadpoles: models of their own, as in fit_conversions.R.
+d_all$domain[d_all$domain == "amphibian" & u$life_stage %in% "larva"] <- "amphibian_larva"
 d_all$model <- used$model
 stopifnot(identical(d_all$model, paste(d_all$domain, d_all$pair)))
 
 # Models with two or more sources; which are used by the package
 # (convert_currency()) or by data-raw/model_data.R.
 package_models <- c(paste("fish", c("afdm_to_carbon", "afdm_to_energy", "dry_mass_to_afdm",
-                                     "dry_mass_to_carbon", "dry_mass_to_energy", "wet_mass_to_afdm",
+                                     "dry_mass_to_carbon", "dry_mass_to_energy", "dry_mass_to_nitrogen",
+                                     "dry_mass_to_phosphorus", "wet_mass_to_afdm",
                                      "wet_mass_to_dry_mass", "wet_mass_to_energy")),
                     paste("invertebrate", c("afdm_to_carbon", "afdm_to_energy", "dry_mass_to_afdm",
                                              "dry_mass_to_carbon", "dry_mass_to_energy",
+                                             "dry_mass_to_nitrogen", "dry_mass_to_phosphorus",
                                              "wet_mass_to_afdm", "wet_mass_to_dry_mass",
-                                             "wet_mass_to_energy")))
+                                             "wet_mass_to_energy")),
+                    paste("amphibian_larva", c("dry_mass_to_carbon", "dry_mass_to_nitrogen",
+                                               "dry_mass_to_phosphorus")))
 model_data_models <- paste("invertebrate", c("wet_mass_to_dry_mass", "wet_mass+shell_to_dry_mass",
-                                             "dry_mass+shell_to_afdm+shell"))
+                                             "dry_mass+shell_to_afdm+shell", "dry_mass+shell_to_dry_mass",
+                                             "dry_mass_to_afdm"))
 used_by <- function(m) {
   u <- c(if (m %in% package_models) "package", if (m %in% model_data_models) "model_data.R")
   if (length(u)) paste(u, collapse = ", ") else "—"
@@ -123,15 +130,29 @@ one_model <- function(m) {
                       used_by = used_by(m),
                       stringsAsFactors = FALSE))
 }
+# Each model is saved on its own (dev/validation/cv/conversions/, not
+# tracked; BMASSA_CV_REDO=true computes them again), so an interrupted run
+# goes on from the models it had finished.
+cache_dir <- file.path("dev", "validation", "cv", "conversions")
+dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+if (identical(Sys.getenv("BMASSA_CV_REDO"), "true")) unlink(file.path(cache_dir, "*.rds"))
+cache_file <- function(m) file.path(cache_dir, paste0(gsub("[^A-Za-z0-9_.+-]", "_", m), ".rds"))
+todo <- models[!file.exists(cache_file(models))]
 t0 <- Sys.time()
-out <- parallel::mclapply(models, one_model, mc.cores = min(2L, parallel::detectCores()))
-message(sprintf("%d models in %.1f min", length(models), as.numeric(difftime(Sys.time(), t0, units = "mins"))))
+invisible(parallel::mclapply(todo, function(m) {
+  saveRDS(one_model(m), cache_file(m))
+  NULL
+}, mc.cores = min(2L, parallel::detectCores()), mc.preschedule = FALSE))
+out <- lapply(models, function(m) readRDS(cache_file(m)))
+message(sprintf("%d models (%d run now) in %.1f min", length(models), length(todo),
+                as.numeric(difftime(Sys.time(), t0, units = "mins"))))
 res <- do.call(rbind, lapply(out, `[[`, "res"))
 cv <- do.call(rbind, lapply(out, `[[`, "cv"))
 param <- do.call(rbind, lapply(out, `[[`, "param"))
 param$sd_source <- round(param$sd_source, 3)
 param$sd_residual <- round(param$sd_residual, 3)
 info <- do.call(rbind, lapply(out, `[[`, "n"))
+info$used_by <- vapply(info$model, used_by, "")
 
 # Species measured by a single source: prediction of their node / mean of their factors.
 res <- res[!grepl("not identified", res$species, fixed = TRUE), ]

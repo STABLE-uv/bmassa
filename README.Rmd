@@ -22,14 +22,14 @@ options(width = 100)
 <!-- badges: end -->
 
 *bmassa* estimates the mean individual mass and the biomass of aquatic
-taxa (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians)
-from abundance data, with prediction intervals. Hierarchical models fitted
+taxa (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians,
+adults and tadpoles) from abundance data, with prediction intervals. Hierarchical models fitted
 to published compilations and data sets predict each taxon from its own
 reference data or, when it has none, from its closest relatives, and the
 interval widens with the substitution. All the estimates are in one
-currency: wet mass (mg) by default, or dry mass, ash-free dry mass, carbon or
-energy, converted from the currency of each model with the uncertainty of the
-conversion factors.
+currency: wet mass (mg) by default, or dry mass, ash-free dry mass, carbon,
+nitrogen, phosphorus or energy, converted from the currency of each model
+with the uncertainty of the conversion factors.
 
 ## Installation
 
@@ -97,9 +97,10 @@ print(e[e$site == "L1", c("taxon_id", "method", "match_level", "length_mm", "ind
 ```
 
 In another currency, here carbon in µg, with the uncertainty of the
-conversion factors (amphibians have too few factors in the reference data:
-they go to dry mass and energy with the values of frogs and toads of US EPA
-1993, but not to carbon). `estimate_biomass(ab, tx, ln, bias_correction =
+conversion factors (adult amphibians have too few factors in the reference
+data: they go to dry mass and energy with the values of frogs and toads of
+US EPA 1993, but not to carbon; tadpoles, estimated in dry mass, go to
+carbon, nitrogen and phosphorus, but not to wet mass). `estimate_biomass(ab, tx, ln, bias_correction =
 "lognormal", currency = "carbon", unit = "ug")` gives the same:
 
 ```{r carbon}
@@ -171,8 +172,8 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
 - Insects without lengths and without a stage are taken as larvae, and
   copepods as adults (their copepodites and nauplii are fixed contrasts);
   fish without lengths are estimated as whole populations (all sizes), with
-  wide intervals; amphibians only after metamorphosis (larvae are not
-  estimated), and without lengths only when declared adults.
+  wide intervals; amphibians without a stage are taken as larvae (tadpoles,
+  in frogs and toads), and adults must be declared.
 - Phytoplankton counted in natural units takes the natural units of the
   reference, often single cells or small groups in colonial genera; give
   `cells_per_unit` for colonies counted whole.
@@ -184,7 +185,8 @@ print(head(d[, c("draw", "site", "taxon_id", "habitat", "ind_mass", "biomass",
   its spread (`length_sd` or `length_cv`) corrects the mass of the mean
   length, smaller than the mean mass.
 - The models predict phytoplankton biovolume, the dry mass of invertebrates
-  and the wet mass of fish and amphibians; every row is then converted to the
+  and tadpoles and the wet mass of fish and adult amphibians; every row is
+  then converted to the
   currency asked for, with the conversion models (a row that cannot reach it
   is not estimated, with the reason).
 - The vignettes: `vignette("bmassa")` goes through the workflow and the
@@ -210,9 +212,10 @@ Network (NEON), a program sponsored by the U.S. National Science Foundation
 
 ## Status
 
-Version 0.5.0, not on CRAN. In cross-validation, the 95 %
+Version 0.6.0, not on CRAN. In cross-validation, the 95 %
 intervals cover 92-97 % of new populations of species in the reference and
-94-97 % of species left out. Masses without lengths are much more uncertain
+94-98 % of species left out (10 of the 14 length-mass equations of the 7
+species of tadpoles). Masses without lengths are much more uncertain
 (the median is divided and multiplied by a factor of about 7 to 40 for the
 95 % interval of a new population) than masses from lengths (a factor of 1.2
 to 3.3): measure lengths where possible.
@@ -230,20 +233,38 @@ to 3.3): measure lengths where possible.
   with Tuesday Lake); give the copepodites as rows of their own.
 - Phytoplankton counted in natural units goes to carbon and energy only
   with `cells_per_unit`; without it, only to wet mass.
-- The conversion factors have two to four sources per model, too few to
-  estimate the variation between sources: with each source left out in
-  turn, 61-66 % of the wet to dry mass and dry mass to carbon factors of
-  invertebrates fall inside their 95 % intervals.
-- Amphibian larvae are not estimated, with or without lengths.
+- Snails from their shell height: the snails of the length-mass data (the
+  CADSES lagoons) were weighed with their shell, taken out with the share of
+  the soft tissue in the dry mass of snails of other studies (0.17 to 0.20,
+  by family, order or class; version 0.6.0), capped by the ash of each taxon
+  (0.10 to 0.16 in four snails with heavy shells, such as *Tritia* and
+  *Bittium*): snails with thin shells, such as *Haminoea*, are probably
+  underestimated.
+- Most models of the conversion factors have one to four sources (those of
+  carbon, nitrogen and phosphorus of invertebrates and fish, four to twelve,
+  one of them the Limno-STOICH database with 65 data sources), too few to
+  estimate the variation between sources: with each source left out in turn,
+  65 % of the wet to dry mass factors of invertebrates fall inside their
+  95 % intervals, against 81-95 % of their carbon, nitrogen and phosphorus
+  factors (version 0.6.0).
+- Tadpoles (version 0.6.0) come from the tadpoles of 11 species of four
+  wetlands of Georgia, USA (Knapp et al. 2021), before the metamorphic
+  climax: those at the climax, whose tail is being resorbed, are
+  underestimated from their length. Without lengths they take the typical
+  length of their taxon, with intervals of a factor of 8 to 15 either way
+  (about 40 for families absent from the reference). They have no wet mass
+  (no dry to wet mass ratio of tadpoles in the reference), and larvae of
+  salamanders and newts, and juveniles, are not estimated.
 - Fish without lengths: the mean masses of populations come from Iberian
   streams (Arranz et al. 2022), the Mekong (Koning et al. 2024) and streams
   and lakes of the United States (NEON, 2016-2024), mostly small fish caught
   by electrofishing: populations of large adults (stocked fish, catches of
   fisheries) are underestimated, and orders absent from them take the mean
   of their class.
-- There is no dry mass or AFDM of phytoplankton, no AFDM or carbon of
-  amphibians, and no energy of masses with shell: in those currencies, those
-  rows are not estimated.
+- There is no dry mass, AFDM, nitrogen or phosphorus of phytoplankton, no
+  AFDM, carbon, nitrogen or phosphorus of adult amphibians, no wet mass,
+  AFDM or energy of tadpoles, no phosphorus of rotifers and no energy of
+  masses with shell: in those currencies, those rows are not estimated.
 - Detritus, periphyton and macrophytes are outside the scope of the
   package.
 

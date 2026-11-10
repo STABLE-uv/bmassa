@@ -6,16 +6,17 @@
 
 # Ratios read from the data bank (labels of rows 2 and 3 of the sheet "Data")
 # and the conversions they give: value in `to` = factor x value in `from`,
-# with masses in micrograms and energy in joules.
+# with masses in micrograms and energy in joules. Nitrogen and phosphorus per
+# dry mass from version 0.6.0.
 brey_ratios <- data.frame(
   label = c("DM / WM", "AFDM / DM", "AFDM / WM", "C / DM", "C / AFDM",
-            "J / mgWM", "J / mgDM", "J / mgAFDM", "J / mgC"),
+            "J / mgWM", "J / mgDM", "J / mgAFDM", "J / mgC", "N / DM", "P / DM"),
   from = c("wet_mass", "dry_mass", "wet_mass", "dry_mass", "afdm",
-           "wet_mass", "dry_mass", "afdm", "carbon"),
+           "wet_mass", "dry_mass", "afdm", "carbon", "dry_mass", "dry_mass"),
   to = c("dry_mass", "afdm", "afdm", "carbon", "carbon",
-         "energy", "energy", "energy", "energy"),
-  scale = c(1, 1, 1, 1, 1, 1e-3, 1e-3, 1e-3, 1e-3), # J/mg -> J/ug
-  invertible = c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+         "energy", "energy", "energy", "energy", "nitrogen", "phosphorus"),
+  scale = c(1, 1, 1, 1, 1, 1e-3, 1e-3, 1e-3, 1e-3, 1, 1), # J/mg -> J/ug
+  invertible = c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE),
   stringsAsFactors = FALSE
 )
 

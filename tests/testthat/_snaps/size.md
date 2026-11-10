@@ -9,11 +9,11 @@
       Interval: prediction 95 %, from 200 draws
       Classes: [0, 1) [1, 10) [10, Inf)
        site per mean_size median_size share_excluded approximation
-         S1  m2      3.66        2.74          0.000          TRUE
-         S2  m2      2.81        3.58          0.000         FALSE
-         S3  m2      3.60        2.87          0.000         FALSE
-         S4  m2      2.58        2.31          0.000          TRUE
-         S5  m2  23329.02    20996.12          0.882         FALSE
+         S1  m2      3.66        2.72          0.000          TRUE
+         S2  m2      2.82        3.59          0.000         FALSE
+         S3  m2      3.61        2.88          0.000         FALSE
+         S4  m2      2.59        2.35          0.000          TRUE
+         S5  m2  22537.27    20283.54          0.882         FALSE
          S6  m2        NA          NA             NA            NA
       Use as.data.frame() for all the indicators and x$classes for the size classes.
 

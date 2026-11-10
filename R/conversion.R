@@ -1,6 +1,6 @@
 # Currency conversion of estimates with the hierarchical conversion models -------------
 
-conversion_targets <- c("wet_mass", "dry_mass", "afdm", "carbon", "energy")
+conversion_targets <- c("wet_mass", "dry_mass", "afdm", "carbon", "nitrogen", "phosphorus", "energy")
 mass_unit_g <- c(pg = 1e-12, ng = 1e-9, ug = 1e-6, mg = 1e-3, g = 1)
 energy_unit_J <- c(mJ = 1e-3, J = 1, kJ = 1e3, MJ = 1e6)
 # Wet mass of phytoplankton from biovolume: the density of water, 1 g/cm3 =
@@ -42,19 +42,31 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'
 #' `convert_currency()` expresses the mean individual mass and the biomass of
 #' each row of an estimate in another currency: wet mass, dry mass, ash-free
-#' dry mass (AFDM), carbon or energy. [estimate_biomass()] already gives all
-#' its rows in one currency (`currency`, wet mass by default) with these
-#' conversions; `convert_currency()` changes it afterwards, starting again
-#' from the currency of the models. Invertebrates and fish are converted with
+#' dry mass (AFDM), carbon, nitrogen, phosphorus or energy.
+#' [estimate_biomass()] already gives all its rows in one currency
+#' (`currency`, wet mass by default) with these conversions;
+#' `convert_currency()` changes it afterwards, starting again from the
+#' currency of the models. Invertebrates and fish are converted with
 #' hierarchical models of the conversion factors fitted to the data of Brey et
 #' al. (2010), Hrycik et al. (2024), Coughlan et al. (2021), Cummins and
-#' Wuycheck (1971), Evans-White et al. (2005) and the CADSES data sets: a
-#' taxon gets the factor of its closest relatives, and the interval widens
-#' with the uncertainty of the factor. Rotifers go between dry and wet mass
+#' Wuycheck (1971), Evans-White et al. (2005), Hébert et al. (2016), data sets
+#' and tables of the elemental composition of freshwater animals (Beck et al.
+#' 2022; González et al. 2018, 2025; Moody et al. 2018; May et al. 2026; and
+#' others), the Limno-STOICH database of the elemental composition of the
+#' organisms of inland waters (Corman et al. 2026), articles and theses on the
+#' soft tissue of freshwater molluscs
+#' (mass ratios, carbon and energy) and articles on the water and ash of
+#' freshwater zooplankton, all listed by [cite_sources()], and the CADSES data
+#' sets: a taxon gets
+#' the factor of its closest relatives, and the interval widens with the
+#' uncertainty of the factor. Rotifers go between dry and wet mass
 #' with the conventional ratio of US EPA (2016): dry mass 10 % of the wet
-#' mass, 3.9 % in *Asplanchna*. Amphibians go between wet and dry mass and to
-#' energy with the values of frogs and toads compiled by US EPA (1993): dry
-#' mass 15 % (SD 4.7) of the wet mass and 4.6 kcal/g (SD 0.45) of dry mass.
+#' mass, 3.9 % in *Asplanchna*. Adult amphibians go between wet and dry mass
+#' and to energy with the values of frogs and toads compiled by US EPA (1993):
+#' dry mass 15 % (SD 4.7) of the wet mass and 4.6 kcal/g (SD 0.45) of dry
+#' mass. Tadpoles go from dry mass to carbon, nitrogen and phosphorus with
+#' models of their own, fitted to tadpoles of 13 species (Knapp et al. 2021;
+#' Vanni et al. 2002 through González et al. 2025).
 #' Phytoplankton biovolumes are converted to wet mass with the conventional
 #' density of 1 g/cm3 (EN 16695) and, for single cells (or natural units with
 #' a known number of cells), to carbon with the carbon-volume equations of
@@ -64,7 +76,7 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' @param data Result of [estimate_biomass()] (or of `convert_currency()` on
 #'   it).
 #' @param to Target currency: `"wet_mass"`, `"dry_mass"`, `"afdm"`,
-#'   `"carbon"` or `"energy"`.
+#'   `"carbon"`, `"nitrogen"`, `"phosphorus"` or `"energy"`.
 #' @param habitat `NULL` (default: unknown) or the habitat of the organisms,
 #'   `"freshwater"`, `"marine"` or `"transitional"`. Several conversion models
 #'   have a habitat effect: if it is unknown its variance is added to the
@@ -97,17 +109,20 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' where \eqn{\ln f} is predicted for the taxon by the conversion model of its
 #' domain from \eqn{A} to \eqn{B} (\eqn{s = 1}) or, if there is none, from
 #' \eqn{B} to \eqn{A} (\eqn{s = -1}); without either, the conversion goes
-#' through dry mass (for fish, carbon comes from wet to dry mass and from dry
-#' mass to carbon). As in [estimate_biomass()], \eqn{\eta_f} is the estimate of
+#' through dry mass (for fish, carbon, nitrogen and phosphorus come from wet to
+#' dry mass and from dry mass to the element). As in [estimate_biomass()],
+#' \eqn{\eta_f} is the estimate of
 #' the path to the deepest node of the model shared with the taxon (matched by
 #' `col_id` or by name and rank), and \eqn{\tau_f^2} adds its conditional
 #' variance, the variances of the missing levels, the variation between
 #' records of a species (a new population) and between habitats (when
-#' unknown). The models have no effect of source: most of their factors come
-#' from the data bank of Brey et al. (2010), which compiles many studies, so
-#' the differences between studies are part of the variation between records,
-#' and two to four sources are too few to estimate a variance between them.
-#' A source with its own methods may still deviate as a whole: in
+#' unknown). The models have no effect of source: in most of them, most
+#' factors come from the data bank of Brey et al. (2010), which compiles many
+#' studies, so the differences between studies are part of the variation
+#' between records, and most models have one to four sources, too few to
+#' estimate a variance between them (those of carbon, nitrogen and phosphorus
+#' of invertebrates have nine to eleven). A source with its own methods may
+#' still deviate as a whole: in
 #' cross-validation, with each source left out in turn, 66 % of the wet to
 #' dry mass factors and 61 % of the dry mass to carbon factors of invertebrates
 #' fell inside their 95 % intervals. The errors of the factor and of the mass are
@@ -129,6 +144,26 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' energy per carbon (the carbon of some sources is total rather than
 #' organic), nor of the energy of masses with shell or skeleton.
 #'
+#' **Nitrogen and phosphorus.** Models of the nitrogen and phosphorus per dry
+#' mass of invertebrates and fish (from version 0.6.0), fitted as the others,
+#' with the carbon per dry mass extended by the same sources: the data bank of
+#' Brey et al. (2010), Hébert et al. (2016, crustacean zooplankton),
+#' Evans-White et al. (2005, stream invertebrates), a compilation of
+#' freshwater data sets and tables, and the Limno-STOICH database (Corman et
+#' al. 2026; aquatic animals of inland waters from 65 of its data sources),
+#' all cited by [cite_sources()]. Single values
+#' of individuals or pooled samples were averaged by population (source,
+#' taxon, locality and stage), so a factor is the composition of a population;
+#' values outside the range of whole animals (C 20-65 %, N 2-16 %, P 0.05-8 %
+#' of dry mass, e.g. oligochaetes with sediment in the gut), shells measured
+#' alone, and values of studies already in the data bank were left out. The
+#' compositions are of whole animals (molluscs without shell, as their dry
+#' mass): the phosphorus of fish includes that of their bones (a median of
+#' 3.0 % of the dry mass in the factors of their model, against 0.9 % in those
+#' of invertebrates). Phytoplankton and amphibians are not converted to
+#' nitrogen or phosphorus, nor rotifers to phosphorus (the model has no
+#' factors of rotifers).
+#'
 #' **Rotifer wet mass.** The conversion models have no wet to dry mass
 #' factors of rotifers, so their dry mass is taken as 10 % of the wet mass,
 #' and as 3.9 % in *Asplanchna*, the convention of US EPA (2016, section
@@ -137,7 +172,8 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' is the dry weight to volume ratio of *Asplanchna brightwelli* at a density
 #' of 1 (Dumont et al. 1975, p. 94). The uncertainty of the ratio is not
 #' included (the rows say so in `note`), although it varies among rotifers.
-#' Their AFDM, carbon and energy come from the conversion models.
+#' Their AFDM, carbon, nitrogen and energy come from the conversion models
+#' (the model of phosphorus has no factors of rotifers).
 #'
 #' **Amphibian dry mass and energy.** The reference data have too few
 #' conversion factors of amphibians for a model, so they take the values of
@@ -157,8 +193,22 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' uncertainty of the mean among all the amphibian rows. The energy per wet
 #' mass of the table (1.2 kcal/g) comes from a single study and is not used.
 #' Salamanders, newts and caecilians get the same values, marked as an
-#' extrapolation in `conversion` and `note`. Amphibians are not converted to
-#' AFDM or carbon.
+#' extrapolation in `conversion` and `note`. Adult amphibians are not
+#' converted to AFDM, carbon, nitrogen or phosphorus.
+#'
+#' **Tadpoles.** Their estimates are in dry mass (without the gut; see
+#' [estimate_biomass()]), converted to carbon, nitrogen and phosphorus with
+#' hierarchical models of their content per dry mass (from version 0.6.0),
+#' fitted like the others to tadpoles of 13 species: those of Knapp et al.
+#' (2021; four wetlands of Georgia, USA, body and tail without the gut, all
+#' the larval stages, Gosner 23-43) and of Vanni et al. (2002; a stream of
+#' Venezuela) compiled by González et al. (2025), averaged by population and
+#' stage. Their content per dry mass is about 44 % carbon, 10 % nitrogen and
+#' 1 % phosphorus (the root of each model; families 41-46 %, 7-11 % and
+#' 0.9-1.3 %), the phosphorus about a third of that of adults with their bones
+#' (2.8-3.4 % in *Xenopus laevis*, Brenes-Soto et al. 2019, two values not
+#' used). The reference has no dry to wet mass ratio, ash or energy of
+#' tadpoles: they are not converted to wet mass, AFDM or energy.
 #'
 #' **Phytoplankton wet mass.** The wet mass is the biovolume times the
 #' density of water, 1 g/cm3 = 1 pg/um3, the convention of EN 16695 (CEN 2015,
@@ -198,13 +248,16 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'
 #' @section Missing values and zeros:
 #' Rows without an estimate stay `NA`. Rows that cannot be converted get
-#' `NA`: amphibians to AFDM or carbon (the reference data have too few
-#' conversion factors for them), phytoplankton to dry mass or AFDM (no
-#' factors from biovolume), phytoplankton counted in natural units without
+#' `NA`: adult amphibians to AFDM, carbon, nitrogen or phosphorus (the
+#' reference data have too few conversion factors for them), tadpoles to wet
+#' mass, AFDM or energy (none in the reference), phytoplankton to dry mass,
+#' AFDM, nitrogen or phosphorus (no factors from biovolume), phytoplankton
+#' counted in natural units without
 #' `cells_per_unit` to carbon or energy (the equation is for single cells,
 #' and with \eqn{b < 1} it would underestimate the carbon of a colony),
 #' and taxa that match no node of the conversion model (a phylum without
-#' factors in it). An abundance of 0 keeps a biomass of 0.
+#' factors in it, e.g. rotifers to phosphorus). An abundance of 0 keeps a
+#' biomass of 0.
 #'
 #' @section Assumptions:
 #' The composition of the organisms is that of their relatives in the
@@ -220,13 +273,18 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' whole animals, gut contents included as in most sources; they are not the
 #' energy assimilated by a consumer. Carbon is as measured by each source,
 #' total carbon in some of them (in crustaceans it then includes the
-#' carbonate of the cuticle). Factors measured on animals kept in ethanol or
+#' carbonate of the cuticle); nitrogen and phosphorus are total contents. Factors measured on animals kept in ethanol or
 #' formalin were left out where the source says so, because preservation
 #' changes the wet and dry mass by amounts that depend on the preservative,
 #' the time and the species (Dermott and Paterson 1974); the data bank of Brey
 #' et al. (2010) does not record the preservation.
 #'
 #' @references
+#' Brenes-Soto A, Dierenfeld ES, Bosch G, Hendriks WH, Janssens GPJ (2019).
+#' Gaining insights in the nutritional metabolism of amphibians: analyzing
+#' body nutrient profiles of the African clawed frog, *Xenopus laevis*.
+#' *PeerJ*, 7, e7365. \doi{10.7717/peerj.7365}
+#'
 #' Brey T, Müller-Wiegmann C, Zittier ZMC, Hagen W (2010). Body composition in
 #' aquatic organisms - a global data bank of relationships between mass,
 #' elemental composition and energy content. *Journal of Sea Research*, 64,
@@ -234,6 +292,11 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #'
 #' CEN (2015). *EN 16695:2015. Water quality - Guidance on the estimation of
 #' phytoplankton biovolume*. European Committee for Standardization, Brussels.
+#'
+#' Corman JR, Halvorson HM, Brucker C, et al. (2026). Limno-STOICH: a
+#' comprehensive database linking the elemental stoichiometry of organisms with
+#' inland aquatic habitats. *Limnology and Oceanography Letters*, 11, e70105.
+#' \doi{10.1002/lol2.70105}
 #'
 #' Cummins KW, Wuycheck JC (1971). Caloric equivalents for investigations in
 #' ecological energetics. *Mitteilungen der Internationalen Vereinigung für
@@ -261,6 +324,18 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' caloric content calculated from elemental CHN analysis: a stoichiometric
 #' concept. *Oecologia*, 62, 289-298. \doi{10.1007/BF00384259}
 #'
+#' González AL, Merder J, Andraczek K, et al. (2025). StoichLife: a global
+#' dataset of plant and animal elemental content. *Scientific Data*, 12, 569.
+#' \doi{10.1038/s41597-025-04852-w}
+#'
+#' Hébert M-P, Beisner BE, Maranger R (2016). A compilation of quantitative
+#' functional traits for marine and freshwater crustacean zooplankton.
+#' *Ecology*, 97, 1081. \doi{10.1890/15-1275}
+#'
+#' Knapp DD, Smith LL, Atkinson CL (2021). Larval anurans follow predictions of
+#' stoichiometric theory: implications for nutrient storage in wetlands.
+#' *Ecosphere*, 12, e03466. \doi{10.1002/ecs2.3466}
+#'
 #' Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
 #' dinoflagellates, diatoms, and other protist plankton. *Limnology and
 #' Oceanography*, 45, 569-579. \doi{10.4319/lo.2000.45.3.0569}
@@ -279,6 +354,11 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' LG403, Revision 07. U.S. Environmental Protection Agency, Great Lakes
 #' National Program Office, Chicago.
 #'
+#' Vanni MJ, Flecker AS, Hood JM, Headworth JL (2002). Stoichiometry of
+#' nutrient recycling by vertebrates in a tropical stream: linking species
+#' identity and ecosystem processes. *Ecology Letters*, 5, 285-293.
+#' \doi{10.1046/j.1461-0248.2002.00314.x}
+#'
 #' The other sources of the conversion factors are listed by [cite_sources()].
 #'
 #' @seealso [get_reference()] for the conversion models (`conversion_models`,
@@ -292,6 +372,10 @@ conversion_columns <- c("converted_from", "conversion", "conversion_sources")
 #' head(as.data.frame(carbon)[, c("site", "taxon_id", "converted_from", "ind_median",
 #'                                "ind_lower", "ind_upper", "unit", "status")])
 #' summarize_biomass(carbon, by = c("site", "broad_group"), na_rm = TRUE, seed = 1)
+#'
+#' # Nitrogen and phosphorus (phytoplankton and adult amphibians stay NA)
+#' p <- suppressWarnings(convert_currency(est, to = "phosphorus", unit = "ug"))
+#' head(as.data.frame(p)[, c("site", "taxon_id", "ind_median", "unit", "status")])
 #'
 #' # Energy, in J per individual and per unit of area or volume
 #' energy <- convert_currency(est, to = "energy", unit = "J")
@@ -415,6 +499,17 @@ plan_conversions <- function(native, simulation, reference, to, habitat, unit) {
     from <- native$currency[i]
     dom <- native$domain[i]
     if (from == to) next
+    # Tadpoles (version 0.6.0): their own conversion models, from dry mass to
+    # carbon, nitrogen and phosphorus.
+    if (dom == "amphibian" && startsWith(sim$model[i], "amphibian_larva")) {
+      dom <- "amphibian_larva"
+      if (!paste(dom, paste0(from, "_to_", to)) %in% cm$model) {
+        reason[i] <- sprintf(paste("no conversion from %s to %s for tadpoles (the reference has",
+                                   "their carbon, nitrogen and phosphorus only)"),
+                             gsub("_", " ", from), gsub("_", " ", to))
+        next
+      }
+    }
     if (dom == "amphibian") {
       if (!to %in% c("wet_mass", "dry_mass", "energy")) {
         reason[i] <- sprintf(paste("the reference data have too few conversion factors for",

@@ -8,8 +8,9 @@
 #   conversion_used.csv        the factors used by each fitted model
 #   conversion_screening.csv   the energy densities left out by the screening, and why
 #   conversion_fit_log.md      what was fitted, and diagnostics
-# A model per pair of currencies and domain: y = ln of the factor (a mass ratio,
-# or J/ug for energy); a fixed intercept; random intercepts of each nested
+# A model per pair of currencies and domain (and, from version 0.6.0, for the
+# tadpoles apart: domain "amphibian_larva"): y = ln of the factor (a mass
+# ratio, or J/ug for energy); a fixed intercept; random intercepts of each nested
 # taxonomic level that splits the data and of habitat (freshwater, marine,
 # transitional) when two or more habitats have 10 or more factors. No effect
 # of source (decision of 2026-11-06; see fit_one()). The functions are those
@@ -98,6 +99,11 @@ d <- data.frame(record_id = u$conversion_id, source_id = u$source_id, taxon = u$
                 habitat = u$habitat, stage = "unspecified", y = log(u$factor), stringsAsFactors = FALSE)
 d <- add_lineage(d, rt)
 stopifnot(attr(d, "lost") == 0)
+# Tadpoles (decision of 2026-11-09): their factors form models of their own,
+# domain "amphibian_larva", apart from those of adult amphibians (whose few
+# factors give no model).
+tad <- d$domain == "amphibian" & u$life_stage[match(d$record_id, u$conversion_id)] %in% "larva"
+d$domain[tad] <- "amphibian_larva"
 d$model <- paste(d$domain, d$pair)
 robust_out <- character(0)
 for (m in unique(d$model[d$pair %in% energy_pairs])) {
@@ -159,7 +165,7 @@ for (m in sort(fit_these)) {
   x <- d[d$model == m, ]
   f <- fit_one(x)
   n_resid <- 0L
-  if (sub("^[a-z]+ ", "", m) %in% energy_pairs) {
+  if (sub("^[a-z_]+ ", "", m) %in% energy_pairs) {
     r <- stats::residuals(f$fit) / stats::sigma(f$fit)
     out_ids <- f$x$record_id[abs(r) > 4]
     if (length(out_ids)) {
@@ -184,7 +190,7 @@ for (m in sort(fit_these)) {
   below <- rev(cumsum(rev(vv[levels])))
   fac <- exp(1.96 * sqrt(pop + c(below[-1], 0)))
   ctx <- tabs$nodes[tabs$nodes$level == "habitat", ]
-  energy_model <- sub("^[a-z]+ ", "", m) %in% energy_pairs
+  energy_model <- sub("^[a-z_]+ ", "", m) %in% energy_pairs
   say("- **%s**: %d factors of %d species nodes (%s); levels %s%s; median %s %.3g; SD (ln): %s; 95 %% factor (x/÷) for a new population by the lowest level known: %s%s%s%s.",
       m, nrow(x), length(unique(node_path(x, "species"))),
       paste(sprintf("%s %d", names(table(x$source_id)), as.integer(table(x$source_id))), collapse = ", "),

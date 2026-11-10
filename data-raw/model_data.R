@@ -13,7 +13,9 @@
 #
 # Models and native currencies (decided 2026-11-02): phytoplankton, biovolume
 # (um3) per cell and per natural unit; invertebrates, dry mass (mg; shell-free
-# in molluscs); fish and amphibians, wet mass (g). Records in another currency
+# in molluscs); fish and amphibians, wet mass (g); tadpoles (from version
+# 0.6.0, domain "amphibian_larva"), dry mass (mg, without the gut), with a
+# model of their typical total length (mm) for tadpoles without lengths. Records in another currency
 # are converted with the conversion models (point estimate of the factor of
 # the taxon; its variance is kept in `conversion_var` but not added to the
 # fit): the wet masses of Hrycik et al. (2024), and the dry masses with shell
@@ -154,8 +156,22 @@ typ$fish <- data.frame(record_id = tr$record_id[k], source_id = tr$source_id[k],
                        population = ifelse(is.na(tr$sampling[k]), NA_character_,
                                            paste(tr$source_id[k], tr$site[k], sep = "|")),
                        stringsAsFactors = FALSE)
+# Typical total lengths of tadpoles (decision of 2026-11-09;
+# data-raw/typical_records.R): the mean total length (mm) of the tadpoles of
+# each sample (species, wetland and date) of Knapp et al. (2021), before the
+# metamorphic climax. The samples of a species in a wetland are one population
+# (random effect), and the residual is the variation between its dates. The
+# package predicts from this model the mean length of tadpoles without
+# lengths, and their mass from it with the length-mass model of tadpoles.
+k <- tr$source_id == "knapp2021" & tr$use_in_model & tr$length_type %in% "total_length"
+stopifnot(all(tr$length_unit[k] == "mm"), all(tr$life_stage[k] == "larva"))
+typ$tadpole_length <- data.frame(record_id = tr$record_id[k], source_id = "knapp2021", taxon = tr$taxon[k],
+                                 model = "amphibian_larva_length", life_stage = "larva", stage = "larva",
+                                 value = tr$length_mean[k], unit = "mm", n = tr$n[k],
+                                 population = paste(tr$source_id[k], tr$site[k], sep = "|"),
+                                 stringsAsFactors = FALSE)
 for (j in setdiff(names(typ), c("hrycik", "zoo"))) typ[[j]]$converted_from <- NA_character_
-for (j in setdiff(names(typ), "fish")) typ[[j]]$population <- NA_character_
+for (j in setdiff(names(typ), c("fish", "tadpole_length"))) typ[[j]]$population <- NA_character_
 typ <- do.call(rbind, typ)
 rownames(typ) <- NULL
 typ <- typ[is.finite(typ$value) & typ$value > 0, ]
@@ -307,7 +323,7 @@ say("- 0.1.0 `length_mass`: %d equations, %d of them without a length range (the
 # taxon has them, otherwise the pooled one; not the flagged ones (r2 < 0.5 or b
 # outside 1.5-4.5).
 keep_src <- c("cadses_boxcorer", "cadses_leafpack", "coughlan2021", "arranz2022", "koning2024",
-              "neon_fish", "santini2018")
+              "neon_fish", "santini2018", "knapp2021")
 f <- lf[lf$source_id %in% keep_src, ]
 native <- (f$mass_currency == "dry_mass" & !f$shell_included) | f$mass_currency == "wet_mass"
 native <- native & !(f$source_id %in% c("cadses_boxcorer", "cadses_leafpack", "coughlan2021") &
@@ -325,8 +341,10 @@ stopifnot(all(f$length_unit == "mm"),
           all(f$mass_unit[f$mass_currency == "wet_mass"] == "g"))
 eq$fit <- data.frame(equation_id = f$equation_id, source_id = f$source_id, study = f$source_id,
                      taxon = f$taxon, kind = "equation",
-                     model_domain = ifelse(f$mass_currency == "dry_mass", "invertebrate",
-                                           ifelse(f$source_id == "santini2018", "amphibian", "fish")),
+                     model_domain = ifelse(f$source_id == "knapp2021", "amphibian_larva",
+                                           ifelse(f$mass_currency == "dry_mass", "invertebrate",
+                                                  ifelse(f$source_id == "santini2018", "amphibian",
+                                                         "fish"))),
                      length_type = f$length_type, stage = f$life_stage, ln_a = f$ln_a, b = f$b,
                      length_min = f$length_min, length_max = f$length_max, length_mean = NA_real_,
                      mass_mean = NA_real_, n = f$n, sigma_ln = f$sigma_ln, var_ln_a = f$var_ln_a,
@@ -386,14 +404,26 @@ naup <- eq$model_domain == "invertebrate" & eq$class %in% "Copepoda" & eq$stage 
 eq$length_type[naup] <- "nauplius_body_length"
 say("- Copepod nauplii: %d equations with a length type of their own (nauplius_body_length).", sum(naup))
 eq$model <- paste(eq$model_domain, eq$length_type, sep = "_")
-# CADSES with shell: shell-free dry mass = dry mass with shell x (ash-free dry
-# mass with shell / dry mass with shell) of the taxon, from the conversion
-# model dry_mass+shell_to_afdm+shell, which holds the CADSES ash measurements
-# (transitional waters) x (shell-free dry mass / ash-free dry mass with shell),
-# the mean of the model afdm+shell_to_dry_mass (freshwater bivalves of
-# Coughlan et al. 2021; ln factor of a new species from its root and all its
-# variance components). The second factor is applied to gastropods as well,
-# an extrapolation. Barnacles are left out.
+# CADSES with shell: shell-free dry mass = dry mass with shell x a factor of
+# the taxon. Bivalves: (ash-free dry mass with shell / dry mass with shell) of
+# the taxon, from the conversion model dry_mass+shell_to_afdm+shell, which
+# holds the CADSES ash measurements (transitional waters), x (shell-free dry
+# mass / ash-free dry mass with shell), the mean of the model
+# afdm+shell_to_dry_mass (freshwater bivalves of Coughlan et al. 2021; ln
+# factor of a new species from its root and all its variance components).
+# Snails (from version 0.6.0): dry mass without shell / dry mass with shell of
+# the taxon, from the model dry_mass+shell_to_dry_mass, which holds the
+# shares of the shell of snails (conversions.R, sections 10 and 11), by the
+# lowest level of the taxon in the model (species, family, order or the
+# class): the factor of the bivalves underestimates the soft tissue of snails
+# (decision of 2026-11-09). That share does not follow the shell of each
+# species, so it is capped by the ash of the taxon: the soft tissue cannot
+# hold more organic matter than the whole snail, so its share is at most a /
+# r_t, with a the ash-free dry mass with shell / dry mass with shell of the
+# taxon (model dry_mass+shell_to_afdm+shell, as for the bivalves) and r_t the
+# ash-free dry mass / dry mass of its soft tissue (model dry_mass_to_afdm),
+# as if the shell had no organic matter (decision of 2026-11-10). The capped
+# factors take the variance of both models. Barnacles are left out.
 eq$conversion_ln <- NA_real_
 eq$conversion_var <- NA_real_
 eq$conversion_level <- NA_character_
@@ -402,18 +432,35 @@ barn <- sh[eq$phylum[sh] != "Mollusca"]
 if (length(barn)) say("- CADSES equations with shell left out (no shell-free factor): %s.",
                       paste(unique(paste0(eq$taxon[barn], " (", eq$class[barn], ")")), collapse = ", "))
 sh <- setdiff(sh, barn)
-p1 <- convert_ln(eq[sh, ], "invertebrate dry_mass+shell_to_afdm+shell", "transitional")
+snail <- sh[eq$class[sh] %in% "Gastropoda"]
+biv <- setdiff(sh, snail)
+stopifnot(all(eq$class[biv] %in% "Bivalvia"))
+p1 <- convert_ln(eq[biv, ], "invertebrate dry_mass+shell_to_afdm+shell", "transitional")
 t2 <- lapply(cn, function(x) x[x$model == "invertebrate afdm+shell_to_dry_mass", , drop = FALSE])
 r2 <- t2$nodes[t2$nodes$level == "root", ]
 v2 <- r2$path_var + sum(t2$components$value[t2$components$quantity == "variance"])
-eq$conversion_ln[sh] <- p1$eta + r2$path_intercept
-eq$conversion_var[sh] <- p1$v_total + v2
-eq$conversion_level[sh] <- p1$matched_level
+eq$conversion_ln[biv] <- p1$eta + r2$path_intercept
+eq$conversion_var[biv] <- p1$v_total + v2
+eq$conversion_level[biv] <- p1$matched_level
+p3 <- convert_ln(eq[snail, ], "invertebrate dry_mass+shell_to_dry_mass", "transitional")
+pa <- convert_ln(eq[snail, ], "invertebrate dry_mass+shell_to_afdm+shell", "transitional")
+pr <- convert_ln(eq[snail, ], "invertebrate dry_mass_to_afdm", "transitional")
+cap_ln <- pa$eta - pr$eta
+capped <- p3$eta > cap_ln
+eq$conversion_ln[snail] <- ifelse(capped, cap_ln, p3$eta)
+eq$conversion_var[snail] <- ifelse(capped, pa$v_total + pr$v_total, p3$v_total)
+eq$conversion_level[snail] <- ifelse(capped, paste0(pa$matched_level, " (cap by the ash)"), p3$matched_level)
 eq$ln_a[sh] <- eq$ln_a[sh] + eq$conversion_ln[sh]
-say("- CADSES molluscs with shell: %d equations converted to shell-free dry mass (%s); level of the ash factor used: %s; median factor %.3f (ash-free with shell / dry with shell, %.3f; shell-free / ash-free with shell, %.3f).",
-    length(sh), paste(sprintf("%s %d", names(table(eq$class[sh])), as.integer(table(eq$class[sh]))), collapse = ", "),
-    paste(sprintf("%s %d", names(table(p1$matched_level)), as.integer(table(p1$matched_level))), collapse = ", "),
-    exp(stats::median(eq$conversion_ln[sh])), exp(stats::median(p1$eta)), exp(r2$path_intercept))
+level_counts <- function(x) paste(sprintf("%s %d", names(table(x)), as.integer(table(x))), collapse = ", ")
+say("- CADSES bivalves with shell: %d equations converted to shell-free dry mass; level of the ash factor used: %s; median factor %.3f (ash-free with shell / dry with shell, %.3f; shell-free / ash-free with shell, %.3f).",
+    length(biv), level_counts(p1$matched_level), exp(stats::median(eq$conversion_ln[biv])),
+    exp(stats::median(p1$eta)), exp(r2$path_intercept))
+say("- CADSES snails with shell: %d equations converted to shell-free dry mass with the share of the soft tissue in the dry mass; level used: %s; share %.3f-%.3f; %d equations capped by the ash of their taxon (%s); factors %.3f-%.3f (median %.3f).",
+    length(snail), level_counts(p3$matched_level), exp(min(p3$eta)), exp(max(p3$eta)), sum(capped),
+    paste(unique(sprintf("*%s* %.3f instead of %.3f", eq$taxon[snail][capped], exp(cap_ln[capped]),
+                         exp(p3$eta[capped]))), collapse = ", "),
+    exp(min(eq$conversion_ln[snail])), exp(max(eq$conversion_ln[snail])),
+    exp(stats::median(eq$conversion_ln[snail])))
 eq <- eq[setdiff(seq_len(nrow(eq)), barn), ]
 # Rotifers of Ejsmont-Karabin (1998): wet mass to dry mass with the convention
 # of US EPA (2016) used by convert_currency() (10 %, 3.9 % in Asplanchna),
@@ -426,11 +473,16 @@ eq$conversion_level[rot] <- "convention"
 eq$ln_a[rot] <- eq$ln_a[rot] + eq$conversion_ln[rot]
 say("- Rotifers: %d equations of wet mass converted to dry mass with the convention of US EPA (2016).",
     length(rot))
-mismatch <- eq$domain != eq$model_domain
+# Tadpoles: the domain of their taxa is "amphibian"; their equations form
+# the model of their own domain, "amphibian_larva".
+mismatch <- eq$domain != sub("_larva$", "", eq$model_domain)
 say("- %d rows (%d without a COL taxon left out; %d whose taxon is outside the domain of the model left out%s).",
     nrow(eq) - sum(mismatch), attr(eq, "lost"), sum(mismatch),
     if (any(mismatch)) paste0(": ", paste(unique(paste(eq$source_id[mismatch], eq$taxon[mismatch])), collapse = ", ")) else "")
 eq <- eq[!mismatch, ]
+eq$domain <- eq$model_domain
+say("- Tadpoles (Knapp et al. 2021): %d equations of total length and dry mass (by wetland where the species has them).",
+    sum(eq$domain == "amphibian_larva"))
 
 # Equations without a length range (published compilations that did not report
 # it): the range is taken from the equations of the same model and genus, or

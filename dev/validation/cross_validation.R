@@ -14,7 +14,8 @@
 # scheme and level of the prediction.
 # Writes dev/validation/cross_validation.csv (one row per unit left out) and
 # dev/validation/cross_validation.md.
-# From the package root: Rscript dev/validation/cross_validation.R  (about 30 min)
+# From the package root: Rscript dev/validation/cross_validation.R  (about 3 h; the
+# length-mass model of invertebrates takes most of it)
 
 Sys.setenv(BMASSA_FIT_ONLY_FUNCTIONS = "true")
 source("data-raw/fit_models.R")
@@ -73,20 +74,31 @@ for (i in seq_len(nrow(specs))) {
             lapply(seq_len(k_folds), function(f) list(scheme = "species", fold = f, test = fold_sp[sp] == f)),
             if (length(unique(src)) > 1)
               lapply(sort(unique(src)), function(z) list(scheme = "source", fold = z, test = src == z)))
+  # Each fold is also saved on its own (dev/validation/cv/<model>/), so an
+  # interrupted run goes on from the folds it had finished.
+  job_dir <- file.path(cv_dir, m)
+  dir.create(job_dir, showWarnings = FALSE)
+  if (redo) unlink(file.path(job_dir, "*.csv"))
+  job_file <- function(j) file.path(job_dir, paste0(j$scheme, "_", gsub("[^A-Za-z0-9_.-]", "_", j$fold), ".csv"))
+  todo <- Filter(function(j) !file.exists(job_file(j)), jobs)
   t0 <- Sys.time()
-  out <- parallel::mclapply(jobs, function(j) {
-    tryCatch(one_fold(d, type, j$test, m, j$scheme, as.character(j$fold)),
-             error = function(e) {
-               data.frame(model = m, scheme = j$scheme, fold = as.character(j$fold), unit = NA_character_,
-                          source_id = NA_character_, taxon = NA_character_, lowest_rank = NA_character_,
-                          length_type = NA_character_, y = NA_real_, eta = NA_real_, v_param = NA_real_,
-                          v_missing = NA_real_, v_population = NA_real_, v_total = NA_real_,
-                          matched_level = paste("error:", conditionMessage(e)), stringsAsFactors = FALSE)
-             })
-  }, mc.cores = cores)
-  res[[m]] <- do.call(rbind, out)
+  invisible(parallel::mclapply(todo, function(j) {
+    r <- tryCatch(one_fold(d, type, j$test, m, j$scheme, as.character(j$fold)),
+                  error = function(e) {
+                    data.frame(model = m, scheme = j$scheme, fold = as.character(j$fold), unit = NA_character_,
+                               source_id = NA_character_, taxon = NA_character_, lowest_rank = NA_character_,
+                               length_type = NA_character_, y = NA_real_, eta = NA_real_, v_param = NA_real_,
+                               v_missing = NA_real_, v_population = NA_real_, v_total = NA_real_,
+                               matched_level = paste("error:", conditionMessage(e)), stringsAsFactors = FALSE)
+                  })
+    write.csv(r, job_file(j), row.names = FALSE, fileEncoding = "UTF-8")
+    NULL
+  }, mc.cores = cores, mc.preschedule = FALSE))
+  res[[m]] <- do.call(rbind, lapply(jobs, function(j) {
+    read.csv(job_file(j), stringsAsFactors = FALSE, encoding = "UTF-8", colClasses = c(fold = "character"))
+  }))
   write.csv(res[[m]], part, row.names = FALSE, fileEncoding = "UTF-8")
-  message(sprintf("%s: %d fits in %.1f min", m, length(jobs),
+  message(sprintf("%s: %d fits (%d run now) in %.1f min", m, length(jobs), length(todo),
                   as.numeric(difftime(Sys.time(), t0, units = "mins"))))
 }
 res <- do.call(rbind, res)

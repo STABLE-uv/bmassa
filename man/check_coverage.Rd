@@ -18,7 +18,8 @@ binomial), \code{NA} below the rank identified, as returned by
 \item \code{col_id}: the identifier of the taxon in the Catalogue of Life (COL
 XR), used first to find it in the reference.
 \item \code{life_stage}: \code{"adult"}, \code{"juvenile"}, \code{"copepodite"}, \code{"nauplius"},
-\code{"larva"}, \code{"nymph"} or \code{"pupa"}; \code{NA} when not stated.
+\code{"larva"} (tadpoles, in amphibians), \code{"nymph"} or \code{"pupa"}; \code{NA} when
+not stated.
 \item \code{sex}: \code{"female"} or \code{"male"} (adults); \code{NA} when not stated.
 \item \code{count_unit}: \code{"cell"} or \code{"natural_unit"} (colony or filament as
 counted) for phytoplankton, where it is required; \code{"individual"} or
@@ -49,7 +50,8 @@ length class with its count. A unit and sample have one or the other.
 \item \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and \code{length_type}
 (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"}, \code{"fork_length"},
 \code{"total_length"}, \code{"standard_length"} or \code{"snout_vent_length"}), one
-type per unit and sample.
+type per unit and sample (amphibians: snout-vent length of adults,
+total length of tadpoles).
 }}
 
 \item{level}{Level of the intervals whose width is reported (default 0.95).}
@@ -62,8 +64,9 @@ of \code{taxa} (from the lengths of \code{lengths} without site, if it has them,
 or without lengths; phytoplankton without \code{count_unit}, twice: per cell
 and per natural unit) and one per taxon unit and site (or sample) of
 \code{lengths}. Columns: \code{taxon_id}, \code{broad_group}, \code{scientific_name} (if in
-\code{taxa}), \code{method} (\code{"typical"} or \code{"length"}), \code{count_unit}, \code{site} (and
-\code{date}, if \code{lengths} has it) of the lengths, \code{life_stage}, \code{sex},
+\code{taxa}), \code{method} (\code{"typical"}, \code{"length"} or \code{"typical_length"}, as in
+\code{\link[=estimate_biomass]{estimate_biomass()}}), \code{count_unit}, \code{site} (and \code{date}, if \code{lengths}
+has it) of the lengths, \code{life_stage}, \code{sex},
 \code{length_mm}, \code{length_type}, \code{length_basis}, \code{length_n} (as in
 \code{\link[=estimate_biomass]{estimate_biomass()}}), \code{model}, \code{stage_used}, \code{match_level},
 \code{match_name}, \code{n_reference}, \code{factor} (the interval is the median divided
@@ -82,11 +85,12 @@ and where measuring lengths would pay off.
 \details{
 Each unit is checked as \code{\link[=estimate_biomass]{estimate_biomass()}} would estimate it: with its
 life stage, sex and counting unit, insects without a stage as larvae, and
-amphibians without a length estimable only as adults. The width does not
+amphibians without a stage as larvae (tadpoles, if they are frogs or toads,
+from the typical length of their taxon without lengths). The width does not
 depend on the back-transformation chosen in \code{\link[=estimate_biomass]{estimate_biomass()}}, which
 only shifts the estimate, and is that of the currency of the models
-(phytoplankton biovolume, dry mass of invertebrates, wet mass of fish and
-amphibians): a conversion to another currency widens it.
+(phytoplankton biovolume, dry mass of invertebrates and tadpoles, wet mass
+of fish and adult amphibians): a conversion to another currency widens it.
 }
 \examples{
 cov <- check_coverage(example_survey$taxa, example_survey$lengths)

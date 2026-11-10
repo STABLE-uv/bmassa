@@ -17,8 +17,9 @@
 #'   or without lengths; phytoplankton without `count_unit`, twice: per cell
 #'   and per natural unit) and one per taxon unit and site (or sample) of
 #'   `lengths`. Columns: `taxon_id`, `broad_group`, `scientific_name` (if in
-#'   `taxa`), `method` (`"typical"` or `"length"`), `count_unit`, `site` (and
-#'   `date`, if `lengths` has it) of the lengths, `life_stage`, `sex`,
+#'   `taxa`), `method` (`"typical"`, `"length"` or `"typical_length"`, as in
+#'   [estimate_biomass()]), `count_unit`, `site` (and `date`, if `lengths`
+#'   has it) of the lengths, `life_stage`, `sex`,
 #'   `length_mm`, `length_type`, `length_basis`, `length_n` (as in
 #'   [estimate_biomass()]), `model`, `stage_used`, `match_level`,
 #'   `match_name`, `n_reference`, `factor` (the interval is the median divided
@@ -29,11 +30,12 @@
 #' @details
 #' Each unit is checked as [estimate_biomass()] would estimate it: with its
 #' life stage, sex and counting unit, insects without a stage as larvae, and
-#' amphibians without a length estimable only as adults. The width does not
+#' amphibians without a stage as larvae (tadpoles, if they are frogs or toads,
+#' from the typical length of their taxon without lengths). The width does not
 #' depend on the back-transformation chosen in [estimate_biomass()], which
 #' only shifts the estimate, and is that of the currency of the models
-#' (phytoplankton biovolume, dry mass of invertebrates, wet mass of fish and
-#' amphibians): a conversion to another currency widens it.
+#' (phytoplankton biovolume, dry mass of invertebrates and tadpoles, wet mass
+#' of fish and adult amphibians): a conversion to another currency widens it.
 #'
 #' @export
 #' @examples
@@ -104,8 +106,8 @@ check_coverage <- function(taxa, lengths = NULL, level = 0.95, reference = get_r
   out$life_stage <- tx$life_stage[rows$ti]
   out$sex <- tx$sex[rows$ti]
   out$length_mm <- ifelse(is.na(pr$length_used), rows$length_mm, pr$length_used)
-  out$length_type <- rows$length_type
-  out$length_basis <- rows$length_basis
+  out$length_type <- ifelse(is.na(pr$length_type), rows$length_type, pr$length_type)
+  out$length_basis <- ifelse(is.na(pr$length_basis), rows$length_basis, pr$length_basis)
   out$length_n <- rows$length_n
   out$model <- pr$model
   out$stage_used <- pr$stage_used
@@ -125,19 +127,21 @@ check_coverage <- function(taxa, lengths = NULL, level = 0.95, reference = get_r
 #' @export
 print.bmassa_coverage <- function(x, ...) {
   d <- as.data.frame(x)
-  cat(sprintf("<bmassa_coverage> %d taxa, %d rows (%d without lengths, %d with lengths)\n",
+  cat(sprintf("<bmassa_coverage> %d taxa, %d rows (%d without lengths, %d with lengths%s)\n",
               length(unique(d$taxon_id)), nrow(d), sum(d$method %in% "typical"),
-              sum(d$method %in% "length")))
+              sum(d$method %in% "length"),
+              if (any(d$method %in% "typical_length"))
+                sprintf(", %d from typical lengths", sum(d$method %in% "typical_length")) else ""))
   lv <- c(rev(main_ranks), "root")
   for (g in broad_group_levels[broad_group_levels %in% d$broad_group]) {
     s <- d[d$broad_group == g, ]
-    for (m in c("typical", "length")) {
+    for (m in c("typical", "typical_length", "length")) {
       sm <- s[s$method %in% m, ]
       if (nrow(sm) == 0L) next
       ok <- sm$status == "estimable"
       tab <- table(factor(sm$match_level[ok], levels = lv))
       tab <- tab[tab > 0]
-      cat(sprintf("  %-18s %-7s %s%s; median factor %s\n", g, m,
+      cat(sprintf("  %-18s %-14s %s%s; median factor %s\n", g, m,
                   if (length(tab)) paste(sprintf("%s %d", names(tab), as.integer(tab)), collapse = ", ") else "none",
                   if (any(!ok)) sprintf(", not estimable %d", sum(!ok)) else "",
                   if (any(ok)) format(signif(stats::median(sm$factor[ok]), 2)) else "-"))

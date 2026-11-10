@@ -1,9 +1,9 @@
 #' *bmassa*: Biomass of Aquatic Taxa from Abundances and Body Sizes
 #'
 #' Estimates the mean individual mass and the biomass of aquatic taxa
-#' (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians) from
-#' abundance data, with prediction intervals, from hierarchical models fitted
-#' to the reference data of the package.
+#' (phytoplankton, zooplankton, macroinvertebrates, fish and amphibians,
+#' adults and tadpoles) from abundance data, with prediction intervals, from
+#' hierarchical models fitted to the reference data of the package.
 #'
 #' Workflow:
 #' * [standardize_taxa()]: classification and identifier of each taxon in the
@@ -17,7 +17,8 @@
 #'   and counting units), their abundances by site and date and their lengths,
 #'   in one currency (wet mass by default).
 #' * [convert_currency()]: the estimates in wet mass, dry mass, ash-free dry
-#'   mass, carbon or energy, with the uncertainty of the conversion factors.
+#'   mass, carbon, nitrogen, phosphorus or energy, with the uncertainty of the
+#'   conversion factors.
 #' * [summarize_biomass()]: totals by site or group with prediction intervals.
 #' * [summarize_size()]: size structure by site or group: mean and median
 #'   size of the individuals and shares of individuals and biomass by size

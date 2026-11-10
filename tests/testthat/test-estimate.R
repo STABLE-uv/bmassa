@@ -198,12 +198,14 @@ test_that("rows that cannot be estimated say why, with one warning", {
   e <- as.data.frame(est)
   expect_equal(e$status, c("not_estimated", "estimated"))
   expect_match(e$reason[1], "whole populations")
-  frog <- taxon("a1", "amphibian", c(kingdom = "Animalia", phylum = "Chordata", class = "Amphibia",
-                                     order = "Anura", family = "Ranidae", genus = "Rana",
-                                     species = "Rana temporaria"))
-  frogs <- rbind(transform(frog, life_stage = NA), transform(frog, taxon_id = "a2", life_stage = "adult"))
+  # Amphibians without a stage are larvae: newts, without masses of their
+  # larvae, are not estimated; adults are.
+  newt <- taxon("a1", "amphibian", c(kingdom = "Animalia", phylum = "Chordata", class = "Amphibia",
+                                     order = "Caudata", family = "Salamandridae", genus = "Triturus",
+                                     species = "Triturus marmoratus"))
+  newts <- rbind(transform(newt, life_stage = NA), transform(newt, taxon_id = "a2", life_stage = "adult"))
   ab2 <- data.frame(site = "s", taxon_id = c("a1", "a2"), abundance = 1, per = "m2")
-  e2 <- suppressWarnings(as.data.frame(estimate_biomass(ab2, frogs)))
+  e2 <- suppressWarnings(as.data.frame(estimate_biomass(ab2, newts)))
   expect_equal(e2$status, c("not_estimated", "estimated"))
   expect_match(e2$reason[1], "taken as larvae")
   odd <- taxon("x1", "macroinvertebrate", c(kingdom = "Animalia", phylum = "Bryozoa"))
@@ -308,9 +310,10 @@ test_that("the most specific lengths apply: sample, site, all the samples", {
                                                        bias_correction = "none")))
   sq <- e[e$taxon_id == "t17", ]
   expect_equal(sq$length_mm, c(110, 85))
-  # The frog as adults (t19, with a length) and as larvae (t20, without).
+  # The frog as adults (t19, with a length) and as larvae (t20, without: from
+  # the typical length of tadpoles).
   fr <- e[e$taxon_id %in% c("t19", "t20"), ]
-  expect_equal(fr$method, c("length", "typical", "length", "typical"))
+  expect_equal(fr$method, c("length", "typical_length", "length", "typical_length"))
   expect_equal(fr$life_stage, c("adult", "larva", "adult", "larva"))
   # Gammarus measured in L1 only: from its individuals there, without length in L2.
   gm <- e[e$taxon_id == "t13", ]

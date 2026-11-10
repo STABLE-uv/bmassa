@@ -17,8 +17,8 @@ library(bmassa)
 ```
 
 *bmassa* estimates the biomass of the taxa of a survey (phytoplankton,
-zooplankton, macroinvertebrates, fish and amphibians) from their
-abundances, with prediction intervals. For each taxon it predicts the mean
+zooplankton, macroinvertebrates, fish and amphibians, adults and tadpoles)
+from their abundances, with prediction intervals. For each taxon it predicts the mean
 individual mass of a population, from its mean length when there is one and
 from typical masses otherwise, with hierarchical models fitted to published
 compilations and data sets. A taxon without reference data of its own is
@@ -26,10 +26,11 @@ predicted from its closest relatives, and its interval widens accordingly.
 
 The models predict each group in the currency of its reference data:
 biovolume for phytoplankton, dry mass (molluscs without shell) for
-invertebrates and wet mass for fish and amphibians. All the rows of an
-estimate are then converted to one currency, wet mass in mg by default (the
-only one that all the groups reach), or dry mass, ash-free dry mass, carbon
-or energy, with the uncertainty of the conversion factors.
+invertebrates and tadpoles, and wet mass for fish and adult amphibians. All
+the rows of an estimate are then converted to one currency, wet mass in mg
+by default (the one that all the groups but tadpoles reach), or dry mass,
+ash-free dry mass, carbon, nitrogen, phosphorus or energy, with the
+uncertainty of the conversion factors.
 
 The workflow:
 
@@ -235,7 +236,16 @@ Some decisions behind those rows, which you can change through the data:
   therefore overestimated without a stage (1.4 to 3.6 times for the
   copepods of Tuesday Lake): give the copepodites as rows of their own. A
   copepod given as `"juvenile"` is not estimated.
-- Amphibians without lengths are estimated only when declared adults.
+- Amphibians without a stage are taken as larvae: tadpoles, in frogs and
+  toads (`stage_used = "larva (assumed)"`), unless measured by their
+  snout-vent length, the length of adults; give `life_stage = "adult"` for
+  adults. Tadpoles come from their total length or, without lengths, from
+  the typical length of their taxon (`method = "typical_length"`,
+  `length_basis = "typical"`), with the length-mass relation of tadpoles of
+  11 species of Georgia, USA (Knapp et al. 2021), before the metamorphic
+  climax, in dry mass: they have no wet mass (the frog *Pelophylax perezi* of
+  the example, as larvae, has a dry mass but not a wet mass). Larvae of
+  salamanders and newts, and juveniles, are not estimated.
 - A length outside the range of the reference relations of the taxon and
   its relatives is not estimated unless `extrapolate = TRUE`.
 
@@ -262,8 +272,15 @@ par(op)
 models of the conversion factors (ratios of dry to wet mass, ash-free dry
 mass to dry mass, carbon to dry mass...) fitted to the data of Brey et al.
 (2010), Hrycik et al. (2024), Coughlan et al. (2021), Evans-White et al.
-(2005) and the CADSES data sets. A taxon gets the factor of its closest
-relatives, and the uncertainty of the factor adds to that of the mass.
+(2005), Hébert et al. (2016), data sets and tables of the elemental
+composition of freshwater animals (Beck et al. 2022; González et al. 2018,
+2025; Moody et al. 2018; May et al. 2026; and others), the Limno-STOICH
+database (Corman et al. 2026), articles and theses on the soft tissue of
+freshwater molluscs and articles on the water and ash
+of freshwater zooplankton, all listed by `cite_sources()`, and the CADSES
+data sets. A taxon gets the factor of its
+closest relatives, and the uncertainty of the factor adds to that of the
+mass.
 Factors measured on animals kept in ethanol or formalin were left out where
 the source says so: preservation changes their wet and dry mass by amounts
 that depend on the preservative, the time and the species (Dermott and
@@ -273,7 +290,7 @@ monitoring programmes; measured densities of algal cells are up to 10 %
 higher (Oliver et al. 1981), an uncertainty not included. Rotifers, which
 have no wet to dry mass factors in the reference data, go to wet mass with
 the convention of US EPA (2016): dry mass 10 % of the wet mass (3.9 % in
-*Asplanchna*, after Dumont et al. 1975). Amphibians, which have too few
+*Asplanchna*, after Dumont et al. 1975). Adult amphibians, which have too few
 factors in the reference data for a model, go between wet and dry mass with
 the water content of frogs and toads compiled by US EPA (1993; mean of three
 studies): 85 % (SD 4.7), so a dry mass of 15 % of the wet mass on average,
@@ -295,8 +312,15 @@ ec[ec$site == "L1", c("taxon_id", "converted_from", "ind_median", "ind_lower", "
 unique(ec$conversion[!is.na(ec$conversion)])[1:4]
 ```
 
-Amphibians are not converted to ash-free dry mass or carbon: the reference
-data have too few conversion factors for them. Phytoplankton counted in
+Adult amphibians are not converted to ash-free dry mass, carbon, nitrogen or
+phosphorus: the reference data have too few conversion factors for them.
+Tadpoles go from their dry mass to carbon, nitrogen and phosphorus with
+models of their own, fitted to tadpoles of 13 species (Knapp et al. 2021;
+Vanni et al. 2002, compiled by González et al. 2025): about 44 % carbon,
+10 % nitrogen and 1 % phosphorus, a third of the phosphorus of adults with
+their bones. Without a dry to wet mass ratio, ash or energy of tadpoles in
+the reference, they do not go to wet mass, ash-free dry mass or energy.
+Phytoplankton counted in
 natural units is not converted to carbon unless `taxa` gives its
 `cells_per_unit`: the equation is for single cells, and applied to a colony
 it would underestimate its carbon. Natural units do go to wet mass, which is
@@ -311,8 +335,8 @@ of carbohydrate, protein and lipid sets 17.5-39.5 J/mg; Gnaiger and
 Bitterlich 1984), values inconsistent with another value of the same
 material and values far from those of their class were left out. These are
 gross energies of whole animals, not the energy a consumer assimilates.
-Amphibians take the energy per dry mass of frogs and toads compiled by US
-EPA (1993), 4.6 kcal/g (19.2 J/mg; SD 0.45, three studies). Phytoplankton
+Adult amphibians take the energy per dry mass of frogs and toads compiled by
+US EPA (1993), 4.6 kcal/g (19.2 J/mg; SD 0.45, three studies). Phytoplankton
 goes to energy from its carbon with the general factor of Platt and Irwin
 (1973), 11.40 cal (47.7 J) per mg of carbon (SD 1.1 among their 10 samples),
 measured on marine net phytoplankton of a spring bloom: for freshwater
@@ -323,6 +347,28 @@ est_e <- convert_currency(est, to = "energy", unit = "J")
 ee <- as.data.frame(est_e)
 ee[ee$site == "L1" & ee$status == "estimated",
    c("taxon_id", "converted_from", "ind_median", "ind_lower", "ind_upper", "biomass_unit")]
+```
+
+Nitrogen and phosphorus come from models of their content per dry mass in
+invertebrates and fish, fitted to the data bank of Brey et al. (2010), the
+compilation of Hébert et al. (2016) for crustacean zooplankton, the appendix
+of Evans-White et al. (2005) for stream invertebrates, the data sets and
+tables of freshwater animals cited above and the Limno-STOICH database
+(Corman et al. 2026). Single values of individuals or
+pooled samples were averaged by population (source, taxon, locality and
+stage), and values outside the range of whole animals (for instance
+oligochaetes with sediment in the gut), shells measured alone and studies
+already in the data bank were left out. Molluscs are without shell, as their
+dry mass, and the phosphorus of fish includes that of their bones: a median
+of 3.0 % of the dry mass, against 0.9 % in invertebrates. Phytoplankton and
+adult amphibians are not converted, nor rotifers to phosphorus (the
+reference data have no factors for them); tadpoles are (above).
+
+```{r nutrients}
+est_p <- convert_currency(est, to = "phosphorus", unit = "ug")
+ep <- as.data.frame(est_p)
+ep[ep$site == "L1" & ep$status == "estimated",
+   c("taxon_id", "converted_from", "ind_median", "ind_lower", "ind_upper", "unit")]
 ```
 
 ## Totals
@@ -473,16 +519,19 @@ species keeps the level of its own equations, and the variance between
 studies of a second fit with that effect is the part of a new study, shared
 by all the rows in the totals: in cross-validation, the equations of a study
 left out deviate together); conversion factors with nested random intercepts
-and a crossed effect of habitat, without an effect of source (two to four
-sources per model, most of the factors from the data bank of Brey et al.
-2010, which compiles many studies). The package keeps, for each node of each
-model, the estimate of its path from the root and its conditional variance
-(and its covariance with the path of its parent, which the simulation of
-totals needs), and predicts with base R.
+and a crossed effect of habitat, without an effect of source (one to four
+sources in most models, nine to eleven in those of carbon, nitrogen and
+phosphorus of invertebrates; in most, most of the factors come from the data
+bank of Brey et al. 2010, which compiles many studies). The package keeps,
+for each node of each model, the estimate of its path from the root and its
+conditional variance (and its covariance with the path of its parent, which
+the simulation of totals needs), and predicts with base R.
 
 In cross-validation (scripts in `dev/validation/` of the source repository),
 the 95 % intervals covered 92-97 % of new populations of species in the
-reference and 94-97 % of species left out, in the eight models. The median
+reference and 94-97 % of species left out, in the eight models of version
+0.4.0 (the models of tadpoles of version 0.6.0, from one study, were not
+cross-validated). The median
 width of the interval for a new population of a species of the reference
 was:
 
@@ -536,15 +585,25 @@ taxon or its relatives.
 
 ## References
 
+- Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
+  length dataset for over 12,000 fish from Iberian streams. *Data in Brief*,
+  108248.
 - Bates D, Mächler M, Bolker B, Walker S (2015). Fitting linear
   mixed-effects models using *lme4*. *Journal of Statistical Software*
   67(1), 1-48. <https://doi.org/10.18637/jss.v067.i01>
+- Beck M, Billoir E, Felten V, Meyer A, Usseglio-Polatera P, Danger M
+  (2022). Data for: A database of West European headwater macroinvertebrate
+  stoichiometric traits. Dryad. <https://doi.org/10.5061/dryad.g4f4qrfr5>
 - Brey T, Müller-Wiegmann C, Zittier ZMC, Hagen W (2010). Body composition in
   aquatic organisms - a global data bank of relationships between mass,
   elemental composition and energy content. *Journal of Sea Research* 64,
   334-340.
 - CEN (2015). *EN 16695:2015. Water quality - Guidance on the estimation of
   phytoplankton biovolume*. European Committee for Standardization, Brussels.
+- Corman JR, Halvorson HM, Brucker C, et al. (2026). Limno-STOICH: a
+  comprehensive database linking the elemental stoichiometry of organisms
+  with inland aquatic habitats. *Limnology and Oceanography Letters* 11,
+  e70105.
 - Coughlan NE, Cunningham EM, Cuthbert RN, et al. (2021). Biometric
   conversion factors as a unifying platform for comparative assessment of
   invasive freshwater bivalves. *Journal of Applied Ecology* 58, 1945-1956.
@@ -563,17 +622,32 @@ taxon or its relatives.
 - Gnaiger E, Bitterlich G (1984). Proximate biochemical composition and
   caloric content calculated from elemental CHN analysis: a stoichiometric
   concept. *Oecologia* 62, 289-298.
-- Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
-  length dataset for over 12,000 fish from Iberian streams. *Data in Brief*,
-  108248.
+- González AL, Céréghino R, Dézerald O, et al. (2018). Ecological mechanisms
+  and phylogeny shape invertebrate stoichiometry: a test using detritus-based
+  communities across Central and South America. *Functional Ecology* 32,
+  2448-2463.
+- González AL, Merder J, Andraczek K, et al. (2025). StoichLife: a global
+  dataset of plant and animal elemental content. *Scientific Data* 12, 569.
+- Hébert M-P, Beisner BE, Maranger R (2016). A compilation of quantitative
+  functional traits for marine and freshwater crustacean zooplankton.
+  *Ecology* 97, 1081.
 - Hrycik AR, Burlakova LE, Karatayev AY, et al. (2024). A dataset of
   individual wet weights of benthic macroinvertebrates. *Limnology and
   Oceanography Letters* 9, 696-715.
+- Knapp DD, Smith LL, Atkinson CL (2021). Larval anurans follow predictions
+  of stoichiometric theory: implications for nutrient storage in wetlands.
+  *Ecosphere* 12, e03466. <https://doi.org/10.1002/ecs2.3466>
 - Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
   for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
+- May E, de Haas H, Sewell T, et al. (2026). Intraspecific variation in the
+  bony traits and elemental phenotype of a marine and freshwater fish.
+  Dryad. <https://doi.org/10.5061/dryad.6m905qg99>
 - Menden-Deuer S, Lessard EJ (2000). Carbon to volume relationships for
   dinoflagellates, diatoms, and other protist plankton. *Limnology and
   Oceanography* 45, 569-579.
+- Moody EK, Carson EW, Corman JR, et al. (2018). Consumption explains
+  intraspecific variation in nutrient recycling stoichiometry in a desert
+  fish. *Ecology* 99, 1552-1561.
 - NEON (National Ecological Observatory Network) (2026). Fish
   electrofishing, gill netting, and fyke netting counts (DP1.20107.001),
   RELEASE-2026. <https://doi.org/10.48443/s1e6-df79>
@@ -589,4 +663,7 @@ taxon or its relatives.
 - US EPA (2016). *Standard Operating Procedure for Zooplankton Analysis*.
   LG403, Revision 07. U.S. Environmental Protection Agency, Great Lakes
   National Program Office, Chicago.
+- Vanni MJ, Flecker AS, Hood JM, Headworth JL (2002). Stoichiometry of
+  nutrient recycling by vertebrates in a tropical stream: linking species
+  identity and ecosystem processes. *Ecology Letters* 5, 285-293.
 - The other sources of the reference data: `cite_sources()`.

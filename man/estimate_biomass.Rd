@@ -52,7 +52,8 @@ binomial), \code{NA} below the rank identified, as returned by
 \item \code{col_id}: the identifier of the taxon in the Catalogue of Life (COL
 XR), used first to find it in the reference.
 \item \code{life_stage}: \code{"adult"}, \code{"juvenile"}, \code{"copepodite"}, \code{"nauplius"},
-\code{"larva"}, \code{"nymph"} or \code{"pupa"}; \code{NA} when not stated.
+\code{"larva"} (tadpoles, in amphibians), \code{"nymph"} or \code{"pupa"}; \code{NA} when
+not stated.
 \item \code{sex}: \code{"female"} or \code{"male"} (adults); \code{NA} when not stated.
 \item \code{count_unit}: \code{"cell"} or \code{"natural_unit"} (colony or filament as
 counted) for phytoplankton, where it is required; \code{"individual"} or
@@ -83,15 +84,20 @@ length class with its count. A unit and sample have one or the other.
 \item \code{length_unit} (\code{"um"}, \code{"mm"} or \code{"cm"}) and \code{length_type}
 (\code{"body_length"}, \code{"shell_length"}, \code{"shell_height"}, \code{"fork_length"},
 \code{"total_length"}, \code{"standard_length"} or \code{"snout_vent_length"}), one
-type per unit and sample.
+type per unit and sample (amphibians: snout-vent length of adults,
+total length of tadpoles).
 }}
 
 \item{currency}{Currency of all the rows of the result: \code{"wet_mass"}
-(default; the only one that all the groups reach), \code{"dry_mass"},
-\code{"afdm"}, \code{"carbon"} or \code{"energy"}. Rows that cannot be converted to it
-(phytoplankton to dry mass or AFDM, amphibians to AFDM or carbon,
-phytoplankton counted in natural units without \code{cells_per_unit} to carbon
-or energy) are not estimated, with the reason. See \code{\link[=convert_currency]{convert_currency()}}.}
+(default; the one that all the groups but tadpoles reach), \code{"dry_mass"},
+\code{"afdm"}, \code{"carbon"}, \code{"nitrogen"}, \code{"phosphorus"} or \code{"energy"}. Rows
+that cannot be converted to it (phytoplankton to dry mass, AFDM,
+nitrogen or phosphorus, adult amphibians to AFDM, carbon, nitrogen or
+phosphorus, tadpoles to wet mass, AFDM or energy, rotifers to
+phosphorus, phytoplankton counted in natural units without
+\code{cells_per_unit} to carbon or energy) are not estimated, with the
+reason.
+See \code{\link[=convert_currency]{convert_currency()}}.}
 
 \item{unit}{\code{NULL} (default: mg for masses, J for energy) or the unit of
 all the rows: \code{"pg"}, \code{"ng"}, \code{"ug"}, \code{"mg"} or \code{"g"} for masses;
@@ -102,7 +108,8 @@ all the rows: \code{"pg"}, \code{"ng"}, \code{"ug"}, \code{"mg"} or \code{"g"} f
 that have a habitat effect (see \code{\link[=convert_currency]{convert_currency()}}).}
 
 \item{bias_correction}{Back-transformation of the length-mass relations,
-required when lengths are used: \code{"none"} (the relation gives the median
+required when lengths are used (also the typical lengths of tadpoles
+without lengths): \code{"none"} (the relation gives the median
 mass of the individuals of a given length) or \code{"lognormal"} (their mean:
 multiplied by \eqn{\exp(\sigma^2/2)}{exp(sigma^2/2)}, Sprugel 1983, with
 the typical residual standard deviation of the relations fitted from
@@ -127,8 +134,9 @@ added (use \code{as.data.frame()} to get it):
 \item \code{broad_group}, \code{scientific_name} (if in \code{taxa}), \code{life_stage}, \code{sex}
 and \code{count_unit} of the taxon unit, and \code{domain} (\code{"phytoplankton"},
 \code{"invertebrate"}, \code{"fish"}, \code{"amphibian"}).
-\item \code{method} (\code{"length"} or \code{"typical"}) and \code{model} (see
-\code{\link[=get_reference]{get_reference()}}).
+\item \code{method} (\code{"length"}, \code{"typical"}, or \code{"typical_length"} for tadpoles
+without lengths, from the typical length of their taxon) and \code{model}
+(see \code{\link[=get_reference]{get_reference()}}).
 \item \code{stage_used}: stage group of the model of masses without lengths:
 for insects \code{"larva"}, \code{"pupa"}, \code{"adult"}, or \code{"larva (assumed)"}
 when the stage is not given; for copepods \code{"copepod_adult"},
@@ -136,13 +144,16 @@ when the stage is not given; for copepods \code{"copepod_adult"},
 \code{"copepod_adult (assumed)"} when the stage is not given (a copepod
 given as \code{"juvenile"}, \code{"larva"}, \code{"nymph"} or \code{"pupa"} is not
 estimated); \code{"non_insect"} for the other invertebrates; \code{"adult"} for
-amphibians; \code{NA} otherwise (and for estimates from lengths, whose
+adult amphibians without lengths, and \code{"larva"} or \code{"larva (assumed)"}
+for tadpoles; \code{NA} otherwise (and for estimates from lengths, whose
 relations have no stage effect; the lengths of copepod nauplii use
 relations of their own).
 \item \code{length_mm}, \code{length_type}, \code{length_basis} and \code{length_n}: the length
-used (mm), its type, whether it is a mean length (\code{"mean"}) or comes
+used (mm), its type, whether it is a mean length (\code{"mean"}), comes
 from measured individuals (\code{"individuals"}: then \code{length_mm} is the
-length of their mean mass and \code{length_n} their number), and
+length of their mean mass and \code{length_n} their number) or is the
+typical length of the taxon in the reference (\code{"typical"}, tadpoles
+without lengths), and
 \code{length_status} (\code{"within"} the lengths of the reference relations
 used, \code{"outside"}, or \code{NA}).
 \item \code{match_level}, \code{match_name}: the node of the reference the estimate
@@ -172,9 +183,11 @@ what \code{\link[=summarize_biomass]{summarize_biomass()}} needs to simulate tot
 individual mass of a population of its taxon (mean, median and prediction
 interval) and the biomass, from hierarchical models fitted to the
 reference data of the package: phytoplankton biovolume, dry mass of
-invertebrates (without shell in molluscs) and wet mass of fish and
-amphibians. With lengths of the taxon it uses the length-mass models;
-otherwise, the models of mass without lengths. A taxon absent from the
+invertebrates (without shell in molluscs) and of tadpoles, and wet mass of
+fish and adult amphibians. With lengths of the taxon it uses the
+length-mass models; otherwise, the models of mass without lengths
+(tadpoles: the length-mass model at the typical length of their taxon). A
+taxon absent from the
 reference is predicted from its closest relatives, and the interval widens
 accordingly. All the rows are given in one currency and unit (\code{currency},
 wet mass in mg by default), converted with the uncertainty of the factors
@@ -230,6 +243,33 @@ biovolume of the unit is that of a cell of the taxon times k:
 \eqn{\eta}{eta} of the model of cells plus \eqn{\ln k}{ln k}, with the
 variances of the cell (k is taken as known).
 
+\strong{Tadpoles.} Amphibians given as larvae (or without a stage, unless
+measured by their snout-vent length, the length of adults) are tadpoles if
+they are frogs or toads (order Anura); the reference has no masses of the
+larvae of salamanders, newts or caecilians, nor of juveniles. Tadpoles are
+estimated in dry mass (mg, without the gut) from their total length, with a
+length-mass model fitted to tadpoles of 11 species of four wetlands of
+Georgia, USA, measured one by one (Knapp et al. 2021), before the
+metamorphic climax (Gosner stages 23-41; Gosner 1960): at the climax the
+tail is resorbed and the length shrinks while the mass does not, so
+tadpoles at the climax are underestimated (those of stages 42-43 weighed
+1.3 to 1.7 times as much at the same length). Without lengths, a tadpole
+takes the typical length of its taxon, from a model of the mean total
+length of the tadpoles of each sample of the same data (species, wetland
+and date), and the mass at that length, with the typical spread of lengths
+within a sample (the correction \code{"jensen"}) and the uncertainty of the
+length (that of its node and of its missing levels, and the variation
+between populations and dates) times the slope of the relation,
+\eqn{\beta^2 \tau_L^2}{beta^2 tau_L^2}. The samples are the tadpoles chosen for
+their elemental composition, a few of each stage present, not random
+samples of their populations, and come from one region: the 95 \% intervals
+span a factor of 8 to 15 either way (about 40 for a family absent from the
+reference, estimated from all its tadpoles), against 1.4 to 1.8 with a mean
+length measured in the survey. There is no dry to wet
+mass ratio of tadpoles in the reference, so they are not converted to wet
+mass (the default currency), AFDM or energy, only to carbon, nitrogen and
+phosphorus (\code{\link[=convert_currency]{convert_currency()}}).
+
 \strong{Fish without lengths.} The model of fish without lengths is fitted to
 the mean wet mass of whole populations (all the sizes caught): species and
 site of an electrofishing survey of Iberian streams (Arranz et al. 2022),
@@ -265,7 +305,8 @@ relation is that at the length
 node used is the lowest one whose relations cover all their lengths.
 
 \strong{Currency.} The models give phytoplankton biovolume, dry mass of
-invertebrates and wet mass of fish and amphibians; every row is then
+invertebrates and tadpoles, and wet mass of fish and adult amphibians;
+every row is then
 converted to \code{currency} and \code{unit} as \code{\link[=convert_currency]{convert_currency()}} does, so that
 all the rows can be added up and compared. Biovolume goes to wet mass with
 the density of water (1 mm\out{<sup>3</sup>} = 1 mg).
@@ -276,10 +317,10 @@ An abundance of 0 gives a biomass of 0 when the mass is estimated; a
 missing abundance gives a missing biomass (\code{status = "not_estimated"},
 \code{reason = "abundance is missing"}) but the individual mass is kept. Rows
 without an estimate keep \code{NA}, with the reason, and one warning reports how
-many there are. Amphibians given as larvae or juveniles (with or without
-lengths), amphibians without lengths that are not declared adults, and
-fish without lengths given a life stage or a sex, are not estimated: the
-reference has no masses for them.
+many there are. Amphibian juveniles, larvae of salamanders, newts and
+caecilians, and fish without lengths given a life stage or a sex, are not
+estimated: the reference has no masses for them. Tadpoles are not
+estimated in wet mass (see Tadpoles).
 }
 
 \section{Assumptions}{
@@ -325,6 +366,13 @@ head(as.data.frame(est)[, c("site", "taxon_id", "method", "match_level",
 Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
 length dataset for over 12,000 fish from Iberian streams. \emph{Data in Brief},
 108248. \doi{10.1016/j.dib.2022.108248}
+
+Gosner KL (1960). A simplified table for staging anuran embryos and larvae
+with notes on identification. \emph{Herpetologica}, 16, 183-190.
+
+Knapp DD, Smith LL, Atkinson CL (2021). Larval anurans follow predictions of
+stoichiometric theory: implications for nutrient storage in wetlands.
+\emph{Ecosphere}, 12, e03466. \doi{10.1002/ecs2.3466}
 
 Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
 for 37 Mekong River fish species of the 'Dai' fishery. Dryad.

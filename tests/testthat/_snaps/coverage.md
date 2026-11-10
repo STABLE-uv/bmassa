@@ -3,15 +3,15 @@
     Code
       print(check_coverage(ex$taxa, ex$lengths))
     Output
-      <bmassa_coverage> 20 taxa, 23 rows (14 without lengths, 9 with lengths)
-        phytoplankton      typical species 4, genus 1; median factor 12
-        zooplankton        typical species 3; median factor 12
-        zooplankton        length  species 1; median factor 2.6
-        macroinvertebrate  typical species 1, genus 1, family 1; median factor 14
-        macroinvertebrate  length  species 2, genus 1, family 1; median factor 3
-        fish               typical species 1, genus 1; median factor 7.8
-        fish               length  species 1, genus 2; median factor 1.4
-        amphibian          typical none, not estimable 1; median factor -
-        amphibian          length  species 1; median factor 1.7
+      <bmassa_coverage> 20 taxa, 23 rows (13 without lengths, 9 with lengths, 1 from typical lengths)
+        phytoplankton      typical        species 4, genus 1; median factor 12
+        zooplankton        typical        species 3; median factor 12
+        zooplankton        length         species 1; median factor 2.6
+        macroinvertebrate  typical        species 1, genus 1, family 1; median factor 14
+        macroinvertebrate  length         species 2, genus 1, family 1; median factor 3
+        fish               typical        species 1, genus 1; median factor 7.8
+        fish               length         species 1, genus 2; median factor 1.4
+        amphibian          typical_length family 1; median factor 15
+        amphibian          length         species 1; median factor 1.7
       Factor: the 95 % prediction interval is the median divided and multiplied by it.
 

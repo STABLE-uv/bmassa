@@ -5,8 +5,12 @@
 # equations fitted from individual data (lwr_fitted.csv) and the source
 # registry (sources.csv), and writes the internal object `ref_tables` to
 # R/sysdata.rda:
-#   models      one row per model: domain, kind, counting unit, currency, unit
-#               and taxonomic levels
+#   models      one row per model: domain, kind, counting unit, life stage,
+#               currency, unit and taxonomic levels; for the model of typical
+#               lengths of tadpoles (version 0.6.0), its length type, the
+#               coefficient of variation of the lengths within a population
+#               (for the correction of the mean mass) and the length-mass
+#               model its lengths go to
 #   lwr_types   one row per length-mass model and length type: centre of the
 #               log lengths, range of lengths, and the typical residual
 #               standard deviation (ln) of the equations fitted from
@@ -23,7 +27,8 @@
 #   conversion_models, conversion_nodes, conversion_components,
 #               conversion_fixed
 #               the models of the conversion factors between mass currencies,
-#               and from them to energy, of invertebrates and fish
+#               and from them to energy, of invertebrates and fish, and from
+#               dry mass to carbon, nitrogen and phosphorus of tadpoles
 #               (fit_conversions.R), with the same
 #               columns as the tables above (pairs with shells, and the
 #               domain "other" of algae and plants, are left out: no model
@@ -55,20 +60,41 @@ src <- read.csv("data-raw/sources.csv", stringsAsFactors = FALSE, encoding = "UT
 
 # Models -------------------------------------------------------------------------------
 specs <- model_specs(dat$typ, dat$lwr)
-domain <- sub("_(cell|natural_unit|individual|adult|lwr)$", "", specs$model)
+domain <- sub("_(cell|natural_unit|individual|adult|lwr|length)$", "", specs$model)
+# Tadpoles (domain "amphibian_larva", version 0.6.0): masses in dry mass (mg);
+# the model of their typical total length (kind "typical_length") gives
+# lengths in mm, which go to mass with their length-mass model.
+is_len <- specs$model == "amphibian_larva_length"
 models <- data.frame(
-  model = specs$model, domain = domain, kind = specs$type,
+  model = specs$model, domain = domain, kind = ifelse(is_len, "typical_length", specs$type),
   count_unit = ifelse(grepl("_cell$", specs$model), "cell",
                       ifelse(grepl("_natural_unit$", specs$model), "natural_unit", "individual")),
-  life_stage = ifelse(specs$model == "amphibian_adult", "adult", NA_character_),
-  currency = c(phytoplankton = "biovolume", invertebrate = "dry_mass", fish = "wet_mass",
-               amphibian = "wet_mass")[domain],
-  unit = c(phytoplankton = "um3", invertebrate = "mg", fish = "g", amphibian = "g")[domain],
+  life_stage = ifelse(specs$model == "amphibian_adult", "adult",
+                      ifelse(domain == "amphibian_larva", "larva", NA_character_)),
+  currency = ifelse(is_len, "length", c(phytoplankton = "biovolume", invertebrate = "dry_mass",
+                                        fish = "wet_mass", amphibian = "wet_mass",
+                                        amphibian_larva = "dry_mass")[domain]),
+  unit = ifelse(is_len, "mm", c(phytoplankton = "um3", invertebrate = "mg", fish = "g", amphibian = "g",
+                                amphibian_larva = "mg")[domain]),
   levels = vapply(specs$model, function(m) {
     paste(intersect(levels_all, components$level[components$model == m]), collapse = ",")
   }, character(1)),
+  length_type = ifelse(is_len, "total_length", NA_character_),
+  length_cv = NA_real_,
+  lwr_model = ifelse(is_len, "amphibian_larva_lwr", NA_character_),
   stringsAsFactors = FALSE)
 rownames(models) <- NULL
+stopifnot(!anyNA(models$currency), !anyNA(models$unit),
+          all(stats::na.omit(models$lwr_model) %in% models$model))
+# Spread of the lengths within a population of tadpoles: the root mean square
+# of the coefficients of variation of the total lengths of the samples of two
+# or more tadpoles of Knapp et al. (2021) (typical_records.csv), for the
+# correction of the mean mass at a typical length.
+trk <- rd("typical_records.csv")
+trk <- trk[trk$source_id == "knapp2021" & trk$use_in_model & trk$n >= 2 &
+             is.finite(trk$length_sd), ]
+stopifnot(nrow(trk) >= 10)
+models$length_cv[is_len] <- sqrt(mean((trk$length_sd / trk$length_mean)^2))
 
 # Sources and length ranges below each node ---------------------------------------------
 per_node <- list()
@@ -145,23 +171,27 @@ nodes$col_id <- node_col_id(nodes)
 # Conversion models -------------------------------------------------------------------
 # Only the pairs between the currencies of the package (wet mass, dry mass,
 # ash-free dry mass and carbon, without shells) of invertebrates and fish, and
-# from those masses to energy (fit_conversions.R fits no model from carbon to
-# energy).
+# from those masses to nitrogen, phosphorus (from version 0.6.0) and energy
+# (fit_conversions.R fits no model from carbon to energy); and those of
+# tadpoles (domain "amphibian_larva", from version 0.6.0: dry mass to carbon,
+# nitrogen and phosphorus).
 cn <- rd("conversion_nodes.csv")
 cc <- rd("conversion_components.csv")
 cf <- rd("conversion_fixed.csv")
 mass_cur <- c("wet_mass", "dry_mass", "afdm", "carbon")
-pair <- sub("^[a-z]+ ", "", unique(cn$model))
-conv_keep <- unique(cn$model)[sub(" .*$", "", unique(cn$model)) %in% c("invertebrate", "fish") &
+pair <- sub("^[a-z_]+ ", "", unique(cn$model))
+conv_domains <- c("invertebrate", "fish", "amphibian_larva")
+conv_keep <- unique(cn$model)[sub(" .*$", "", unique(cn$model)) %in% conv_domains &
                                 sub("_to_.*$", "", pair) %in% mass_cur &
-                                sub("^.*_to_", "", pair) %in% c(mass_cur, "energy")]
+                                sub("^.*_to_", "", pair) %in% c(mass_cur, "nitrogen", "phosphorus",
+                                                                 "energy")]
 cn <- cn[cn$model %in% conv_keep, ]
 cc <- cc[cc$model %in% conv_keep, ]
 cf <- cf[cf$model %in% conv_keep, ]
 conversion_models <- data.frame(
   model = sort(conv_keep), domain = sub(" .*$", "", sort(conv_keep)),
-  from = sub("_to_.*$", "", sub("^[a-z]+ ", "", sort(conv_keep))),
-  to = sub("^.*_to_", "", sub("^[a-z]+ ", "", sort(conv_keep))),
+  from = sub("_to_.*$", "", sub("^[a-z_]+ ", "", sort(conv_keep))),
+  to = sub("^.*_to_", "", sub("^[a-z_]+ ", "", sort(conv_keep))),
   levels = vapply(sort(conv_keep), function(m) {
     paste(intersect(levels_all, cc$level[cc$model == m]), collapse = ",")
   }, character(1)),
@@ -182,6 +212,8 @@ stopifnot(!anyNA(cu$conversion_id))
 cd <- data.frame(record_id = cu$conversion_id, source_id = cu$source_id, taxon = cu$taxon,
                  pair = cu$pair, stringsAsFactors = FALSE)
 cd <- add_lineage(cd, rt)
+# Tadpoles: domain of their own, as in fit_conversions.R.
+cd$domain[cd$domain == "amphibian" & cu$life_stage %in% "larva"] <- "amphibian_larva"
 cd$model <- paste(cd$domain, cd$pair)
 stopifnot(identical(cd$model, used$model))
 cd <- cd[cd$model %in% conv_keep, ]
@@ -252,10 +284,20 @@ stopifnot(all(is.finite(lwr_types$sigma_ind)))
 # Conventions of R/conversion.R: cen2015 (density of 1 g/cm3 for the wet mass of
 # phytoplankton), usepa2016 and dumont1975 (dry to wet mass of rotifers),
 # usepa1993 (dry to wet mass and energy of amphibians), platt1973 (energy per
-# carbon of phytoplankton).
+# carbon of phytoplankton). Also the sources of the models with shell that
+# model_data.R uses to convert the data of the mass models (from version
+# 0.6.0): the wet masses with shell of the molluscs of Hrycik et al. (2024)
+# and the dry masses with shell of the CADSES molluscs.
+shell_models <- c("invertebrate wet_mass+shell_to_dry_mass", "invertebrate dry_mass+shell_to_afdm+shell",
+                  "invertebrate afdm+shell_to_dry_mass", "invertebrate dry_mass+shell_to_dry_mass")
+conv_used <- rd("conversion_used.csv")
+stopifnot(all(shell_models %in% conv_used$model))
+shell_src <- cvd$source_id[match(conv_used$conversion_id[conv_used$model %in% shell_models],
+                                 cvd$conversion_id)]
+stopifnot(!anyNA(shell_src))
 used_src <- sort(unique(c(unlist(strsplit(nodes$sources[!is.na(nodes$sources)], ";")),
                           unlist(strsplit(conversion_nodes$sources[!is.na(conversion_nodes$sources)], ";")),
-                          carbon_equations$source_id, "cen2015", "usepa2016", "dumont1975",
+                          carbon_equations$source_id, shell_src, "cen2015", "usepa2016", "dumont1975",
                           "usepa1993", "platt1973")))
 sources <- src[src$source_id %in% used_src, c("source_id", "citation", "doi", "licence")]
 rownames(sources) <- NULL

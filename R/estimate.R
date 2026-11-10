@@ -54,9 +54,11 @@ estimate_biomass_columns <- c(
 #' individual mass of a population of its taxon (mean, median and prediction
 #' interval) and the biomass, from hierarchical models fitted to the
 #' reference data of the package: phytoplankton biovolume, dry mass of
-#' invertebrates (without shell in molluscs) and wet mass of fish and
-#' amphibians. With lengths of the taxon it uses the length-mass models;
-#' otherwise, the models of mass without lengths. A taxon absent from the
+#' invertebrates (without shell in molluscs) and of tadpoles, and wet mass of
+#' fish and adult amphibians. With lengths of the taxon it uses the
+#' length-mass models; otherwise, the models of mass without lengths
+#' (tadpoles: the length-mass model at the typical length of their taxon). A
+#' taxon absent from the
 #' reference is predicted from its closest relatives, and the interval widens
 #' accordingly. All the rows are given in one currency and unit (`currency`,
 #' wet mass in mg by default), converted with the uncertainty of the factors
@@ -92,7 +94,8 @@ estimate_biomass_columns <- c(
 #'   * `col_id`: the identifier of the taxon in the Catalogue of Life (COL
 #'     XR), used first to find it in the reference.
 #'   * `life_stage`: `"adult"`, `"juvenile"`, `"copepodite"`, `"nauplius"`,
-#'     `"larva"`, `"nymph"` or `"pupa"`; `NA` when not stated.
+#'     `"larva"` (tadpoles, in amphibians), `"nymph"` or `"pupa"`; `NA` when
+#'     not stated.
 #'   * `sex`: `"female"` or `"male"` (adults); `NA` when not stated.
 #'   * `count_unit`: `"cell"` or `"natural_unit"` (colony or filament as
 #'     counted) for phytoplankton, where it is required; `"individual"` or
@@ -120,13 +123,18 @@ estimate_biomass_columns <- c(
 #'   * `length_unit` (`"um"`, `"mm"` or `"cm"`) and `length_type`
 #'     (`"body_length"`, `"shell_length"`, `"shell_height"`, `"fork_length"`,
 #'     `"total_length"`, `"standard_length"` or `"snout_vent_length"`), one
-#'     type per unit and sample.
+#'     type per unit and sample (amphibians: snout-vent length of adults,
+#'     total length of tadpoles).
 #' @param currency Currency of all the rows of the result: `"wet_mass"`
-#'   (default; the only one that all the groups reach), `"dry_mass"`,
-#'   `"afdm"`, `"carbon"` or `"energy"`. Rows that cannot be converted to it
-#'   (phytoplankton to dry mass or AFDM, amphibians to AFDM or carbon,
-#'   phytoplankton counted in natural units without `cells_per_unit` to carbon
-#'   or energy) are not estimated, with the reason. See [convert_currency()].
+#'   (default; the one that all the groups but tadpoles reach), `"dry_mass"`,
+#'   `"afdm"`, `"carbon"`, `"nitrogen"`, `"phosphorus"` or `"energy"`. Rows
+#'   that cannot be converted to it (phytoplankton to dry mass, AFDM,
+#'   nitrogen or phosphorus, adult amphibians to AFDM, carbon, nitrogen or
+#'   phosphorus, tadpoles to wet mass, AFDM or energy, rotifers to
+#'   phosphorus, phytoplankton counted in natural units without
+#'   `cells_per_unit` to carbon or energy) are not estimated, with the
+#'   reason.
+#'   See [convert_currency()].
 #' @param unit `NULL` (default: mg for masses, J for energy) or the unit of
 #'   all the rows: `"pg"`, `"ng"`, `"ug"`, `"mg"` or `"g"` for masses;
 #'   `"mJ"`, `"J"`, `"kJ"` or `"MJ"` for energy.
@@ -134,7 +142,8 @@ estimate_biomass_columns <- c(
 #'   `"freshwater"`, `"marine"` or `"transitional"`, for the conversion models
 #'   that have a habitat effect (see [convert_currency()]).
 #' @param bias_correction Back-transformation of the length-mass relations,
-#'   required when lengths are used: `"none"` (the relation gives the median
+#'   required when lengths are used (also the typical lengths of tadpoles
+#'   without lengths): `"none"` (the relation gives the median
 #'   mass of the individuals of a given length) or `"lognormal"` (their mean:
 #'   multiplied by \eqn{\exp(\sigma^2/2)}{exp(sigma^2/2)}, Sprugel 1983, with
 #'   the typical residual standard deviation of the relations fitted from
@@ -154,8 +163,9 @@ estimate_biomass_columns <- c(
 #'   * `broad_group`, `scientific_name` (if in `taxa`), `life_stage`, `sex`
 #'     and `count_unit` of the taxon unit, and `domain` (`"phytoplankton"`,
 #'     `"invertebrate"`, `"fish"`, `"amphibian"`).
-#'   * `method` (`"length"` or `"typical"`) and `model` (see
-#'     [get_reference()]).
+#'   * `method` (`"length"`, `"typical"`, or `"typical_length"` for tadpoles
+#'     without lengths, from the typical length of their taxon) and `model`
+#'     (see [get_reference()]).
 #'   * `stage_used`: stage group of the model of masses without lengths:
 #'     for insects `"larva"`, `"pupa"`, `"adult"`, or `"larva (assumed)"`
 #'     when the stage is not given; for copepods `"copepod_adult"`,
@@ -163,13 +173,16 @@ estimate_biomass_columns <- c(
 #'     `"copepod_adult (assumed)"` when the stage is not given (a copepod
 #'     given as `"juvenile"`, `"larva"`, `"nymph"` or `"pupa"` is not
 #'     estimated); `"non_insect"` for the other invertebrates; `"adult"` for
-#'     amphibians; `NA` otherwise (and for estimates from lengths, whose
+#'     adult amphibians without lengths, and `"larva"` or `"larva (assumed)"`
+#'     for tadpoles; `NA` otherwise (and for estimates from lengths, whose
 #'     relations have no stage effect; the lengths of copepod nauplii use
 #'     relations of their own).
 #'   * `length_mm`, `length_type`, `length_basis` and `length_n`: the length
-#'     used (mm), its type, whether it is a mean length (`"mean"`) or comes
+#'     used (mm), its type, whether it is a mean length (`"mean"`), comes
 #'     from measured individuals (`"individuals"`: then `length_mm` is the
-#'     length of their mean mass and `length_n` their number), and
+#'     length of their mean mass and `length_n` their number) or is the
+#'     typical length of the taxon in the reference (`"typical"`, tadpoles
+#'     without lengths), and
 #'     `length_status` (`"within"` the lengths of the reference relations
 #'     used, `"outside"`, or `NA`).
 #'   * `match_level`, `match_name`: the node of the reference the estimate
@@ -244,6 +257,33 @@ estimate_biomass_columns <- c(
 #' \eqn{\eta}{eta} of the model of cells plus \eqn{\ln k}{ln k}, with the
 #' variances of the cell (k is taken as known).
 #'
+#' **Tadpoles.** Amphibians given as larvae (or without a stage, unless
+#' measured by their snout-vent length, the length of adults) are tadpoles if
+#' they are frogs or toads (order Anura); the reference has no masses of the
+#' larvae of salamanders, newts or caecilians, nor of juveniles. Tadpoles are
+#' estimated in dry mass (mg, without the gut) from their total length, with a
+#' length-mass model fitted to tadpoles of 11 species of four wetlands of
+#' Georgia, USA, measured one by one (Knapp et al. 2021), before the
+#' metamorphic climax (Gosner stages 23-41; Gosner 1960): at the climax the
+#' tail is resorbed and the length shrinks while the mass does not, so
+#' tadpoles at the climax are underestimated (those of stages 42-43 weighed
+#' 1.3 to 1.7 times as much at the same length). Without lengths, a tadpole
+#' takes the typical length of its taxon, from a model of the mean total
+#' length of the tadpoles of each sample of the same data (species, wetland
+#' and date), and the mass at that length, with the typical spread of lengths
+#' within a sample (the correction `"jensen"`) and the uncertainty of the
+#' length (that of its node and of its missing levels, and the variation
+#' between populations and dates) times the slope of the relation,
+#' \eqn{\beta^2 \tau_L^2}{beta^2 tau_L^2}. The samples are the tadpoles chosen for
+#' their elemental composition, a few of each stage present, not random
+#' samples of their populations, and come from one region: the 95 % intervals
+#' span a factor of 8 to 15 either way (about 40 for a family absent from the
+#' reference, estimated from all its tadpoles), against 1.4 to 1.8 with a mean
+#' length measured in the survey. There is no dry to wet
+#' mass ratio of tadpoles in the reference, so they are not converted to wet
+#' mass (the default currency), AFDM or energy, only to carbon, nitrogen and
+#' phosphorus ([convert_currency()]).
+#'
 #' **Fish without lengths.** The model of fish without lengths is fitted to
 #' the mean wet mass of whole populations (all the sizes caught): species and
 #' site of an electrofishing survey of Iberian streams (Arranz et al. 2022),
@@ -279,7 +319,8 @@ estimate_biomass_columns <- c(
 #' node used is the lowest one whose relations cover all their lengths.
 #'
 #' **Currency.** The models give phytoplankton biovolume, dry mass of
-#' invertebrates and wet mass of fish and amphibians; every row is then
+#' invertebrates and tadpoles, and wet mass of fish and adult amphibians;
+#' every row is then
 #' converted to `currency` and `unit` as [convert_currency()] does, so that
 #' all the rows can be added up and compared. Biovolume goes to wet mass with
 #' the density of water (1 mm\out{<sup>3</sup>} = 1 mg).
@@ -289,10 +330,10 @@ estimate_biomass_columns <- c(
 #' missing abundance gives a missing biomass (`status = "not_estimated"`,
 #' `reason = "abundance is missing"`) but the individual mass is kept. Rows
 #' without an estimate keep `NA`, with the reason, and one warning reports how
-#' many there are. Amphibians given as larvae or juveniles (with or without
-#' lengths), amphibians without lengths that are not declared adults, and
-#' fish without lengths given a life stage or a sex, are not estimated: the
-#' reference has no masses for them.
+#' many there are. Amphibian juveniles, larvae of salamanders, newts and
+#' caecilians, and fish without lengths given a life stage or a sex, are not
+#' estimated: the reference has no masses for them. Tadpoles are not
+#' estimated in wet mass (see Tadpoles).
 #'
 #' @section Assumptions:
 #' The interval is for the mean individual mass of a population, not for one
@@ -328,6 +369,13 @@ estimate_biomass_columns <- c(
 #' Arranz I, Brucet S, Bartrons M, et al. (2022). Individual body mass and
 #' length dataset for over 12,000 fish from Iberian streams. *Data in Brief*,
 #' 108248. \doi{10.1016/j.dib.2022.108248}
+#'
+#' Gosner KL (1960). A simplified table for staging anuran embryos and larvae
+#' with notes on identification. *Herpetologica*, 16, 183-190.
+#'
+#' Knapp DD, Smith LL, Atkinson CL (2021). Larval anurans follow predictions of
+#' stoichiometric theory: implications for nutrient storage in wetlands.
+#' *Ecosphere*, 12, e03466. \doi{10.1002/ecs2.3466}
 #'
 #' Koning A, Pin K, Chhuoy S, et al. (2024). Weight and length measurements
 #' for 37 Mekong River fish species of the 'Dai' fishery. Dryad.
@@ -369,11 +417,12 @@ estimate_biomass <- function(abundance, taxa, lengths = NULL, currency = "wet_ma
   lg <- bind_length_groups(group_lengths(taxa_length_rows(tx), "taxa"),
                            group_lengths(ln, "lengths"))
   rows <- resolve_rows(ab, tx, lg)
-  if (any(!is.na(rows$length_mm))) {
+  if (any(!is.na(rows$length_mm)) || any(typical_length_rows(rows, tx))) {
     if (missing(bias_correction)) {
       abort_input(paste(
-        "`bias_correction` is required when lengths are used: \"none\" (median mass of the",
-        "individuals of a given length) or \"lognormal\" (their mean, needed for biomass)."
+        "`bias_correction` is required when lengths are used (also the typical lengths of",
+        "tadpoles without lengths): \"none\" (median mass of the individuals of a given",
+        "length) or \"lognormal\" (their mean, needed for biomass)."
       ))
     }
     check_choice(bias_correction, bias_correction_levels)
@@ -911,6 +960,14 @@ mean_mass_length <- function(mm, n, b) {
   (sum(n * mm^b) / sum(n))^(1 / b)
 }
 
+# Rows estimated from the typical length of their taxon (version 0.6.0):
+# tadpoles without lengths, that is anuran amphibians given as larvae or
+# without a stage, and without lengths.
+typical_length_rows <- function(rows, tx) {
+  rows$domain %in% "amphibian" & is.na(rows$length_mm) & tx$order[rows$ti] %in% "Anura" &
+    (rows$stage %in% "larva" | is.na(rows$stage))
+}
+
 # Prediction ----------------------------------------------------------------------
 
 # Prediction for each row: model, node, linear predictor and variance parts.
@@ -933,7 +990,8 @@ predict_rows <- function(rows, tx, reference, bias_correction, extrapolate, ind 
   idx <- match(key, key[first])
   pred <- res$pred[idx, , drop = FALSE]
   rownames(pred) <- NULL
-  list(pred = pred, missing_keys = res$missing_keys[idx])
+  list(pred = pred, missing_keys = res$missing_keys[idx],
+       length_missing_keys = res$length_missing_keys[idx])
 }
 
 predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolate, ind = NULL) {
@@ -946,8 +1004,9 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
   int <- rep(NA_integer_, n)
   pr <- data.frame(model = chr, method = chr, stage_used = chr, length_status = chr, node = int,
                    stage_node = int, contrast = chr, match_level = chr, match_name = chr, n_reference = int,
-                   sources = chr, length_used = num, xc = rep(0, n), offset = rep(0, n), eta = num,
-                   v_param = num, v_missing = num,
+                   sources = chr, length_used = num, length_type = chr, length_basis = chr,
+                   length_cv = num, length_node = int, length_slope = num, xc = rep(0, n),
+                   offset = rep(0, n), eta = num, v_param = num, v_missing = num,
                    v_population = num, v_source = num, corrections = chr, uncertainty = chr,
                    status = rep("not_estimated", n), reason = chr, note = chr,
                    stringsAsFactors = FALSE)
@@ -957,8 +1016,9 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
   lo <- ifelse(is.na(rows$length_lo), rows$length_mm, rows$length_lo)
   hi <- ifelse(is.na(rows$length_hi), rows$length_mm, rows$length_hi)
   missing_keys <- vector("list", n)
+  length_missing_keys <- vector("list", n)
   if (n == 0L) {
-    return(list(pred = pr, missing_keys = missing_keys))
+    return(list(pred = pr, missing_keys = missing_keys, length_missing_keys = length_missing_keys))
   }
   comp_value <- function(m, l, p) {
     v <- comps$value[comps$model == m & comps$level == l & comps$parameter == p]
@@ -972,20 +1032,56 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
   # relations (their shape differs from that of copepodites and adults).
   lt_m <- rows$length_type
   lt_m[copepod & rows$stage %in% "nauplius" & lt_m %in% "body_length"] <- "nauplius_body_length"
+  anuran <- tx$order[rows$ti] %in% "Anura"
+  amphibian_adult_codes <- c("adult", "female", "female_ovigerous", "male")
   # Model and stage of each row.
   for (i in seq_len(n)) {
     d <- rows$domain[i]
     st <- rows$stage[i]
-    if (!is.na(rows$length_mm[i])) {
+    has_len <- !is.na(rows$length_mm[i])
+    if (d == "amphibian" && !st %in% amphibian_adult_codes) {
+      # Larvae, and amphibians without a stage that are not measured as adults
+      # (by their snout-vent length), are tadpoles (version 0.6.0): from their
+      # total length or, without lengths, from the typical length of their
+      # taxon. Juveniles have no reference masses.
+      larva <- st %in% "larva" || (is.na(st) && (!has_len || lt_m[i] %in% "total_length"))
+      if (larva) {
+        pr$method[i] <- if (has_len) "length" else "typical_length"
+        if (!anuran[i]) {
+          pr$reason[i] <- if (is.na(st)) {
+            paste("amphibians without a stage are taken as larvae, and the reference has masses",
+                  "of the larvae of frogs and toads (tadpoles) only; give life_stage = \"adult\"",
+                  "for adults")
+          } else {
+            paste("the reference has masses of the larvae of frogs and toads (tadpoles) only,",
+                  "not of salamanders, newts or caecilians")
+          }
+        } else if (has_len && !lt_m[i] %in% "total_length") {
+          pr$reason[i] <- sprintf(paste("tadpoles are estimated from their total length",
+                                        "(length_type \"total_length\"), not from their %s"),
+                                  gsub("_", " ", lt_m[i]))
+        } else {
+          pr$model[i] <- "amphibian_larva_lwr"
+          pr$stage_used[i] <- if (is.na(st)) "larva (assumed)" else "larva"
+          lt_m[i] <- "total_length"
+        }
+        next
+      }
+      if (!is.na(st)) {
+        pr$method[i] <- if (has_len) "length" else "typical"
+        pr$reason[i] <- sprintf(paste("amphibians given as \"%s\" have no reference masses (the",
+                                      "reference has adults and tadpoles)"), st)
+        next
+      }
+      # Without a stage and with a snout-vent length: the relations of adults.
+    }
+    if (has_len) {
       pr$method[i] <- "length"
       pr$model[i] <- paste0(d, "_lwr")
       lt <- reference$lwr_types
       if (!any(lt$model == pr$model[i] & lt$length_type == lt_m[i])) {
         pr$reason[i] <- sprintf("no reference length-mass relations of %s for %s",
                                 gsub("_", " ", lt_m[i]), d)
-        pr$model[i] <- NA_character_
-      } else if (d == "amphibian" && st %in% c("larva", "nymph", "juvenile")) {
-        pr$reason[i] <- "the length-mass relations of amphibians are for animals after metamorphosis"
         pr$model[i] <- NA_character_
       }
       next
@@ -1041,21 +1137,49 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
           "sex empty")
       }
     } else if (d == "amphibian") {
-      if (st %in% c("adult", "female", "female_ovigerous", "male")) {
-        pr$model[i] <- "amphibian_adult"
-        pr$stage_used[i] <- "adult"
-      } else {
-        pr$reason[i] <- if (is.na(st)) {
-          paste("amphibians without length and without a stage are taken as larvae, which have",
-                "no reference masses; give life_stage = \"adult\" for adults, or a length")
-        } else {
-          "amphibian larvae and juveniles have no reference masses without lengths"
-        }
-      }
+      # Adults without a length (the larvae and juveniles are dealt with above).
+      pr$model[i] <- "amphibian_adult"
+      pr$stage_used[i] <- "adult"
     }
   }
-  # Matching, once per taxon, model and length type.
-  key <- paste(rows$ti, pr$model, lt_m, sep = "\u001f")
+  # Typical length of the tadpoles of a taxon (rows without lengths; version
+  # 0.6.0): the model of typical lengths gives the log of the mean length of a
+  # new population, with the variance of its path, of its missing levels and
+  # between populations, which enter the mass through the slope of the
+  # length-mass relation.
+  len_models <- models[models$kind %in% "typical_length", , drop = FALSE]
+  typical_length <- function(i) {
+    lm_row <- len_models[len_models$lwr_model == pr$model[i], , drop = FALSE]
+    if (nrow(lm_row) != 1L) {
+      abort_internal(sprintf("no model of typical lengths for %s", pr$model[i]))
+    }
+    m <- lm_row$model
+    lv <- strsplit(lm_row$levels, ",")[[1]]
+    cand <- which(nodes$model == m & nodes$level %in% lv)
+    lin <- unlist(tx[rows$ti[i], main_ranks])
+    mt <- match_lineage(lin, nodes[cand, ], lv, col_id = tx$col_id[rows$ti[i]])
+    j <- if (is.null(mt$row)) which(nodes$model == m & nodes$level == "root") else cand[mt$row]
+    if (length(j) != 1L) abort_internal(sprintf("root of model %s not found", m))
+    miss <- if (nodes$level[j] == "root") lv else lv[seq_along(lv) > match(nodes$level[j], lv)]
+    keys <- vapply(miss, function(l) {
+      nm <- lin[[l]]
+      paste(m, "", l, if (is.na(nm)) paste0("<", rows$taxon_id[i], ">") else
+        paste(lin[main_ranks[seq_len(match(l, main_ranks))]], collapse = "|"), sep = "\u001f")
+    }, character(1))
+    list(model = m, node = j, mu = nodes$path_intercept[j], v_param = nodes$path_var[j],
+         v_missing = sum(vapply(miss, function(l) comp_value(m, l, "intercept"), numeric(1))),
+         v_population = comp_value(m, "residual", "intercept") +
+           comp_value(m, "population", "intercept"),
+         keys = unname(keys), cv = lm_row$length_cv, length_type = lm_row$length_type,
+         note = append_note(mt$note, if (nodes$level[j] == "root") {
+           paste("typical length of all the tadpoles of the reference (its family is not in it)")
+         } else {
+           sprintf("typical length of the tadpoles of %s %s", nodes$level[j], nodes$node[j])
+         }))
+  }
+  typ_len <- vector("list", n)
+  # Matching, once per taxon, model, length type and method.
+  key <- paste(rows$ti, pr$model, lt_m, pr$method, sep = "\u001f")
   for (u in unique(key[!is.na(pr$model)])) {
     idx <- which(key == u & !is.na(pr$model))
     i <- idx[1]
@@ -1065,8 +1189,11 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
                     (is.na(nodes$length_type) | nodes$length_type %in% lt_m[i]))
     lin <- unlist(tx[rows$ti[i], main_ranks])
     mt <- match_lineage(lin, nodes[cand, ], lv, col_id = tx$col_id[rows$ti[i]])
-    root <- if (is.null(mt$row) && m == "fish_individual") {
-      which(nodes$model == m & nodes$level == "root")
+    # Fish without lengths, and tadpoles (all anurans), of a group absent from
+    # the reference: the root of the model.
+    root <- if (is.null(mt$row) && m %in% c("fish_individual", "amphibian_larva_lwr")) {
+      which(nodes$model == m & nodes$level == "root" &
+              (is.na(nodes$length_type) | nodes$node %in% lt_m[i]))
     } else {
       integer(0)
     }
@@ -1078,21 +1205,36 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
     if (is.null(mt$row)) {
       # Fish without length of a class (or order, the highest level of the
       # model) absent from the reference: the mean of all its fish, with the
-      # variances of all the levels.
+      # variances of all the levels. Tadpoles of a family absent from the
+      # reference: all the tadpoles of the reference.
       j <- root
-      mt$note <- append_note(mt$note, paste(lv[1], "not in the reference: estimated from all",
-                                            "the fish of the reference"))
+      what <- if (m == "fish_individual") "the fish" else "the tadpoles"
+      mt$note <- append_note(mt$note, paste(lv[1], "not in the reference: estimated from all", what,
+                                            "of the reference"))
     } else {
       j <- cand[mt$row]
     }
+    tl <- if (pr$method[i] == "typical_length") typical_length(i) else NULL
     for (i in idx) {
       jj <- j
-      if (pr$method[i] == "length") {
+      if (!is.null(tl)) {
+        # The length of the row is the typical length of its taxon.
+        typ_len[[i]] <- tl
+        lo[i] <- hi[i] <- exp(tl$mu)
+        pr$length_used[i] <- exp(tl$mu)
+        pr$length_type[i] <- tl$length_type
+        pr$length_basis[i] <- "typical"
+        pr$length_cv[i] <- tl$cv
+        basis[i] <- "typical"
+      }
+      if (pr$method[i] %in% c("length", "typical_length")) {
         cov <- find_covering_node(j, lo[i], hi[i], lt_m[i], nodes, comps)
         if (is.na(cov) && !extrapolate) {
           rt <- nodes[nodes$model == m & nodes$level == "root" & nodes$node == lt_m[i], ]
           what <- if (basis[i] == "individuals") {
             sprintf("lengths of individuals %s-%s mm", format(signif(lo[i], 3)), format(signif(hi[i], 3)))
+          } else if (!is.null(tl)) {
+            sprintf("typical length %s mm", format(signif(lo[i], 3)))
           } else {
             sprintf("length %s mm", format(signif(rows$length_mm[i], 3)))
           }
@@ -1124,13 +1266,15 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
     j <- pr$node[i]
     m <- pr$model[i]
     lv <- strsplit(models$levels[models$model == m], ",")[[1]]
-    lwr <- pr$method[i] == "length"
+    typical <- pr$method[i] == "typical_length"
+    lwr <- pr$method[i] %in% c("length", "typical_length")
     lt_row <- if (lwr) reference$lwr_types[reference$lwr_types$model == m &
                                               reference$lwr_types$length_type == lt_m[i], ]
     if (lwr) {
       # A set of individual lengths enters as the length of their mean mass
-      # under the relation of the node.
-      L <- rows$length_mm[i]
+      # under the relation of the node; a tadpole without lengths, as the
+      # typical length of its taxon.
+      L <- if (typical) pr$length_used[i] else rows$length_mm[i]
       if (basis[i] == "individuals") {
         v <- ind[ind$group == rows$length_group[i], , drop = FALSE]
         L <- mean_mass_length(v$length_mm, v$n, nodes$path_slope[j])
@@ -1184,14 +1328,32 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
       }
     }
     corr <- character(0)
+    v_len_pop <- 0
     if (lwr) {
       b <- nodes$path_slope[j]
+      cv_i <- if (typical) pr$length_cv[i] else rows$length_cv[i]
+      if (typical) {
+        # The typical length is the median of the mean length of a new
+        # population of the taxon: its uncertainty enters the log mass times
+        # the slope of the relation, and its spread within the population
+        # (the typical coefficient of variation) the mean mass.
+        tl <- typ_len[[i]]
+        vp <- vp + b^2 * tl$v_param
+        vm <- vm + b^2 * tl$v_missing
+        v_len_pop <- b^2 * tl$v_population
+        pr$length_node[i] <- tl$node
+        pr$length_slope[i] <- b
+        length_missing_keys[[i]] <- tl$keys
+        pr$note[i] <- append_note(pr$note[i], sprintf(paste(
+          "without length: mass at the %s (%s mm; tadpoles before the metamorphic climax) with the",
+          "length-mass relation of tadpoles"), tl$note, format(signif(L, 3))))
+      }
       if (basis[i] == "individuals") {
         pr$note[i] <- append_note(pr$note[i], sprintf(
           "mean mass of %s individuals measured (%s-%s mm)", format(signif(rows$length_n[i], 4)),
           format(signif(lo[i], 3)), format(signif(hi[i], 3))))
-      } else if (!is.na(rows$length_cv[i])) {
-        eta <- eta + b * (b - 1) / 2 * log1p(rows$length_cv[i]^2)
+      } else if (!is.na(cv_i)) {
+        eta <- eta + b * (b - 1) / 2 * log1p(cv_i^2)
         corr <- c(corr, "jensen")
       } else {
         pr$note[i] <- append_note(pr$note[i], paste(
@@ -1207,13 +1369,15 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
     pr$v_param[i] <- vp
     pr$v_missing[i] <- vm
     pr$v_population[i] <- comp_value(m, "residual", "intercept") + comp_value(m, "equation", "intercept") +
-      comp_value(m, "population", "intercept")
+      comp_value(m, "population", "intercept") + v_len_pop
     pr$v_source[i] <- comp_value(m, "source", "intercept") + comp_value(m, "study", "intercept")
     pr$corrections[i] <- if (length(corr)) paste(corr, collapse = "; ") else NA_character_
     has_src <- any(comps$model == m & comps$level %in% c("source", "study"))
-    pr$uncertainty[i] <- paste(c("parameter", if (length(miss)) "taxonomic_imputation",
+    pr$uncertainty[i] <- paste(c("parameter", if (length(miss) || length(length_missing_keys[[i]]))
+                                   "taxonomic_imputation",
                                  "between_population",
-                                 if (has_src) if (lwr) "between_study" else "between_source"),
+                                 if (has_src) if (lwr) "between_study" else "between_source",
+                                 if (typical) "typical_length"),
                                collapse = "; ")
     pr$match_level[i] <- nodes$level[j]
     pr$match_name[i] <- nodes$node[j]
@@ -1227,7 +1391,7 @@ predict_unique_rows <- function(rows, tx, reference, bias_correction, extrapolat
         "life stage not given: taken as adult (too high if the count includes copepodites)"))
     }
   }
-  list(pred = pr, missing_keys = missing_keys)
+  list(pred = pr, missing_keys = missing_keys, length_missing_keys = length_missing_keys)
 }
 
 # Deepest node of a model whose name and rank match the lineage of a taxon.
@@ -1349,8 +1513,8 @@ assemble_estimates <- function(ab, tx, rows, pred, level, reference) {
   out$model <- pr$model
   out$stage_used <- pr$stage_used
   out$length_mm <- ifelse(is.na(pr$length_used), rows$length_mm, pr$length_used)
-  out$length_type <- rows$length_type
-  out$length_basis <- rows$length_basis
+  out$length_type <- ifelse(is.na(pr$length_type), rows$length_type, pr$length_type)
+  out$length_basis <- ifelse(is.na(pr$length_basis), rows$length_basis, pr$length_basis)
   out$length_n <- rows$length_n
   out$length_status <- pr$length_status
   out$match_level <- pr$match_level
@@ -1384,10 +1548,14 @@ new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, setti
   pr <- pred$pred
   sim <- data.frame(row = rows$row, taxon_id = rows$taxon_id, site = rows$site,
                     stage_used = pr$stage_used, model = pr$model, method = pr$method,
-                    length_type = rows$length_type, length_used = pr$length_used,
-                    length_cv = rows$length_cv, length_basis = rows$length_basis,
+                    length_type = ifelse(is.na(pr$length_type), rows$length_type, pr$length_type),
+                    length_used = pr$length_used,
+                    length_cv = ifelse(is.na(pr$length_cv), rows$length_cv, pr$length_cv),
+                    length_basis = ifelse(is.na(pr$length_basis), rows$length_basis,
+                                          pr$length_basis),
                     length_group = rows$length_group, node = pr$node, stage_node = pr$stage_node,
                     contrast = pr$contrast, cells_per_unit = rows$cells_per_unit,
+                    length_node = pr$length_node, length_slope = pr$length_slope,
                     xc = pr$xc, offset = pr$offset, eta = pr$eta, v_param = pr$v_param, v_missing = pr$v_missing,
                     v_population = pr$v_population, v_source = pr$v_source,
                     stringsAsFactors = FALSE)
@@ -1407,6 +1575,7 @@ new_bmassa_estimate <- function(estimates, rows, pred, reference, lineage, setti
                                                        n = numeric(0))
   structure(list(estimates = estimates, settings = settings, diagnostics = diagnostics,
                  simulation = list(rows = sim, missing_keys = pred$missing_keys,
+                                   length_missing_keys = pred$length_missing_keys,
                                    lineage = `rownames<-`(lineage, NULL), lengths = lengths_ind),
                  reference = reference),
             class = "bmassa_estimate")
@@ -1421,9 +1590,12 @@ as.data.frame.bmassa_estimate <- function(x, ...) {
 print.bmassa_estimate <- function(x, ...) {
   e <- x$estimates
   ok <- e$status == "estimated"
-  cat(sprintf("<bmassa_estimate> %d rows: %d estimated (%d from lengths, %d without lengths), %d not estimated\n",
-              nrow(e), sum(ok), sum(ok & e$method %in% "length"), sum(ok & e$method %in% "typical"),
-              sum(!ok)))
+  n_typ_len <- sum(ok & e$method %in% "typical_length")
+  cat(sprintf(paste("<bmassa_estimate> %d rows: %d estimated (%d from lengths, %s%d without",
+                    "lengths), %d not estimated\n"),
+              nrow(e), sum(ok), sum(ok & e$method %in% "length"),
+              if (n_typ_len) sprintf("%d from typical lengths, ", n_typ_len) else "",
+              sum(ok & e$method %in% "typical"), sum(!ok)))
   if (any(ok)) {
     tab <- table(factor(e$match_level[ok], levels = c(rev(main_ranks), "root")))
     tab <- tab[tab > 0]

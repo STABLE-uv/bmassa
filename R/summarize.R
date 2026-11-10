@@ -57,6 +57,10 @@
 #' `population_by`, if given) or per row; the error of the effect of a stage
 #' group, once per group, and that of the contrast of copepodites or nauplii,
 #' once per contrast and correlated with the error of the node of each row;
+#' for tadpoles without lengths, the errors of the typical length of their
+#' taxon (its node and missing levels, shared like those of the masses, and
+#' its variation between populations, with that of the mass) times the slope
+#' of the length-mass relation;
 #' and the deviation of a new source or study, once per model, since all the
 #' rows come from the same study. Two taxa
 #' estimated from the same family therefore have correlated errors, and the

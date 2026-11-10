@@ -11,11 +11,17 @@ A list of class \code{bmassa_reference} with these data frames (and a
 list):
 \itemize{
 \item \code{models}: one row per model, with \code{model}, \code{domain} (\code{"phytoplankton"},
-\code{"invertebrate"}, \code{"fish"}, \code{"amphibian"}), \code{kind} (\code{"typical"}, masses
-without lengths, or \code{"lwr"}, length-mass relations), \code{count_unit},
-\code{life_stage} (the stage of the data, if only one), \code{currency}, \code{unit}
-(\code{"um3"}, \code{"mg"} or \code{"g"}) and \code{levels} (taxonomic levels of the model,
-comma-separated, from the highest).
+\code{"invertebrate"}, \code{"fish"}, \code{"amphibian"}, \code{"amphibian_larva"}
+(tadpoles)), \code{kind} (\code{"typical"}, masses without lengths, \code{"lwr"},
+length-mass relations, or \code{"typical_length"}, the typical total length
+of tadpoles, which \code{\link[=estimate_biomass]{estimate_biomass()}} uses for tadpoles without
+lengths), \code{count_unit}, \code{life_stage} (the stage of the data, if only
+one), \code{currency} (\code{"length"} for typical lengths), \code{unit} (\code{"um3"},
+\code{"mg"}, \code{"g"}, or \code{"mm"} for typical lengths), \code{levels} (taxonomic
+levels of the model, comma-separated, from the highest) and, for
+typical lengths, \code{length_type}, \code{length_cv} (the typical coefficient
+of variation of the lengths within a population, for the mean mass)
+and \code{lwr_model} (the length-mass model their lengths go to).
 \item \code{lwr_types}: one row per length-mass model and length type, with
 \code{centre} (mean ln length, mm, of the data), \code{length_min} and
 \code{length_max} (mm), and \code{sigma_ind}, the median residual standard
@@ -42,8 +48,9 @@ also \code{contrast_cov_rotifer_weighing} and \code{contrast_cov_moreau_benthos}
 not used in predictions).
 \item \code{components}: variance components (\code{value}, natural logs) by \code{model},
 \code{level} (taxonomic levels, \code{"equation"}, \code{"study"}, \code{"source"},
-\code{"population"} (fish without lengths: between populations, the
-residual being between samplings of a population), \code{"stage"},
+\code{"population"} (fish without lengths and typical lengths of tadpoles:
+between populations, the residual being between samplings of a
+population), \code{"stage"},
 \code{"residual"}) and \code{parameter} (\code{"intercept"}, \code{"slope"},
 \code{"intercept_slope"}). In the length-mass model of invertebrates,
 \code{"study"} is the variance of a new study, from a second fit with an
@@ -59,7 +66,8 @@ of individual prey, against means of field populations; the masses
 from volumes and the population means are the ones predicted).
 \item \code{conversion_models}: one row per model of the conversion factors (ln
 of the ratio between two currencies of the same organisms), with
-\code{model}, \code{domain} (\code{"invertebrate"} or \code{"fish"}), \code{from} and \code{to}
+\code{model}, \code{domain} (\code{"invertebrate"}, \code{"fish"} or \code{"amphibian_larva"},
+tadpoles), \code{from} and \code{to}
 (currencies), \code{levels} and \code{context} (\code{"habitat"} when the model has a
 crossed effect of habitat, otherwise empty).
 \item \code{conversion_nodes}, \code{conversion_components}, \code{conversion_fixed}: as

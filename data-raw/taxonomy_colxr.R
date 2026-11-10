@@ -283,13 +283,185 @@ for (id in c("culver1985", "bottrell1976", "mccauley1984", "ejsmontkarabin1998")
 }
 
 # Hébert et al. (2016): cladocerans and copepods (group at the start of the
-# note of each typical record).
+# note of each typical record and conversion factor).
 if (use_source("hebert2016", reg) && length(taxa_of("hebert2016"))) {
-  hb <- d_tr[d_tr$source_id == "hebert2016", c("taxon", "note")]
+  hb <- rbind(d_tr[d_tr$source_id == "hebert2016", c("taxon", "note")],
+              d_cv[d_cv$source_id == "hebert2016", c("taxon", "note")])
   grp <- sub(";.*$", "", hb$note)
   stopifnot(all(grp %in% c("Cladocera", "Copepoda")))
   nm$hebert <- names_of("hebert2016", hb$taxon, "Animalia", "Arthropoda",
                         ifelse(grp == "Cladocera", "Branchiopoda", "Copepoda"), domain = "animal")
+}
+
+# Elemental composition of 2026-11-09 (conversions.R, section 9): phylum,
+# class and order from the group of each value, and the family given with it
+# (the taxon itself when it is a family).
+stoich_ids <- c("beck2022", "gonzalez2018", "gonzalez2025", "knapp2021", "moody2018", "may2026",
+                "evangelista2024", "musin2023", "goedkoop2021", "walve1999", "zhang2017",
+                "abuturab2017", "li2021", "backking2013", "back2013", "ghosh2017", "brenessoto2019",
+                "ventura2005")
+stoich_ids <- stoich_ids[use_source(stoich_ids, reg)]
+stoich_ids <- stoich_ids[vapply(stoich_ids, function(id) length(taxa_of(id)) > 0, logical(1))]
+if (length(stoich_ids)) {
+  ba <- read.csv(source_files(stoich_ids[1], reg)[1], stringsAsFactors = FALSE, check.names = FALSE,
+                 encoding = "UTF-8", na.strings = "")
+  insect <- function(o) c("Arthropoda", "Insecta", o)
+  ranks <- rbind(
+    "Amphibians" = c("Chordata", "Amphibia", NA), "Amphipods" = c("Arthropoda", "Malacostraca", "Amphipoda"),
+    "Aquatic insects (Coleoptera)" = insect("Coleoptera"), "Aquatic insects (Diptera)" = insect("Diptera"),
+    "Aquatic insects (Ephemeroptera)" = insect("Ephemeroptera"),
+    "Aquatic insects (Hemiptera)" = insect("Hemiptera"),
+    "Aquatic insects (Megaloptera)" = insect("Megaloptera"), "Aquatic insects (Odonata)" = insect("Odonata"),
+    "Aquatic insects (Plecoptera)" = insect("Plecoptera"),
+    "Aquatic insects (Trichoptera)" = insect("Trichoptera"), "Bivalves" = c("Mollusca", "Bivalvia", NA),
+    "Cladocerans" = c("Arthropoda", "Branchiopoda", NA),
+    "Copepods (Calanoida)" = c("Arthropoda", "Copepoda", "Calanoida"),
+    "Copepods (Cyclopoida)" = c("Arthropoda", "Copepoda", "Cyclopoida"),
+    "Crayfish" = c("Arthropoda", "Malacostraca", "Decapoda"), "Fish" = c("Chordata", NA, NA),
+    "Flatworms" = c("Platyhelminthes", NA, NA), "Gastropods" = c("Mollusca", "Gastropoda", NA),
+    "Isopods" = c("Arthropoda", "Malacostraca", "Isopoda"), "Leeches" = c("Annelida", "Clitellata", NA),
+    "Oligochaetes" = c("Annelida", "Clitellata", NA), "Ostracods" = c("Arthropoda", "Ostracoda", NA),
+    "Rotifers" = c("Rotifera", NA, NA), "Shrimps" = c("Arthropoda", "Malacostraca", "Decapoda"),
+    "Water mites" = c("Arthropoda", "Arachnida", "Trombidiformes"))
+  if (!all(ba$group %in% rownames(ranks))) {
+    stop("Groups without ranks: ", paste(setdiff(unique(ba$group), rownames(ranks)), collapse = ", "))
+  }
+  cvs <- d_cv[d_cv$source_id %in% stoich_ids, c("source_id", "taxon", "name_as_given")]
+  i <- match(cvs$name_as_given, ba$name_as_given)
+  stopifnot(!anyNA(i))
+  g <- ranks[ba$group[i], , drop = FALSE]
+  fam <- ifelse(grepl("idae$", cvs$taxon), cvs$taxon, ba$family[i])
+  nm$stoich <- names_of(cvs$source_id, cvs$taxon, "Animalia", g[, 1], g[, 2], g[, 3], fam,
+                        domain = "animal")
+}
+
+# Freshwater molluscs of 2026-11-09 (conversions.R, section 10): class from
+# the group of each value and the family given with it; names of sources with
+# hints already (Goedkoop et al. 2021 in section 9, Moreau et al. 2021 in the
+# package data of 0.1.0) are not repeated.
+mollusc_ids <- c("ravera2007", "baer2022", "goedkoop2021", "begam2002", "sereflisan2018",
+                 "lopezdoval2014", "mazuran2025", "debnath2016", "tanjung2015", "baby2010",
+                 "benke1999", "moreau2021", "doherty1986")
+mollusc_ids <- mollusc_ids[use_source(mollusc_ids, reg)]
+cvm <- unique(d_cv[d_cv$source_id %in% mollusc_ids & grepl("^molluscs2026:", d_cv$sample),
+                   c("source_id", "taxon", "name_as_given")])
+seen <- unlist(lapply(nm, function(x) paste(x$source_id, x$taxon)), use.names = FALSE)
+cvm <- cvm[!paste(cvm$source_id, cvm$taxon) %in% seen, ]
+if (nrow(cvm)) {
+  mo <- read.csv(source_files(cvm$source_id[1], reg)[["Molluscs2026/bmassa_block_b_mollusc_factors.csv"]],
+                 stringsAsFactors = FALSE, check.names = FALSE, encoding = "UTF-8", na.strings = "")
+  i <- match(paste(cvm$taxon, cvm$name_as_given), paste(mo$accepted_name, mo$name_as_given))
+  stopifnot(!anyNA(i), all(mo$group[i] %in% c("Bivalves", "Gastropods")))
+  nm$molluscs <- names_of(cvm$source_id, cvm$taxon, "Animalia", "Mollusca",
+                          ifelse(mo$group[i] == "Bivalves", "Bivalvia", "Gastropoda"),
+                          family = mo$family[i], domain = "animal")
+}
+
+# Shells and soft tissue of snails of 2026-11-09 and Kołodziejczyk (1984)
+# (conversions.R, section 11): class from the group of each value and the
+# family given with it.
+shell_ids <- c("sokolowski2003", "james1998", "crichton2003", "kamler1969", "kolodziejczyk1984")
+shell_ids <- shell_ids[use_source(shell_ids, reg)]
+cvh <- unique(d_cv[d_cv$source_id %in% shell_ids & grepl("^shells2026:", d_cv$sample),
+                   c("source_id", "taxon", "name_as_given")])
+if (nrow(cvh)) {
+  read_tab <- function(path) read.csv(path, stringsAsFactors = FALSE, check.names = FALSE,
+                                      encoding = "UTF-8", na.strings = "")
+  sh2 <- read_tab("data-raw/kolodziejczyk1984_table4.csv")
+  in_file <- setdiff(shell_ids, "kolodziejczyk1984")
+  if (length(in_file)) {
+    sh2 <- rbind(read_tab(source_files(in_file[1], reg)[["Molluscs2026/bmassa_block_b2_mollusc_shells.csv"]]),
+                 sh2)
+  }
+  i <- match(paste(cvh$taxon, cvh$name_as_given), paste(sh2$accepted_name, sh2$name_as_given))
+  stopifnot(!anyNA(i), all(sh2$group[i] %in% c("Bivalves", "Gastropods")))
+  nm$shells <- names_of(cvh$source_id, cvh$taxon, "Animalia", "Mollusca",
+                        ifelse(sh2$group[i] == "Bivalves", "Bivalvia", "Gastropoda"),
+                        family = sh2$family[i], domain = "animal")
+}
+
+# Freshwater zooplankton of 2026-11-10 (conversions.R, section 12): phylum,
+# class and order from the group of each value, and the family given with it.
+zoo_ids <- c("riccardi1999", "birge1922", "watanabe1978", "hasan2023", "ovie2006")
+zoo_ids <- zoo_ids[use_source(zoo_ids, reg)]
+cvz <- unique(d_cv[d_cv$source_id %in% zoo_ids & grepl("^zooplankton2026:", d_cv$sample),
+                   c("source_id", "taxon", "name_as_given")])
+if (nrow(cvz)) {
+  zo <- read.csv(source_files(cvz$source_id[1], reg)[["Zooplankton2026/bmassa_block_c_zooplankton_factors.csv"]],
+                 stringsAsFactors = FALSE, check.names = FALSE, encoding = "UTF-8", na.strings = "")
+  zo$taxon <- gsub(" \\([A-Z][a-z]+\\)", "", zo$accepted_name)
+  zranks <- rbind("Cladocerans" = c("Arthropoda", "Branchiopoda", NA),
+                  "Calanoids" = c("Arthropoda", "Copepoda", "Calanoida"),
+                  "Cyclopoids" = c("Arthropoda", "Copepoda", "Cyclopoida"),
+                  "Ostracods" = c("Arthropoda", "Ostracoda", NA), "Rotifers" = c("Rotifera", NA, NA))
+  i <- match(paste(cvz$taxon, cvz$name_as_given), paste(zo$taxon, zo$name_as_given))
+  stopifnot(!anyNA(i), all(zo$group[i] %in% rownames(zranks)))
+  g <- zranks[zo$group[i], , drop = FALSE]
+  nm$zooplankton <- names_of(cvz$source_id, cvz$taxon, "Animalia", g[, 1], g[, 2], g[, 3],
+                             zo$family[i], domain = "animal")
+}
+
+# Limno-STOICH (conversions.R, section 13): phylum and class from the group of
+# each record, and its order and family as entered (the classes of molluscs
+# entered as orders), most frequent over the records of each name.
+cvl <- unique(d_cv[d_cv$source_id == "corman2026", c("source_id", "taxon", "name_as_given")])
+if (use_source("corman2026", reg) && nrow(cvl)) {
+  oc <- function(x) paste0(x, ".OrganismStoichiometry")
+  lim <- read.csv(source_files("corman2026", reg)[["LimnoSTOICH2026/STOICH_Release_Full_Join_20251211_shortened_notes.csv"]],
+                  stringsAsFactors = FALSE, check.names = FALSE, encoding = "UTF-8", na.strings = c("", "NA"),
+                  colClasses = "character")
+  low <- function(x) {
+    x <- tolower(trimws(lim[[oc(x)]]))
+    x[!is.na(x) & !nzchar(x)] <- NA
+    x
+  }
+  gen <- low("TaxonomicGenus")
+  spp <- low("TaxonomicSpecies")
+  spp[spp %in% c("sp", "sp.", "spp", "spp.")] <- NA
+  fam <- low("TaxonomicFamily")
+  ord <- low("TaxonomicOrder")
+  given <- ifelse(!is.na(gen) & !is.na(spp), paste(gen, spp), ifelse(!is.na(gen), gen, ifelse(!is.na(fam), fam, ord)))
+  up <- function(x) ifelse(is.na(x), NA, paste0(toupper(substr(x, 1, 1)), substring(x, 2)))
+  type_ranks <- rbind("Insecta" = c("Arthropoda", "Insecta"), "Crustacean" = c("Arthropoda", NA),
+                      "Mollusca" = c("Mollusca", NA), "Annelida" = c("Annelida", NA), "Zooplankton" = c(NA, NA),
+                      "Invertebrates (Other)" = c(NA, NA), "Other" = c(NA, NA), "Fish" = c("Chordata", NA),
+                      "Amphibian" = c("Chordata", "Amphibia"))
+  type <- lim[[oc("Type")]]
+  k <- which(given %in% cvl$name_as_given & type %in% rownames(type_ranks))
+  g <- type_ranks[type[k], , drop = FALSE]
+  cls <- ifelse(ord[k] %in% "class_bivalva", "Bivalvia", ifelse(ord[k] %in% "class_gastropoda", "Gastropoda", g[, 2]))
+  hl <- data.frame(name_as_given = given[k], phylum = g[, 1], class = cls,
+                   order = up(ifelse(startsWith(ord[k], "class_") %in% TRUE, NA, ord[k])), family = up(fam[k]),
+                   stringsAsFactors = FALSE)
+  i <- match(cvl$name_as_given, hl$name_as_given)
+  stopifnot(!anyNA(i))
+  # The hints of each name as given: the most frequent of its records.
+  hl <- do.call(rbind, lapply(split(hl, hl$name_as_given), function(d) {
+    d[1, -1] <- lapply(d[, -1, drop = FALSE], most_frequent)
+    d[1, ]
+  }))
+  i <- match(cvl$name_as_given, hl$name_as_given)
+  nm$limnostoich <- names_of(cvl$source_id, cvl$taxon, "Animalia", hl$phylum[i], hl$class[i], hl$order[i],
+                             hl$family[i], domain = "animal")
+}
+
+# Remaining conversion factors of 2026-11-10 (conversions.R, section 14):
+# phylum and class from the group of each value, and the family given with it.
+rem_ids <- c("calow1974", "penczak1985")
+rem_ids <- rem_ids[use_source(rem_ids, reg)]
+cvr <- unique(d_cv[d_cv$source_id %in% rem_ids & grepl("^remaining2026:", d_cv$sample),
+                   c("source_id", "taxon", "name_as_given")])
+if (nrow(cvr)) {
+  re <- read.csv(source_files(cvr$source_id[1], reg)[["Remaining2026/bmassa_block_e_remaining_factors.csv"]],
+                 stringsAsFactors = FALSE, check.names = FALSE, encoding = "UTF-8", na.strings = "")
+  rranks <- rbind("Flatworms" = c("Platyhelminthes", NA), "Fish" = c("Chordata", NA),
+                  "Water mites" = c("Arthropoda", "Arachnida"), "Leeches" = c("Annelida", "Clitellata"),
+                  "Amphibians (larvae)" = c("Chordata", "Amphibia"))
+  i <- match(paste(cvr$taxon, cvr$name_as_given), paste(re$accepted_name, re$name_as_given))
+  stopifnot(!anyNA(i), all(re$group[i] %in% rownames(rranks)))
+  g <- rranks[re$group[i], , drop = FALSE]
+  nm$remaining <- names_of(cvr$source_id, cvr$taxon, "Animalia", g[, 1], g[, 2], family = re$family[i],
+                           domain = "animal")
 }
 
 nm <- do.call(rbind, nm)

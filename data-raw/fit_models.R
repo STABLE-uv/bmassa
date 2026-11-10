@@ -204,10 +204,39 @@ model_formula <- function(d, type, levels, opt) {
   }
   stats::as.formula(paste("y ~", fixed, "+", paste(rand, collapse = " + ")))
 }
+# REML fit from the default start of lme4 (relative SDs of the random effects
+# at 1, correlations at 0) and from three more starts (relative SDs at 0.1,
+# 0.3 and 3): the fit with the lowest REML criterion is kept, and the
+# warnings and messages of that fit are passed on. With several variance
+# components the criterion can have local optima: from the default start
+# alone, the length-mass models of fish and amphibians stopped 62 and 11
+# units above the optima reached from other starts (decision of 2026-11-09).
 fit_model <- function(d, type, levels, opt) {
-  lme4::lmer(model_formula(d, type, levels, opt), data = d, REML = TRUE,
-             control = lme4::lmerControl(calc.derivs = FALSE, optimizer = "bobyqa",
-                                         optCtrl = list(maxfun = 1e5)))
+  fm <- model_formula(d, type, levels, opt)
+  ctrl <- lme4::lmerControl(calc.derivs = FALSE, optimizer = "bobyqa", optCtrl = list(maxfun = 1e5))
+  run <- function(start) {
+    conds <- list()
+    fit <- withCallingHandlers(
+      lme4::lmer(fm, data = d, REML = TRUE, control = ctrl, start = start),
+      warning = function(w) {
+        conds[[length(conds) + 1L]] <<- w
+        invokeRestart("muffleWarning")
+      },
+      message = function(m) {
+        conds[[length(conds) + 1L]] <<- m
+        invokeRestart("muffleMessage")
+      })
+    list(fit = fit, conds = conds, crit = lme4::REMLcrit(fit))
+  }
+  best <- run(NULL)
+  lower <- lme4::getME(best$fit, "lower")
+  for (v in c(0.1, 0.3, 3)) {
+    alt <- tryCatch(run(list(theta = ifelse(lower == 0, v, 0))), error = function(e) NULL)
+    # Gains below 1e-4 are rounding: the default fit is kept.
+    if (!is.null(alt) && alt$crit < best$crit - 1e-4) best <- alt
+  }
+  for (cnd in best$conds) if (inherits(cnd, "warning")) warning(cnd) else message(cnd)
+  best$fit
 }
 # Share of a new study (length-mass models with five or more studies): the
 # variance of the random intercepts of study in a second fit, with the same

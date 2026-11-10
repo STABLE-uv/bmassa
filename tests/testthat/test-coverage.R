@@ -21,8 +21,13 @@ test_that("one row per taxon unit, plus one per lengths of a site or sample", {
   expect_equal(gm$method, c("typical", "length"))
   expect_equal(gm$length_basis, c(NA, "individuals"))
   expect_equal(gm$length_n, c(NA, 12))
-  # The frog: adults with a length, larvae not estimable without one.
-  expect_equal(d$status[d$taxon_id %in% c("t19", "t20")], c("estimable", "not_estimable"))
+  # The frog: adults with a length, and larvae (tadpoles) without one, from the
+  # typical length of tadpoles of their family.
+  fr <- d[d$taxon_id %in% c("t19", "t20"), ]
+  expect_equal(fr$status, c("estimable", "estimable"))
+  expect_equal(fr$method, c("length", "typical_length"))
+  expect_equal(fr$length_basis, c("mean", "typical"))
+  expect_equal(fr$match_level[2], "family")
 })
 
 test_that("the factor is the width of the interval of estimate_biomass()", {

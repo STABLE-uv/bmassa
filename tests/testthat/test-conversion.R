@@ -102,6 +102,60 @@ test_that("fish go to carbon through dry mass, and the two factors add up", {
   expect_match(e1$conversion[i], "wet_mass->dry_mass.*; dry_mass->carbon")
 })
 
+test_that("invertebrates and fish go to nitrogen and phosphorus with their models (hand calculation)", {
+  for (el in c("nitrogen", "phosphorus")) {
+    cv <- suppressWarnings(convert_currency(est, to = el, unit = "ug"))
+    e1 <- as.data.frame(cv)
+    m <- paste0("invertebrate dry_mass_to_", el)
+    expect_true(m %in% ref$conversion_models$model)
+    # The rotifer t06 (Keratella) goes to nitrogen by its family; the model
+    # of phosphorus has no factors of rotifers.
+    for (id in if (el == "nitrogen") c("t10", "t13", "t06") else c("t10", "t13")) {
+      i <- row_of(id)
+      n <- ref$conversion_nodes[conv_node(m, id), ]
+      v_f <- n$path_var + missing_var(m, n$level) + comp(m, "residual") + comp(m, "habitat")
+      # Dry mass in mg to the element in ug: x 1000.
+      expect_equal(log(e1$ind_median[i]) - log(e0$ind_median[i] * 1000), n$path_intercept,
+                   tolerance = 1e-12)
+      expect_equal(tau2_of(e1, i) - tau2_of(e0, i), v_f, tolerance = 1e-10)
+      expect_equal(e1$currency[i], el)
+      expect_equal(e1$unit[i], "ug")
+    }
+    if (el == "phosphorus") {
+      i <- row_of("t06")
+      expect_true(is.na(conv_node(m, "t06")))
+      expect_true(is.na(e1$ind_median[i]))
+      expect_equal(e1$status[i], "not_estimated")
+      expect_match(e1$reason[i], paste("no taxon of the conversion model", m, "matches the classification"))
+    }
+    # Fish: wet to dry mass, then dry mass to the element.
+    i <- row_of("t16")
+    eta <- 0
+    for (mm in c("fish wet_mass_to_dry_mass", paste0("fish dry_mass_to_", el))) {
+      eta <- eta + ref$conversion_nodes$path_intercept[conv_node(mm, "t16")]
+    }
+    # The fish are in g: x 1e6 to ug.
+    expect_equal(e0$unit[i], "g")
+    expect_equal(log(e1$ind_median[i]) - log(e0$ind_median[i] * 1e6), eta, tolerance = 1e-12)
+    expect_match(e1$conversion[i], paste0("wet_mass->dry_mass.*; dry_mass->", el))
+    # Phytoplankton and amphibians are not converted.
+    phy <- e0$broad_group == "phytoplankton" & !is.na(e0$ind_median)
+    expect_true(all(is.na(e1$ind_median[phy])))
+    expect_true(all(grepl(paste("no conversion from biovolume to", el), e1$reason[phy])))
+    amph <- which(e0$broad_group == "amphibian" & e0$life_stage %in% "adult" & !is.na(e0$ind_median))
+    expect_true(all(is.na(e1$ind_median[amph])))
+    expect_match(e1$reason[amph[1]], paste("too few conversion factors for amphibians to", el))
+  }
+  # Phosphorus is a smaller share of the dry mass than nitrogen, and fish,
+  # with their bones, have more of it than invertebrates.
+  med <- function(m) {
+    k <- ref$conversion_nodes$model == m & ref$conversion_nodes$level == "root"
+    exp(ref$conversion_nodes$path_intercept[k])
+  }
+  expect_true(med("invertebrate dry_mass_to_phosphorus") < med("invertebrate dry_mass_to_nitrogen"))
+  expect_true(med("fish dry_mass_to_phosphorus") > med("invertebrate dry_mass_to_phosphorus"))
+})
+
 test_that("phytoplankton cells follow Menden-Deuer and Lessard (2000), Table 4", {
   cv <- suppressWarnings(convert_currency(est, to = "carbon", unit = "pg"))
   e1 <- as.data.frame(cv)
@@ -205,7 +259,7 @@ test_that("rotifers go to wet mass with dry mass 10 % of it, 3.9 % in Asplanchna
 })
 
 test_that("amphibians go to dry mass and energy with the values of frogs and toads", {
-  amph <- which(e0$broad_group == "amphibian" & !is.na(e0$ind_median))
+  amph <- which(e0$broad_group == "amphibian" & e0$life_stage %in% "adult" & !is.na(e0$ind_median))
   expect_length(amph, 2L)
   # US EPA (1993, Table 4-1, p. 4-13), frogs and toads, mean (SD) of 3 studies:
   # 85 % water (4.7) and 4.6 kcal/g of dry mass (0.45). Lognormal with that
@@ -233,11 +287,11 @@ test_that("amphibians go to dry mass and energy with the values of frogs and toa
   expect_true(all(grepl("; conversion$", e1$uncertainty[amph])))
   expect_true("usepa1993" %in% cite_sources(dm)$source_id)
   # Energy: wet mass (g) * 1e6 ug/g * 0.15 * 4.6 kcal/g * 4.184e-3 J/ug per kcal/g,
-  # 70.1 kJ for a mean wet mass of 24.3 g.
+  # 69.5 kJ for a mean wet mass of 24.1 g.
   en <- suppressWarnings(convert_currency(est, to = "energy"))
   j <- as.data.frame(en)
   expect_equal(j$ind_mean[amph], e0$ind_mean[amph] * 1e6 * 0.15 * 4.6 * 4.184e-3)
-  expect_equal(j$ind_mean[amph[1]] / 1000, 70.1, tolerance = 1e-3)
+  expect_equal(j$ind_mean[amph[1]] / 1000, 69.5, tolerance = 1e-3)
   expect_equal(tau2_of(j, amph) - tau2_of(e0, amph), rep(v + ve, 2L))
   expect_true(all(j$unit[amph] == "J"))
   expect_match(j$conversion[amph[1]], paste0(
@@ -293,7 +347,7 @@ test_that("rows that cannot be converted get NA and a reason, with one warning",
   phy <- e0$broad_group == "phytoplankton" & !is.na(e0$ind_median)
   expect_true(all(is.na(e1$ind_median[phy])))
   expect_true(all(grepl("no conversion from biovolume", e1$reason[phy])))
-  amph <- which(e0$broad_group == "amphibian" & !is.na(e0$ind_median))
+  amph <- which(e0$broad_group == "amphibian" & e0$life_stage %in% "adult" & !is.na(e0$ind_median))
   # Amphibians go only between wet and dry mass: to AFDM they are not converted.
   af <- as.data.frame(suppressWarnings(convert_currency(est, to = "afdm")))
   expect_true(all(is.na(af$ind_median[amph])))
@@ -302,7 +356,7 @@ test_that("rows that cannot be converted get NA and a reason, with one warning",
   # Wet mass: amphibians and fish stay as they are (in g).
   wm <- suppressWarnings(convert_currency(est, to = "wet_mass", unit = "g"))
   e2 <- as.data.frame(wm)
-  vert <- e0$broad_group %in% c("fish", "amphibian")
+  vert <- e0$broad_group %in% c("fish", "amphibian") & !e0$life_stage %in% "larva"
   expect_equal(e2$ind_median[vert], e0$ind_median[vert])
   expect_true(all(is.na(e2$converted_from[vert])))
 })
@@ -485,7 +539,7 @@ test_that("energy units rescale every converted row", {
   phy <- which(e0$broad_group == "phytoplankton" & !is.na(e0$ind_median))
   expect_true(all(kj$unit[phy] == "kJ"))
   expect_equal(kj$ind_mean[phy], j$ind_mean[phy] / 1000)
-  amph <- which(e0$broad_group == "amphibian" & !is.na(e0$ind_median))
+  amph <- which(e0$broad_group == "amphibian" & e0$life_stage %in% "adult" & !is.na(e0$ind_median))
   expect_true(all(kj$unit[amph] == "kJ"))
   expect_equal(kj$ind_mean[amph], j$ind_mean[amph] / 1000)
   # Totals in energy add up the row means, and keep the units apart.

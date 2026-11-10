@@ -11,11 +11,17 @@
 #' @return A list of class `bmassa_reference` with these data frames (and a
 #'   list):
 #'   * `models`: one row per model, with `model`, `domain` (`"phytoplankton"`,
-#'     `"invertebrate"`, `"fish"`, `"amphibian"`), `kind` (`"typical"`, masses
-#'     without lengths, or `"lwr"`, length-mass relations), `count_unit`,
-#'     `life_stage` (the stage of the data, if only one), `currency`, `unit`
-#'     (`"um3"`, `"mg"` or `"g"`) and `levels` (taxonomic levels of the model,
-#'     comma-separated, from the highest).
+#'     `"invertebrate"`, `"fish"`, `"amphibian"`, `"amphibian_larva"`
+#'     (tadpoles)), `kind` (`"typical"`, masses without lengths, `"lwr"`,
+#'     length-mass relations, or `"typical_length"`, the typical total length
+#'     of tadpoles, which [estimate_biomass()] uses for tadpoles without
+#'     lengths), `count_unit`, `life_stage` (the stage of the data, if only
+#'     one), `currency` (`"length"` for typical lengths), `unit` (`"um3"`,
+#'     `"mg"`, `"g"`, or `"mm"` for typical lengths), `levels` (taxonomic
+#'     levels of the model, comma-separated, from the highest) and, for
+#'     typical lengths, `length_type`, `length_cv` (the typical coefficient
+#'     of variation of the lengths within a population, for the mean mass)
+#'     and `lwr_model` (the length-mass model their lengths go to).
 #'   * `lwr_types`: one row per length-mass model and length type, with
 #'     `centre` (mean ln length, mm, of the data), `length_min` and
 #'     `length_max` (mm), and `sigma_ind`, the median residual standard
@@ -42,8 +48,9 @@
 #'     not used in predictions).
 #'   * `components`: variance components (`value`, natural logs) by `model`,
 #'     `level` (taxonomic levels, `"equation"`, `"study"`, `"source"`,
-#'     `"population"` (fish without lengths: between populations, the
-#'     residual being between samplings of a population), `"stage"`,
+#'     `"population"` (fish without lengths and typical lengths of tadpoles:
+#'     between populations, the residual being between samplings of a
+#'     population), `"stage"`,
 #'     `"residual"`) and `parameter` (`"intercept"`, `"slope"`,
 #'     `"intercept_slope"`). In the length-mass model of invertebrates,
 #'     `"study"` is the variance of a new study, from a second fit with an
@@ -59,7 +66,8 @@
 #'     from volumes and the population means are the ones predicted).
 #'   * `conversion_models`: one row per model of the conversion factors (ln
 #'     of the ratio between two currencies of the same organisms), with
-#'     `model`, `domain` (`"invertebrate"` or `"fish"`), `from` and `to`
+#'     `model`, `domain` (`"invertebrate"`, `"fish"` or `"amphibian_larva"`,
+#'     tadpoles), `from` and `to`
 #'     (currencies), `levels` and `context` (`"habitat"` when the model has a
 #'     crossed effect of habitat, otherwise empty).
 #'   * `conversion_nodes`, `conversion_components`, `conversion_fixed`: as

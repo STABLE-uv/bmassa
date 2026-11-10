@@ -27,9 +27,12 @@ package.
 }
 \details{
 An estimate rests on the data below the node it comes from; the variance
-components of the model use all of its data. Some sources are compilations:
-van Leeuwen et al. (2025) and Moreau et al. (2021) give the original
-reference of each value. \emph{bmassa} holds only the parameters of the models
+components of the model use all of its data. The list of all the sources
+also holds those of the factors used to take the shell out of the masses of
+molluscs before the fits (the wet masses of Hrycik et al. 2024 and the dry
+masses of the CADSES data sets). Some sources are compilations:
+van Leeuwen et al. (2025), Moreau et al. (2021) and the Limno-STOICH
+database (Corman et al. 2026) give the original reference of each value. \emph{bmassa} holds only the parameters of the models
 fitted to these data (and the equations published in the sources), not the
 data themselves.
 }

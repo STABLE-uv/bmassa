@@ -150,9 +150,11 @@ col_labels <- list(order = c(Lower = "Lower Heterobranchia", Gymnoplea = "Calano
                    class = c(Rhabditophora = "Turbellaria"))
 copepod_orders <- c(Bomolochidae = "Cyclopoida", Corycaeidae = "Cyclopoida", Cyclopidae = "Cyclopoida",
                     Oithonidae = "Cyclopoida", Oncaeidae = "Cyclopoida", Sapphirinidae = "Cyclopoida",
+                    Smirnovipinidae = "Cyclopoida",
                     Canthocamptidae = "Harpacticoida", Ectinosomatidae = "Harpacticoida",
                     Harpacticidae = "Harpacticoida", Peltidiidae = "Harpacticoida",
-                    Tisbidae = "Harpacticoida")
+                    Miraciidae = "Harpacticoida", Miraciinae = "Harpacticoida",
+                    Tachidiidae = "Harpacticoida", Tisbidae = "Harpacticoida")
 fill_above <- function(r) {
   k <- which(needs(r))
   if (!length(k)) return(0L)

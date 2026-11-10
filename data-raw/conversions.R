@@ -15,16 +15,32 @@
 #   - Cummins and Wuycheck (1971), Table 3, aquatic macroconsumers (hand
 #     transcription in data-raw/cummins1971_table3.csv, with the original
 #     sources in data-raw/cummins1971_sources.csv)
-#   - Evans-White et al. (2005), Appendix: carbon content of stream
-#     invertebrates (transcription in data-raw/evanswhite2005_appendix.csv)
+#   - Evans-White et al. (2005), Appendix: carbon, nitrogen and phosphorus of
+#     stream invertebrates (transcription in data-raw/evanswhite2005_appendix.csv)
+#   - Hébert et al. (2016): carbon, nitrogen and phosphorus of crustacean
+#     zooplankton (from version 0.6.0)
+#   - A compilation of the carbon, nitrogen and phosphorus of freshwater
+#     animals from 18 data sets, articles and theses (from version 0.6.0)
+#   - A compilation of the mass ratios, carbon and energy densities of
+#     freshwater molluscs from articles and theses (from version 0.6.0)
+#   - A compilation of the shells and soft tissue of snails, and Kołodziejczyk
+#     (1984), Table IV (hand transcription in
+#     data-raw/kolodziejczyk1984_table4.csv) (from version 0.6.0)
+#   - A compilation of the mass ratios, carbon and energy densities of
+#     freshwater zooplankton from articles (from version 0.6.0)
+#   - The Limno-STOICH database (Corman et al. 2026): carbon, nitrogen and
+#     phosphorus of aquatic animals of inland waters (from version 0.6.0)
+#   - A compilation of the remaining conversion factors of freshwater animals
+#     (triclads, fish) from articles (from version 0.6.0)
 #
 # Run from the package root, in a UTF-8 locale:  Rscript data-raw/conversions.R
 # Packages used only here: readxl.
 #
 # Currencies: live_mass (bivalves with the water of the mantle cavity),
-# wet_mass, dry_mass, afdm, carbon, energy. `from_shell` and `to_shell` say
-# whether that mass includes a shell or carbonate skeleton (FALSE also for
-# animals without one), as `shell_included` in the other derived tables.
+# wet_mass, dry_mass, afdm, carbon, nitrogen, phosphorus, energy.
+# `from_shell` and `to_shell` say whether that mass includes a shell or
+# carbonate skeleton (FALSE also for animals without one), as
+# `shell_included` in the other derived tables.
 # `factor_unit` is "ratio" (mass over mass) or "J/ug".
 #
 # `use_in_model` = FALSE marks rows kept for the record but not to be used to
@@ -45,7 +61,10 @@ num <- function(x) suppressWarnings(as.numeric(x))
 # `sample` identifies the material behind several factors (a record of the
 # data bank of Brey et al., a row of a table): factors with the same `sample`
 # share their measurements, which fit_conversions.R uses to check them.
-cols <- c("source_id", "taxon", "name_as_given", "habitat", "from", "from_shell", "to",
+# `life_stage` is "larva" for the tadpoles (their factors have models of
+# their own, apart from adult amphibians, in fit_conversions.R) and NA
+# otherwise.
+cols <- c("source_id", "taxon", "name_as_given", "habitat", "life_stage", "from", "from_shell", "to",
           "to_shell", "factor_unit", "statistic", "factor", "factor_sd", "factor_min",
           "factor_max", "ln_mean", "ln_sd", "n", "n_unit", "scope", "site",
           "original_reference", "sample", "use_in_model", "flag", "note")
@@ -194,22 +213,31 @@ if (use_source("hrycik2024", reg)) {
 # mantle cavity), wet mass (WW, opened and blotted), dry mass of shell and soft
 # tissue (DW), shell-free dry mass (SFDW) and ash-free dry mass of the whole
 # specimen (AFDW = DW - ash) of the same individuals. Ratios computed from the
-# masses, summarized by species (pooled) and by species and site (population;
-# at least 3 individuals). Ratios above 1 between a mass and a part of it are
-# measurement errors and are left out; SFDW/AFDW can exceed 1.
+# masses, summarized by species and habitat (pooled, over two or more sites)
+# and by species and site (population; at least 3 individuals). From version
+# 0.6.0 the pooled factor of a species, habitat and conversion is used only
+# when no site has 3 or more individuals, as with the length-mass equations
+# fitted to individuals (those of each site, otherwise the pooled one;
+# model_data.R); otherwise it repeats the individuals of the populations and
+# is kept but not used. Ratios above 1 between a mass and a part of it are
+# measurement errors and are left out; SFDW/AFDW can exceed 1. The sites are
+# freshwater except the Szczecin Lagoon (from version 0.6.0), a brackish lagoon
+# of the Baltic Sea at the mouth of the Oder, taken as transitional, as in the
+# compilation of molluscs of 2026-11-09 (section 10).
 
 if (use_source("coughlan2021", reg)) {
   path <- source_files("coughlan2021", reg)
   species <- c("C. fluminea" = "Corbicula fluminea", "C. largillierti" = "Corbicula largillierti",
                "D. bugensis" = "Dreissena bugensis", "D. polymorpha" = "Dreissena polymorpha",
                "L. fortunei" = "Limnoperna fortunei", "S. Woodiana" = "Sinanodonta woodiana")
+  transitional_sites <- "Szczecin Lagoon"
   currency <- list(LW = c("live_mass", TRUE), WW = c("wet_mass", TRUE), DW = c("dry_mass", TRUE),
                    SFDW = c("dry_mass", FALSE), AFDW = c("afdm", TRUE))
   pairs <- list(c("LW", "WW"), c("LW", "DW"), c("LW", "SFDW"), c("LW", "AFDW"), c("WW", "DW"),
                 c("WW", "SFDW"), c("WW", "AFDW"), c("DW", "SFDW"), c("DW", "AFDW"),
                 c("AFDW", "SFDW"))
-  summ <- function(v, sp, site, scope, p) {
-    std(source_id = "coughlan2021", taxon = sp, name_as_given = sp, habitat = "freshwater",
+  summ <- function(v, sp, site, scope, p, habitat) {
+    std(source_id = "coughlan2021", taxon = sp, name_as_given = sp, habitat = habitat,
         from = currency[[p[1]]][1], from_shell = as.logical(currency[[p[1]]][2]),
         to = currency[[p[2]]][1], to_shell = as.logical(currency[[p[2]]][2]),
         factor_unit = "ratio", statistic = "mean", factor = mean(v), factor_sd = sd(v),
@@ -222,17 +250,31 @@ if (use_source("coughlan2021", reg)) {
   dropped <- 0
   for (sh in names(species)) {
     x <- as.data.frame(readxl::read_excel(path[1], sheet = sh, col_types = "text"))
+    hab <- ifelse(x$Site %in% transitional_sites, "transitional", "freshwater")
     for (p in pairs) {
       v <- num(x[[p[2]]]) / num(x[[p[1]]])
       ok <- is.finite(v) & v > 0
       bad <- ok & v > 1 & !identical(p, c("AFDW", "SFDW"))
       dropped <- dropped + sum(bad)
       ok <- ok & !bad
-      if (sum(ok) < 3) next
-      rows[[length(rows) + 1]] <- summ(v[ok], species[[sh]], NA_character_, "pooled", p)
-      for (s in unique(x$Site[ok])) {
-        k <- ok & x$Site == s
-        if (sum(k) >= 3) rows[[length(rows) + 1]] <- summ(v[k], species[[sh]], s, "population", p)
+      for (h in unique(hab[ok])) {
+        kh <- ok & hab == h
+        pops <- list()
+        for (s in unique(x$Site[kh])) {
+          k <- kh & x$Site == s
+          if (sum(k) >= 3) pops[[length(pops) + 1]] <- summ(v[k], species[[sh]], s, "population", p, h)
+        }
+        # A pooled factor of a single site would repeat that population; with
+        # populations, it repeats their individuals and is not used.
+        if (sum(kh) >= 3 && length(unique(x$Site[kh])) > 1) {
+          pool <- summ(v[kh], species[[sh]], NA_character_, "pooled", p, h)
+          if (length(pops)) {
+            pool$use_in_model <- FALSE
+            pool$flag <- "pooled over the populations of the species, which enter instead"
+          }
+          rows[[length(rows) + 1]] <- pool
+        }
+        rows <- c(rows, pops)
       }
     }
   }
@@ -240,13 +282,16 @@ if (use_source("coughlan2021", reg)) {
   pooled <- conv$coughlan[conv$coughlan$scope == "pooled", ]
   say("## Coughlan et al. (2021)")
   say("")
-  say("- %d factors (%d by species, %d by species and site) for %d conversions; %d ratios above 1 left out.",
+  say("- %d factors (%d by species and habitat, %d by species and site) for %d conversions; %d ratios above 1 left out; %d pooled factors not used (the populations enter instead), %d used (no site with 3 or more individuals).",
       nrow(conv$coughlan), nrow(pooled), sum(conv$coughlan$scope == "population"),
-      length(pairs), dropped)
+      length(pairs), dropped, sum(!pooled$use_in_model), sum(pooled$use_in_model))
+  tr <- conv$coughlan$habitat == "transitional"
+  say("- Transitional (%s): %d factors of %s.", paste(transitional_sites, collapse = ", "), sum(tr),
+      paste(sprintf("*%s*", unique(conv$coughlan$taxon[tr])), collapse = " and "))
   for (nt in c("DW / WW of each individual", "SFDW / WW of each individual",
                "SFDW / DW of each individual")) {
-    s <- pooled[pooled$note == nt, ]
-    say("- %s: %s.", sub(" of each individual", "", nt),
+    s <- pooled[pooled$note == nt & pooled$habitat == "freshwater", ]
+    say("- %s (freshwater): %s.", sub(" of each individual", "", nt),
         paste(sprintf("*%s* %.3f", s$taxon, s$factor), collapse = ", "))
   }
   say("")
@@ -571,11 +616,13 @@ if (use_source("cummins1971", reg) && file.exists(cw_file)) {
 }
 
 # 7. Evans-White et al. (2005), Appendix --------------------------------------------
-# Total carbon (CHN analyser) as % of dry mass of 46 taxa of benthic
-# invertebrates of streams of Indiana-Michigan and Wisconsin: mean, SD and
-# range among streams (n = number of streams; in each stream one to three
+# Total carbon and nitrogen (CHN analyser) and total phosphorus (combustion at
+# 500 C, HCl and the ascorbic acid method) as % of dry mass of 46 taxa of
+# benthic invertebrates of streams of Indiana-Michigan and Wisconsin: mean, SD
+# and range among streams (n = number of streams; in each stream one to three
 # pooled samples), transcribed from the Appendix (pp. 1798-1799) into
-# data-raw/evanswhite2005_appendix.csv, with `taxon` correcting two misprints
+# data-raw/evanswhite2005_appendix.csv (columns c_*, n_* and p_*; nitrogen and
+# phosphorus from version 0.6.0), with `taxon` correcting two misprints
 # (`edit_note`). The animals were kept overnight at 4 C to clear their guts,
 # frozen, and freeze-dried or oven-dried at 45 C; insects and crustaceans were
 # analysed whole and molluscs without shell (pp. 1788-1789).
@@ -584,28 +631,1012 @@ ew_file <- "data-raw/evanswhite2005_appendix.csv"
 if (use_source("evanswhite2005", reg) && file.exists(ew_file)) {
   ew <- read.csv(ew_file, stringsAsFactors = FALSE, encoding = "UTF-8", colClasses = "character",
                  na.strings = "")
-  c_mean <- num(ew$c_mean)
   n_ew <- as.integer(ew$n)
-  stopifnot(!anyNA(c_mean), !anyNA(n_ew), all(c_mean > 0 & c_mean < 100))
+  stopifnot(!anyNA(n_ew))
   sites <- c(IM = "Indiana-Michigan", W = "Wisconsin", "IM, W" = "Indiana-Michigan and Wisconsin")
   stopifnot(all(ew$region %in% names(sites)))
-  conv$evanswhite <- std(
-    source_id = "evanswhite2005", taxon = ew$taxon, name_as_given = ew$taxon_printed,
-    habitat = "freshwater", from = "dry_mass", from_shell = FALSE, to = "carbon", to_shell = FALSE,
-    factor_unit = "ratio", statistic = ifelse(n_ew > 1, "mean", "single"), factor = c_mean / 100,
-    factor_sd = num(ew$c_sd) / 100, factor_min = num(ew$c_min) / 100, factor_max = num(ew$c_max) / 100,
-    n = n_ew, n_unit = "streams", scope = "pooled", site = unname(sites[ew$region]),
-    original_reference = "Evans-White et al. (2005)",
-    sample = paste0("evanswhite2005:p", ew$page, "r", ew$row_on_page), use_in_model = TRUE,
-    note = paste0("Appendix, p. ", ew$page, ", row ", ew$row_on_page, "; ", ew$c_mean, " % C",
-                  ifelse(is.na(ew$c_sd), "", paste0(" (SD ", ew$c_sd, "; range ", ew$c_min, "-", ew$c_max, ")")),
-                  "; ", ifelse(ew$group == "mollusc", "soft tissue, shell removed", "whole animals"),
-                  "; total carbon"))
+  elements <- c(carbon = "c", nitrogen = "n", phosphorus = "p")
+  symbol <- c(carbon = "C", nitrogen = "N", phosphorus = "P")
+  conv$evanswhite <- do.call(rbind, lapply(names(elements), function(el) {
+    col <- function(k) ew[[paste0(elements[[el]], "_", k)]]
+    v <- num(col("mean"))
+    stopifnot(!anyNA(v), all(v > 0 & v < 100))
+    std(source_id = "evanswhite2005", taxon = ew$taxon, name_as_given = ew$taxon_printed,
+        habitat = "freshwater", from = "dry_mass", from_shell = FALSE, to = el, to_shell = FALSE,
+        factor_unit = "ratio", statistic = ifelse(n_ew > 1, "mean", "single"), factor = v / 100,
+        factor_sd = num(col("sd")) / 100, factor_min = num(col("min")) / 100,
+        factor_max = num(col("max")) / 100, n = n_ew, n_unit = "streams", scope = "pooled",
+        site = unname(sites[ew$region]), original_reference = "Evans-White et al. (2005)",
+        sample = paste0("evanswhite2005:p", ew$page, "r", ew$row_on_page), use_in_model = TRUE,
+        note = paste0("Appendix, p. ", ew$page, ", row ", ew$row_on_page, "; ", col("mean"), " % ",
+                      symbol[[el]],
+                      ifelse(is.na(col("sd")), "", paste0(" (SD ", col("sd"), "; range ", col("min"),
+                                                          "-", col("max"), ")")),
+                      "; ", ifelse(ew$group == "mollusc", "soft tissue, shell removed", "whole animals"),
+                      "; total ", el))
+  }))
   say("## Evans-White et al. (2005), Appendix")
   say("")
-  say("- %d taxa (%s), carbon as %% of dry mass; %d with one stream, the others means of 2-%d streams.",
+  say("- %d taxa (%s), carbon, nitrogen and phosphorus as %% of dry mass; %d with one stream, the others means of 2-%d streams.",
       nrow(ew), paste(sprintf("%s %d", names(table(ew$group)), as.integer(table(ew$group))), collapse = ", "),
       sum(n_ew == 1), max(n_ew))
+  say("")
+}
+
+# Range of carbon, nitrogen and phosphorus in whole animals, in % of dry mass,
+# used to screen the values of sections 8 and 9: no animal is more than 65 %
+# carbon (lipid, the richest component, is 77 %) or 16 % nitrogen (protein),
+# nor more than 8 % phosphorus (fish, with bone); below 20 % carbon, 2 %
+# nitrogen or 0.05 % phosphorus the sample is mostly mineral (sediment in the
+# gut, or a shell). The values of animals with calcified cuticles (ostracods,
+# amphipods, soldier fly larvae) lie inside it.
+elemental_bounds <- list(carbon = c(20, 65), nitrogen = c(2, 16), phosphorus = c(0.05, 8))
+bounds_text <- "C 20-65 %, N 2-16 %, P 0.05-8 % of dry mass"
+# First and last of the places a factor was read from (sections 9 to 11).
+first_last <- function(x) {
+  x <- unique(x[!is.na(x)])
+  if (!length(x)) "" else if (length(x) == 1L) x else paste0(x[1], " ... ", x[length(x)], " (", length(x), ")")
+}
+# Factors from a table with the columns of the compilations of molluscs and
+# zooplankton of 2026-11-09 and 2026-11-10 (sections 10 to 12), to which the
+# caller has added `source_id`, `taxon`, the conversion (`conv_from_shell`,
+# `conv_to`, `conv_to_shell`), the factor (`f`, `f_sd`, `f_min`, `f_max`) and
+# why it is not to be used (`why`, NA otherwise). The values of `pool` (by
+# default the single values) are averaged by source, study, taxon, name as
+# given, locality, life stage and conversion, with the mean and SD of their
+# logs; the other values (means) enter as given. `tag` starts the `sample` of
+# each factor.
+compilation_factors <- function(mo, tag, pool = mo$statistic == "single") {
+  where <- paste0(ifelse(is.na(mo$page), "", paste0("p. ", mo$page, ", ")), mo$table_or_figure)
+  given_text <- paste0(mo$value_as_given, " ", mo$unit_as_given,
+                       ifelse(is.na(mo$se), "", paste0(" (SE ", mo$se, ")")),
+                       ifelse(mo$measured_or_derived == "derived", "; derived from published means", ""))
+  stage_text <- ifelse(is.na(mo$life_stage), "", paste0("; ", mo$life_stage))
+  key <- paste(mo$source_id, mo$original_reference, mo$taxon, mo$name_as_given, mo$locality,
+               mo$life_stage, mo$habitat, mo$from, mo$conv_from_shell, mo$conv_to, mo$conv_to_shell,
+               mo$why, sep = "\u001f")
+  agg <- lapply(split(seq_len(nrow(mo))[pool], key[pool], drop = TRUE), function(k) {
+    r <- mo[k[1], ]
+    f <- mo$f[k]
+    one <- length(k) == 1L
+    units <- unique(mo$n_unit[k])
+    std(source_id = r$source_id, taxon = r$taxon, name_as_given = r$name_as_given,
+        habitat = r$habitat, from = r$from, from_shell = r$conv_from_shell, to = r$conv_to,
+        to_shell = r$conv_to_shell, factor_unit = if (r$conv_to == "energy") "J/ug" else "ratio",
+        statistic = if (one) r$statistic else "mean", factor = mean(f),
+        factor_sd = if (one) NA else stats::sd(f),
+        factor_min = if (one && !is.na(r$f_min)) r$f_min else min(f),
+        factor_max = if (one && !is.na(r$f_max)) r$f_max else max(f),
+        ln_mean = if (one) NA else mean(log(f)), ln_sd = if (length(k) > 2) stats::sd(log(f)) else NA,
+        n = if (one) r$n else length(k),
+        n_unit = if (one) r$n_unit else if (length(units) == 1L && !is.na(units) && all(mo$n[k] %in% 1)) units else "values",
+        scope = if (is.na(r$locality)) "pooled" else "population", site = r$locality,
+        original_reference = r$original_reference,
+        sample = paste(tag, r$source_id, r$taxon, r$name_as_given, r$locality, r$life_stage, sep = ":"),
+        use_in_model = is.na(r$why), flag = r$why,
+        note = if (one) paste0(where[k], "; ", given_text[k], stage_text[k]) else
+          paste0(first_last(where[k]), stage_text[k[1]], "; ", length(k), " values"))
+  })
+  means <- which(!pool)
+  given <- if (length(means)) {
+    std(source_id = mo$source_id[means], taxon = mo$taxon[means],
+        name_as_given = mo$name_as_given[means], habitat = mo$habitat[means],
+        from = mo$from[means], from_shell = mo$conv_from_shell[means], to = mo$conv_to[means],
+        to_shell = mo$conv_to_shell[means],
+        factor_unit = ifelse(mo$conv_to[means] == "energy", "J/ug", "ratio"),
+        statistic = "mean", factor = mo$f[means], factor_sd = mo$f_sd[means],
+        factor_min = mo$f_min[means], factor_max = mo$f_max[means], n = mo$n[means],
+        n_unit = mo$n_unit[means],
+        scope = ifelse(is.na(mo$locality[means]), "pooled", "population"),
+        site = mo$locality[means], original_reference = mo$original_reference[means],
+        sample = paste(tag, mo$source_id[means], mo$table_or_figure[means],
+                       mo$name_as_given[means], mo$locality[means], sep = ":"),
+        use_in_model = is.na(mo$why[means]), flag = mo$why[means],
+        note = paste0(where[means], "; ", given_text[means], stage_text[means]))
+  }
+  rbind(do.call(rbind, agg), given)
+}
+pair_of <- function(x) paste0(x$from, ifelse(x$from_shell, " (shell)", ""), " -> ", x$to,
+                              ifelse(x$to_shell, " (shell)", ""))
+
+# 8. Hébert et al. (2016): carbon, nitrogen and phosphorus of crustacean zooplankton --
+# Carbon, nitrogen and phosphorus as % of dry mass (columns Cct.prop, Nct.prop
+# and Pct.prop of zooplankton_traits.csv, from version 0.6.0), with the
+# reference of each value (Ref.C, Ref.N, Ref.P: codes of references.csv). The
+# rows of a species, habitat and reference (replicates in the compilation)
+# are averaged. Values of studies whose first author and year are among the
+# references of the carbon, nitrogen or phosphorus records of the data bank of
+# Brey et al. (2010) are kept but not used (they enter through the data bank),
+# as are means outside the range of whole animals (above).
+
+if (use_source("hebert2016", reg)) {
+  hp <- source_files("hebert2016", reg)
+  ht <- read.csv2(hp[1], stringsAsFactors = FALSE, na.strings = c("", "NA"))
+  hr <- read.csv2(hp[2], stringsAsFactors = FALSE, fileEncoding = "latin1")
+  first_author <- function(x) tolower(iconv(sub("[ ,].*$", "", trimws(x)), "UTF-8", "ASCII//TRANSLIT"))
+  # First author and year of the references of the data bank (as "Andersen &
+  # Hessen '91 LimnOc 36: 807-814").
+  brey_keys <- character(0)
+  if (use_source("brey2010", reg)) {
+    tmp <- tempfile("brey")
+    dir.create(tmp)
+    utils::unzip(source_files("brey2010", reg)[1], files = "Conversion03.xls", exdir = tmp)
+    raw_b <- as.data.frame(readxl::read_excel(file.path(tmp, "Conversion03.xls"), sheet = "Data",
+                                              col_names = FALSE, col_types = "text",
+                                              .name_repair = "minimal"))[-(1:5), ]
+    elem <- !is.na(num(raw_b[[35]])) | !is.na(num(raw_b[[36]])) | !is.na(num(raw_b[[37]]))
+    rb <- trimws(raw_b[[51]][elem])
+    yy <- num(sub("^[^']*'([0-9]{2}).*$", "\\1", rb))
+    brey_keys <- unique(paste(first_author(rb), ifelse(yy > 20, 1900 + yy, 2000 + yy)))
+  }
+  hr$key <- paste(first_author(hr$Authors), hr$Year)
+  elements <- c(carbon = "Cct.prop", nitrogen = "Nct.prop", phosphorus = "Pct.prop")
+  refs <- c(carbon = "Ref.C", nitrogen = "Ref.N", phosphorus = "Ref.P")
+  rows <- list()
+  for (el in names(elements)) {
+    v <- num(ht[[elements[[el]]]])
+    k <- which(!is.na(v) & v > 0)
+    sp <- ifelse(is.na(ht$Species[k]) | ht$Species[k] %in% c("sp.", "spp."), "", ht$Species[k])
+    x <- data.frame(taxon = trimws(paste(ht$Genus[k], sp)), group = ht$Group[k],
+                    habitat = tolower(ht$Habitat[k]), value = v[k],
+                    ref = gsub("\\s+", "", ht[[refs[[el]]]][k]), stringsAsFactors = FALSE)
+    # Rows without habitat or reference cannot be placed or checked: left out.
+    x <- x[!is.na(x$habitat) & !is.na(x$ref), ]
+    for (g in split(x, paste(x$taxon, x$habitat, x$ref), drop = TRUE)) {
+      codes <- strsplit(g$ref[1], ",", fixed = TRUE)[[1]]
+      rr <- hr[match(codes, hr$Ref.code), ]
+      cite <- paste(sprintf("%s (%s)", sub("[,.] .*$", "", trimws(rr$Authors)), rr$Year),
+                    collapse = "; ")
+      in_brey <- any(rr$key %in% brey_keys)
+      vv <- g$value / 100
+      b <- elemental_bounds[[el]]
+      out_b <- mean(g$value) < b[1] || mean(g$value) > b[2]
+      why_h <- c(if (in_brey) "original source in the data bank of Brey et al. (2010)",
+                 if (out_b) paste0("outside the range of whole animals (", bounds_text, ")"))
+      rows[[length(rows) + 1L]] <- std(
+        source_id = "hebert2016", taxon = g$taxon[1], name_as_given = g$taxon[1],
+        habitat = g$habitat[1], from = "dry_mass", from_shell = FALSE, to = el, to_shell = FALSE,
+        factor_unit = "ratio", statistic = if (nrow(g) > 1) "mean" else "single",
+        factor = mean(vv), factor_sd = if (nrow(g) > 1) stats::sd(vv) else NA,
+        factor_min = min(vv), factor_max = max(vv), n = nrow(g), n_unit = "rows of the compilation",
+        scope = "pooled", original_reference = cite,
+        sample = paste("hebert2016", g$taxon[1], g$habitat[1], g$ref[1], sep = ":"),
+        use_in_model = !length(why_h),
+        flag = if (length(why_h)) paste(why_h, collapse = "; ") else NA,
+        note = sprintf("%s; %s; references %s; %d row(s), mean %.3g %% of dry mass", g$group[1],
+                       elements[[el]], g$ref[1], nrow(g), mean(g$value)))
+    }
+  }
+  conv$hebert <- do.call(rbind, rows)
+  hb <- conv$hebert
+  say("## Hébert et al. (2016), carbon, nitrogen and phosphorus")
+  say("")
+  say("- %d factors (species, habitat and reference) of %d taxa: %s; %d freshwater.",
+      nrow(hb), length(unique(hb$taxon)),
+      paste(sprintf("%s %d", names(table(hb$to)), as.integer(table(hb$to))), collapse = ", "),
+      sum(hb$habitat == "freshwater"))
+  in_b <- grepl("Brey", hb$flag, fixed = TRUE)
+  say("- Not used, original source in the data bank of Brey et al. (2010): %d (%s).",
+      sum(in_b), paste(sort(unique(hb$original_reference[in_b])), collapse = "; "))
+  out_h <- grepl("outside the range", hb$flag, fixed = TRUE)
+  say("- Not used, outside the range of whole animals: %d (%s).", sum(out_h),
+      paste(sprintf("%s %s %.3g", hb$taxon[out_h], hb$to[out_h], 100 * hb$factor[out_h]), collapse = "; "))
+  say("")
+}
+
+# 9. Elemental composition of freshwater animals (compilation of 2026-11-09) ---------
+# Carbon, nitrogen and phosphorus as % of dry mass of freshwater animals, read
+# from 18 sources (data sets of Beck et al. 2022, González et al. 2018 and
+# 2025, Knapp et al. 2021, Moody et al. 2018, May et al. 2026, Evangelista et
+# al. 2024 and Musin et al. 2023; tables of articles and theses) into one table
+# (Stoichiometry2026/ under BMASSA_DATABASES), with the file and line, or the
+# page and table, of each value and its text as given, the name as given and
+# the accepted name in the COL (26.10 XR), life stage, locality, preservation,
+# gut clearance and methods. The sources that were already used here (Brey et
+# al. 2010, Hébert et al. 2016, Evans-White et al. 2005 and the other sources
+# of the conversion factors) were left out of the search. Each value is
+# credited to the source it was read from (`source_id`), with the study that
+# measured it in `original_reference` (Benstead et al. 2010 and Vanni et al.
+# 2002 through the compilation of González et al. 2025, Singer and Battin 2007
+# through that of Beck et al. 2022). The tadpoles (Knapp et al. 2021; Vanni
+# et al. 2002 through González et al. 2025) are used, with `life_stage`
+# "larva", for the models of tadpoles (all their stages, including the
+# metamorphic climax). Kept but not used:
+#   - adult amphibians (Xenopus laevis of Brenes-Soto et al. 2019, two
+#     values): too few for a model;
+#   - shells of molluscs measured alone (not the animal);
+#   - studies that are in the data bank of Brey et al. (2010): Walve and
+#     Larsson (1999), Liess and Hillebrand (2005), and the thesis of Ventura
+#     (2005), whose Lake Redon zooplankton is that of Ventura and Catalan (2005);
+#   - first-instar larvae reared from eggs, and snails processed for food;
+#   - Zhang et al. (2017), until its values are checked against the article
+#     (it could not be opened);
+#   - values outside the range of whole animals (above; e.g. oligochaetes
+#     with 11-18 % C, whose guts held sediment), and the other elements of
+#     the same sample.
+# Molluscs are taken without shell (soft tissue) and crustaceans whole, as in
+# the other sources. Brackish values (a tidal river) are "transitional". The
+# single values (individuals or pooled samples) are averaged by source, study,
+# taxon, name as given, locality and life stage (as for the bivalves of
+# Coughlan et al. 2021): the factors are means of populations; the means given
+# by the sources enter as given (SD from the SE when n is known).
+
+blocka_ids <- c(
+  "10.5061/dryad.g4f4qrfr5" = "beck2022", "10.5061/dryad.3cd2611" = "gonzalez2018",
+  "10.5061/dryad.3tx95x6r2" = "gonzalez2025", "10.6084/m9.figshare.13683910.v1" = "knapp2021",
+  "10.5061/dryad.7f753f0" = "moody2018", "10.5061/dryad.6m905qg99" = "may2026",
+  "10.6084/m9.figshare.23822535.v1" = "evangelista2024",
+  "10.1371/journal.pone.0262972" = "musin2023", "10.1016/j.jenvman.2020.111889" = "goedkoop2021",
+  "10.1093/plankt/21.12.2309" = "walve1999", "10.18307/2017.0617" = "zhang2017",
+  "10.32792/utq/utjsci/v6i2.83" = "abuturab2017", "10.1073/pnas.2008223118" = "li2021",
+  "10.1899/12-181.1" = "backking2013", "10.1016/j.anres.2017.12.007" = "ghosh2017",
+  "10.7717/peerj.7365" = "brenessoto2019")
+# Names without an accepted name in the COL: the family given by the source
+# (corrected spelling), or the higher taxon of the morphospecies.
+blocka_names <- c(
+  "Anisoptera_sp1" = "Anisoptera", "Brachycera_sp1" = "Brachycera", "Eriopterini" = "Limoniidae",
+  "Hexatomini" = "Limoniidae", "Limoniini" = "Limoniidae", "Pediciini" = "Limoniidae",
+  "Hirudinea.sp3" = "Hirudinidae", "Hirudinea_sp1" = "Hirudinidae", "Hirudinea_sp2" = "Hirudinidae",
+  "Pomacea canaliculata" = "Pomacea canaliculata", "Silo-Lithax" = "Goeridae",
+  "Stenophylacini-Chaetopterygini" = "Limnephilidae", "Tentrepohlia_sp1" = "Tipulidae",
+  "Tentrepohlia_sp2" = "Tipulidae")
+blocka_sources <- unique(unname(c(blocka_ids, "ventura2005", "back2013")))
+if (any(use_source(blocka_sources, reg))) {
+  # One file for all the sources (registered with each of them).
+  ba_id <- blocka_sources[use_source(blocka_sources, reg)][1]
+  ba <- read.csv(source_files(ba_id, reg)[1], stringsAsFactors = FALSE, check.names = FALSE,
+                 encoding = "UTF-8", na.strings = "")
+  stopifnot(all(ba$from == "dry_mass"), all(ba$value_unit == "percent"),
+            all(ba$to %in% names(elemental_bounds)), all(ba$measured_or_derived == "measured"),
+            all(ba$digitized == "no"))
+  ba$source_id <- unname(blocka_ids[ba$doi])
+  ba$source_id[is.na(ba$doi) & startsWith(ba$citation, "Ventura (2005)")] <- "ventura2005"
+  ba$source_id[is.na(ba$doi) & startsWith(ba$citation, "Back (2013)")] <- "back2013"
+  if (anyNA(ba$source_id)) stop("Rows of an unknown source: ", paste(unique(ba$citation[is.na(ba$source_id)]), collapse = "; "))
+  ba <- ba[use_source(ba$source_id, reg), ]
+  unnamed <- is.na(ba$accepted_name)
+  if (!all(ba$name_as_given[unnamed] %in% names(blocka_names))) {
+    stop("Names without accepted name not in blocka_names: ",
+         paste(unique(setdiff(ba$name_as_given[unnamed], names(blocka_names))), collapse = ", "))
+  }
+  ba$taxon <- ifelse(unnamed, unname(blocka_names[ba$name_as_given]), ba$accepted_name)
+  ba$habitat <- ifelse(ba$habitat == "brackish", "transitional", ba$habitat)
+  stopifnot(all(ba$habitat %in% c("freshwater", "transitional")))
+  mollusc <- ba$group %in% c("Gastropods", "Bivalves")
+  shell_only <- mollusc & ba$from_shell == "included"
+  # The sample of each value: the line or table row it was read from.
+  ba$sample_key <- paste(ba$source_id, ba$table_or_figure, ba$page, ba$verbatim, ba$name_as_given,
+                         ba$life_stage, sep = "\u001f")
+  lo <- vapply(ba$to, function(e) elemental_bounds[[e]][1], numeric(1))
+  hi <- vapply(ba$to, function(e) elemental_bounds[[e]][2], numeric(1))
+  out_range <- !shell_only & (ba$value < lo | ba$value > hi)
+  same_sample <- !out_range & ba$sample_key %in% ba$sample_key[out_range]
+  ref <- ba$original_reference
+  why <- rep(NA_character_, nrow(ba))
+  addw <- function(k, text) why[k] <<- ifelse(is.na(why[k]), text, paste(why[k], text, sep = "; "))
+  larva <- ba$group == "Amphibians" & startsWith(ba$life_stage, "tadpole")
+  addw(which(ba$group == "Amphibians" & !larva),
+       "adult amphibians: two values of one species, too few for a model")
+  addw(which(shell_only), "shell measured alone, not the animal")
+  addw(which(startsWith(ref, "Walve & Larsson") | startsWith(ref, "Liess & Hillebrand") |
+               ba$source_id == "ventura2005"),
+       "original source in the data bank of Brey et al. (2010)")
+  addw(which(grepl("first-instar larva reared from egg", ba$life_stage, fixed = TRUE)),
+       "first-instar larvae reared from eggs")
+  addw(which(ba$source_id == "ghosh2017"), "snails processed for food")
+  addw(which(ba$source_id == "zhang2017"), "values not checked against the source")
+  addw(which(out_range), paste0("outside the range of whole animals (", bounds_text, ")"))
+  addw(which(same_sample), "another element of the same sample outside the range of whole animals")
+  ba$why <- why
+  # Single values averaged by source, study, taxon, name, locality and stage.
+  single <- ba$statistic == "single"
+  key <- paste(ba$source_id, ref, ba$taxon, ba$name_as_given, ba$locality, ba$life_stage, ba$habitat,
+               ba$to, ba$why, sep = "\u001f")
+  agg <- lapply(split(seq_len(nrow(ba))[single], key[single], drop = TRUE), function(k) {
+    v <- ba$value[k] / 100
+    r <- ba[k[1], ]
+    units <- unique(ba$n_unit[k])
+    std(source_id = r$source_id, taxon = r$taxon, name_as_given = r$name_as_given,
+        habitat = r$habitat, life_stage = if (larva[k[1]]) "larva" else NA_character_,
+        from = "dry_mass", from_shell = FALSE, to = r$to, to_shell = FALSE,
+        factor_unit = "ratio", statistic = if (length(k) > 1) "mean" else "single",
+        factor = mean(v), factor_sd = if (length(k) > 1) stats::sd(v) else NA,
+        factor_min = min(v), factor_max = max(v), ln_mean = if (length(k) > 1) mean(log(v)) else NA,
+        ln_sd = if (length(k) > 2) stats::sd(log(v)) else NA, n = length(k),
+        n_unit = if (length(units) == 1L && !is.na(units)) units else "samples",
+        scope = if (is.na(r$locality)) "pooled" else "population", site = r$locality,
+        original_reference = r$original_reference,
+        sample = paste("stoich2026", r$source_id, r$taxon, r$name_as_given, r$locality, r$life_stage,
+                       sep = ":"),
+        use_in_model = is.na(r$why), flag = r$why,
+        note = paste0(first_last(paste0(ifelse(is.na(ba$page[k]), "", paste0("p. ", ba$page[k], ", ")),
+                                        ba$table_or_figure[k])),
+                      ifelse(is.na(r$life_stage), "", paste0("; ", r$life_stage)),
+                      ifelse(is.na(r$preservation), "", paste0("; preservation: ", r$preservation)),
+                      ifelse(is.na(r$gut), "", paste0("; gut: ", r$gut)),
+                      "; ", length(k), " value(s)"))
+  })
+  means <- which(!single)
+  sd_m <- ifelse(!is.na(ba$sd[means]), ba$sd[means],
+                 ifelse(!is.na(ba$se[means]) & !is.na(ba$n[means]), ba$se[means] * sqrt(ba$n[means]), NA))
+  given <- std(source_id = ba$source_id[means], taxon = ba$taxon[means],
+               name_as_given = ba$name_as_given[means], habitat = ba$habitat[means],
+               life_stage = ifelse(larva[means], "larva", NA_character_), from = "dry_mass",
+               from_shell = FALSE, to = ba$to[means], to_shell = FALSE, factor_unit = "ratio",
+               statistic = "mean", factor = ba$value[means] / 100, factor_sd = sd_m / 100,
+               factor_min = ba$min[means] / 100, factor_max = ba$max[means] / 100, n = ba$n[means],
+               n_unit = ba$n_unit[means], scope = ifelse(is.na(ba$locality[means]), "pooled", "population"),
+               site = ba$locality[means], original_reference = ba$original_reference[means],
+               sample = paste("stoich2026", ba$source_id[means], ba$table_or_figure[means],
+                              ba$name_as_given[means], ba$life_stage[means], sep = ":"),
+               use_in_model = is.na(ba$why[means]), flag = ba$why[means],
+               note = paste0(ifelse(is.na(ba$page[means]), "", paste0("p. ", ba$page[means], ", ")),
+                             ba$table_or_figure[means], "; ", ba$value_as_given[means], " ",
+                             ba$unit_as_given[means],
+                             ifelse(is.na(ba$se[means]), "", paste0(" (SE ", ba$se[means], ")")),
+                             ifelse(is.na(ba$life_stage[means]), "", paste0("; ", ba$life_stage[means]))))
+  conv$stoich2026 <- rbind(do.call(rbind, agg), given)
+  st <- conv$stoich2026
+  say("## Elemental composition of freshwater animals (compilation of 2026-11-09)")
+  say("")
+  say("- %d values (%s) of %d sources; %d single values averaged into %d factors, %d means as given.",
+      nrow(ba), paste(sprintf("%s %d", names(table(ba$to)), as.integer(table(ba$to))), collapse = ", "),
+      length(unique(ba$source_id)), sum(single), length(agg), length(means))
+  for (w in c("adult amphibians: two values of one species, too few for a model",
+              "shell measured alone, not the animal",
+              "original source in the data bank of Brey et al. (2010)",
+              "first-instar larvae reared from eggs", "snails processed for food",
+              "values not checked against the source")) {
+    say("- Values not used, %s: %d.", w, sum(grepl(w, ba$why, fixed = TRUE)))
+  }
+  say("- Values not used, outside the range of whole animals: %d; other elements of the same samples: %d.",
+      sum(out_range), sum(same_sample))
+  say("- Factors used: %d (%s); %d freshwater, %d transitional.", sum(st$use_in_model),
+      paste(sprintf("%s %d", names(table(st$to[st$use_in_model])),
+                    as.integer(table(st$to[st$use_in_model]))), collapse = ", "),
+      sum(st$use_in_model & st$habitat == "freshwater"),
+      sum(st$use_in_model & st$habitat == "transitional"))
+  tl <- st$use_in_model & st$life_stage %in% "larva"
+  say("- Of them, tadpoles: %d (%s) of %d species.", sum(tl),
+      paste(sprintf("%s %d", names(table(st$to[tl])), as.integer(table(st$to[tl]))), collapse = ", "),
+      length(unique(st$taxon[tl])))
+  say("- Values outside the range of whole animals: %s.",
+      paste(sprintf("%s %s %.1f %%", ba$name_as_given[out_range], ba$to[out_range], ba$value[out_range]),
+            collapse = "; "))
+  say("")
+}
+
+# 10. Freshwater molluscs (compilation of 2026-11-09) ------------------------------
+# Mass ratios of the soft tissue (dry over wet mass, AFDM over dry mass), its
+# carbon and its energy per dry mass and AFDM, and the share of the shell in
+# the whole dry or wet mass, of freshwater bivalves and snails, read from 15
+# sources into one table (Molluscs2026/ under BMASSA_DATABASES), with the page
+# and table of each value and its text as given, the name as given and the
+# accepted name in the COL (26.10 XR), locality, preservation, drying, ashing
+# and method, and whether each ratio was measured or derived from published
+# means. Rows that repeat values read elsewhere are not read: those of the
+# workbook of Coughlan et al. (2021) (section 2), the carbon of Goedkoop et
+# al. (2021) (section 9) and the bivalves of Alimov and Shadrin (1977), read
+# from Alimov (1981), whose means are in the data bank of Brey et al. (2010)
+# (section 4). A share s of the shell in the dry (wet) mass gives the dry
+# (wet) mass without shell over that with shell, 1 - s. Kept but not used:
+#   - the edible flesh of snails (Debnath et al. 2016, Baby et al. 2010), not
+#     the whole soft body (the edible flesh of bivalves is their soft body);
+#   - animals exposed to diuron or to high calcium in experiments (the
+#     controls are used) or starved for six months (Doherty 1986);
+#   - the share of the valves in the wet mass of the quagga mussels of Baer et
+#     al. (2022), at odds with the smaller shares that follow from the masses
+#     in their section 2.4 (and without a model of that conversion);
+#   - carbon outside the range of whole animals (section 8).
+# Single values are averaged as in section 9 (by source, study, taxon, name
+# as given, locality, life stage and conversion); means enter as given (SD
+# from the SE when n is known).
+
+molluscs_file <- "Molluscs2026/bmassa_block_b_mollusc_factors.csv"
+molluscs_ids <- c(
+  "10.4081/jlimnol.2007.15" = "ravera2007", "10.1111/jfb.15043" = "baer2022",
+  "10.1016/j.jenvman.2020.111889" = "goedkoop2021",
+  "10.17582/journal.pjz/2018.50.6.2153.2158" = "sereflisan2018",
+  "10.23818/limn.33.16" = "lopezdoval2014", "10.2478/cjf-2025-0014" = "mazuran2025",
+  "10.56093/ft.v53i4.65545" = "debnath2016", "10.3329/jsr.v2i2.3362" = "baby2010",
+  "10.2307/1468447" = "benke1999", "10.5061/dryad.j3tx95xfg" = "moreau2021")
+# Sources without a DOI, by the start of their citation.
+molluscs_cited <- c("Begam & Khan (2002)" = "begam2002", "Tanjung (2015)" = "tanjung2015",
+                    "Doherty (1986)" = "doherty1986")
+molluscs_sources <- unique(unname(c(molluscs_ids, molluscs_cited)))
+if (any(use_source(molluscs_sources, reg))) {
+  mo_id <- molluscs_sources[use_source(molluscs_sources, reg)][1]
+  mo <- read.csv(source_files(mo_id, reg)[[molluscs_file]], stringsAsFactors = FALSE,
+                 check.names = FALSE, encoding = "UTF-8", na.strings = "")
+  stopifnot(all(mo$digitized == "no"), all(mo$habitat %in% c("freshwater", "brackish")),
+            all(mo$value_unit %in% c("fraction", "percent", "J_per_mg")),
+            all(mo$from_shell %in% c("included", "removed")),
+            all(mo$group %in% c("Bivalves", "Gastropods")), !anyNA(mo$accepted_name))
+  n_rows <- nrow(mo)
+  not_read <- list(
+    coughlan = mo$doi %in% "10.5061/dryad.tdz08kq0c",
+    alimov = is.na(mo$doi) & startsWith(mo$citation, "Alimov (1981)"),
+    goedkoop_carbon = mo$doi %in% "10.1016/j.jenvman.2020.111889" & mo$to == "carbon")
+  mo <- mo[!Reduce(`|`, not_read), ]
+  mo$source_id <- unname(molluscs_ids[mo$doi])
+  for (k in names(molluscs_cited)) {
+    mo$source_id[is.na(mo$doi) & startsWith(mo$citation, k)] <- molluscs_cited[[k]]
+  }
+  if (anyNA(mo$source_id)) {
+    stop("Rows of an unknown source: ", paste(unique(mo$citation[is.na(mo$source_id)]), collapse = "; "))
+  }
+  mo <- mo[use_source(mo$source_id, reg), ]
+  mo$taxon <- mo$accepted_name
+  mo$habitat <- ifelse(mo$habitat == "brackish", "transitional", mo$habitat)
+  # Conversion of each value: shares of the shell as mass without shell over
+  # mass with shell.
+  share <- mo$to %in% c("shell_dry_mass", "shell_wet_mass")
+  stopifnot(all(mo$from_shell[share] == "included"), all(mo$from_shell[!share] == "removed"),
+            all(mo$from[share] == sub("^shell_", "", mo$to[share])),
+            all(mo$value_unit[share] == "fraction"))
+  mo$conv_to <- ifelse(share, mo$from, mo$to)
+  mo$conv_from_shell <- mo$from_shell == "included"
+  scale <- unname(c(fraction = 1, percent = 0.01, J_per_mg = 1e-3)[mo$value_unit])
+  mo$f <- ifelse(share, 1 - mo$value * scale, mo$value * scale)
+  mo$f_sd <- scale * ifelse(!is.na(mo$sd), mo$sd,
+                            ifelse(!is.na(mo$se) & !is.na(mo$n), mo$se * sqrt(mo$n), NA))
+  mo$f_min <- ifelse(share, 1 - mo$max * scale, mo$min * scale)
+  mo$f_max <- ifelse(share, 1 - mo$min * scale, mo$max * scale)
+  is_ratio <- mo$conv_to != "energy"
+  stopifnot(all(mo$f[is_ratio] > 0 & mo$f[is_ratio] <= 1), all(mo$f[!is_ratio] > 0))
+  why <- rep(NA_character_, nrow(mo))
+  addw <- function(k, text) why[k] <<- ifelse(is.na(why[k]), text, paste(why[k], text, sep = "; "))
+  edible <- mo$group == "Gastropods" & grepl("edible", mo$notes, ignore.case = TRUE)
+  addw(which(edible), "edible flesh of snails, not the whole soft body")
+  addw(which(mo$source_id == "lopezdoval2014" & !grepl("Measured diuron 0 ", mo$notes, fixed = TRUE)),
+       "exposed to diuron in an experiment (the control is used)")
+  addw(which(mo$source_id == "mazuran2025" & grepl("Ca exposure", mo$notes, fixed = TRUE)),
+       "exposed to high calcium in an experiment (the controls are used)")
+  addw(which(mo$source_id == "doherty1986" & grepl("without food", mo$table_or_figure, fixed = TRUE)),
+       "starved for six months in the laboratory")
+  addw(which(mo$source_id == "baer2022" & mo$to == "shell_wet_mass"),
+       "share of the valves in the wet mass at odds with the masses in section 2.4 of the paper")
+  elem <- mo$conv_to %in% names(elemental_bounds)
+  lo <- vapply(mo$conv_to, function(e) if (e %in% names(elemental_bounds)) elemental_bounds[[e]][1] else NA_real_, 0)
+  hi <- vapply(mo$conv_to, function(e) if (e %in% names(elemental_bounds)) elemental_bounds[[e]][2] else NA_real_, 0)
+  out_range <- elem & (100 * mo$f < lo | 100 * mo$f > hi)
+  addw(which(out_range), paste0("outside the range of whole animals (", bounds_text, ")"))
+  mo$why <- why
+  mo$conv_to_shell <- FALSE
+  single <- mo$statistic == "single"
+  conv$molluscs2026 <- compilation_factors(mo, "molluscs2026")
+  mc <- conv$molluscs2026
+  say("## Freshwater molluscs (compilation of 2026-11-09)")
+  say("")
+  say("- %d rows; not read: %d of the workbook of Coughlan et al. (2021) (read from the workbook, section 2), %d of Alimov (1981) (Alimov and Shadrin 1977, whose means are in the data bank of Brey et al. 2010) and %d carbon values of Goedkoop et al. (2021) (section 9).",
+      n_rows, sum(not_read$coughlan), sum(not_read$alimov), sum(not_read$goedkoop_carbon))
+  say("- %d values of %d sources (%s); %d single values averaged into %d factors, %d means as given.",
+      nrow(mo), length(unique(mo$source_id)),
+      paste(sprintf("%s %d", names(table(mo$source_id)), as.integer(table(mo$source_id))), collapse = ", "),
+      sum(single), nrow(mc) - sum(!single), sum(!single))
+  for (w in sort(unique(unlist(strsplit(mo$why[!is.na(mo$why)], "; ", fixed = TRUE))))) {
+    say("- Values not used, %s: %d.", w, sum(grepl(w, mo$why, fixed = TRUE)))
+  }
+  u_mc <- mc[mc$use_in_model, ]
+  say("- Factors used: %d of %d taxa (%s).", nrow(u_mc), length(unique(u_mc$taxon)),
+      paste(sprintf("%s %d", names(table(pair_of(u_mc))), as.integer(table(pair_of(u_mc)))), collapse = ", "))
+  say("")
+}
+
+# 11. Shells and soft tissue of snails (compilation of 2026-11-09) --------------------
+# The share of the shell in the dry mass of snails, the dry mass of the whole
+# snail (shell included) over its wet mass and the dry mass of the soft tissue
+# over the wet mass of the whole snail, from a second compilation of
+# freshwater and brackish molluscs (Molluscs2026/ under BMASSA_DATABASES; the
+# columns of section 10, with whether each mass includes the shell), and the
+# two snails of Kołodziejczyk (1984, Table IV: mean dry mass of one individual
+# with and without shell), transcribed with the same columns in
+# data-raw/kolodziejczyk1984_table4.csv. Not read:
+#   - the organic content of empty shells (Strayer and Malcom 2007) and the dry
+#     shell over the live mass of Bithynia tentaculata (Kamler 1969), which are
+#     not conversions between masses of the animal;
+#   - the share of the shell in the wet mass of Lymnaea stagnalis (Grosell and
+#     Brix 2009), a conversion without a model;
+#   - the ratios of Sphaerium lacustre of Yan and Liang (2003), whose
+#     calibration specimens and their handling are not described (those of the
+#     survey were kept in formalin);
+#   - the shares of the shell of Theodoxus macri and Melanopsis praemorsa of
+#     Elkarmi and Ismail (2006a, b), from means of the dry shell and of the dry
+#     soft body that disagree with the regressions printed in the same papers
+#     and leave 39-45 % of the dry mass to the soft body (12-25 % in the other
+#     snails of this section).
+# A share s of the shell gives the dry mass without shell over that with
+# shell, 1 - s. Single values are averaged and means enter as given, as in
+# section 10: the 60 snails weighed one by one by Crichton (2003) give one
+# factor with the mean and SD of their log ratios. Brackish sites are
+# transitional.
+
+shells_file <- "Molluscs2026/bmassa_block_b2_mollusc_shells.csv"
+shells_ids <- c("10.1016/S0025-326X(03)00241-8" = "sokolowski2003",
+                "10.1080/00288330.1998.9516826" = "james1998")
+shells_cited <- c("Crichton (2003)" = "crichton2003", "Kamler (1969)" = "kamler1969",
+                  "Kołodziejczyk (1984)" = "kolodziejczyk1984")
+shells_sources <- unique(unname(c(shells_ids, shells_cited)))
+if (any(use_source(shells_sources, reg))) {
+  read_tab <- function(path) read.csv(path, stringsAsFactors = FALSE, check.names = FALSE,
+                                      encoding = "UTF-8", na.strings = "")
+  sh2 <- read_tab("data-raw/kolodziejczyk1984_table4.csv")
+  n_kolo <- nrow(sh2)
+  in_file <- setdiff(shells_sources, "kolodziejczyk1984")
+  in_file <- in_file[use_source(in_file, reg)]
+  if (length(in_file)) {
+    b2 <- read_tab(source_files(in_file[1], reg)[[shells_file]])
+    stopifnot(identical(names(b2), names(sh2)))
+    sh2 <- rbind(b2, sh2)
+  }
+  stopifnot(all(sh2$digitized == "no"), all(sh2$habitat %in% c("freshwater", "brackish")),
+            all(sh2$value_unit == "fraction"), all(sh2$group %in% c("Bivalves", "Gastropods")),
+            !anyNA(sh2$accepted_name))
+  n_rows <- nrow(sh2)
+  shell_alone <- c("shell_wet_mass", "shell_dry_mass", "shell_afdm")
+  not_read <- list(
+    shell_masses = sh2$from %in% shell_alone |
+      (sh2$to %in% shell_alone & sh2$from != sub("^shell_", "", sh2$to)),
+    wet_share = sh2$from == "wet_mass" & sh2$to == "shell_wet_mass",
+    yan = startsWith(sh2$citation, "Yan & Liang (2003)"),
+    elkarmi = startsWith(sh2$citation, "Elkarmi & Ismail (2006)"))
+  stopifnot(all(Reduce(`+`, not_read) <= 1))
+  sh2 <- sh2[!Reduce(`|`, not_read), ]
+  sh2$source_id <- unname(shells_ids[sh2$doi])
+  for (k in names(shells_cited)) {
+    sh2$source_id[is.na(sh2$doi) & startsWith(sh2$citation, k)] <- shells_cited[[k]]
+  }
+  if (anyNA(sh2$source_id)) {
+    stop("Rows of an unknown source: ", paste(unique(sh2$citation[is.na(sh2$source_id)]), collapse = "; "))
+  }
+  sh2 <- sh2[use_source(sh2$source_id, reg), ]
+  sh2$taxon <- sh2$accepted_name
+  sh2$habitat <- ifelse(sh2$habitat == "brackish", "transitional", sh2$habitat)
+  share <- sh2$to == "shell_dry_mass"
+  stopifnot(all(sh2$from_shell == "included"), all(sh2$from[share] == "dry_mass"),
+            all(sh2$to_shell[!share] %in% c("included", "removed")))
+  sh2$conv_to <- ifelse(share, "dry_mass", sh2$to)
+  sh2$conv_from_shell <- TRUE
+  sh2$conv_to_shell <- !share & sh2$to_shell == "included"
+  sh2$f <- ifelse(share, 1 - sh2$value, sh2$value)
+  sh2$f_sd <- ifelse(!is.na(sh2$sd), sh2$sd, ifelse(!is.na(sh2$se) & !is.na(sh2$n), sh2$se * sqrt(sh2$n), NA))
+  sh2$f_min <- ifelse(share, 1 - sh2$max, sh2$min)
+  sh2$f_max <- ifelse(share, 1 - sh2$min, sh2$max)
+  stopifnot(all(sh2$f > 0 & sh2$f < 1))
+  sh2$why <- NA_character_
+  conv$shells2026 <- compilation_factors(sh2, "shells2026")
+  sc <- conv$shells2026
+  say("## Shells and soft tissue of snails (compilation of 2026-11-09)")
+  say("")
+  say("- %d rows (%d of Kołodziejczyk 1984, Table IV); not read: %d of masses of the shell alone, %d shares of the shell in the wet mass, %d of Yan and Liang (2003) and %d of Elkarmi and Ismail (2006a, b).",
+      n_rows, n_kolo, sum(not_read$shell_masses), sum(not_read$wet_share), sum(not_read$yan),
+      sum(not_read$elkarmi))
+  say("- %d values of %d sources (%s) give %d factors: %s.", nrow(sh2), length(unique(sh2$source_id)),
+      paste(sprintf("%s %d", names(table(sh2$source_id)), as.integer(table(sh2$source_id))), collapse = ", "),
+      nrow(sc), paste(sprintf("*%s* %s %.3f", sc$taxon, pair_of(sc), sc$factor), collapse = ", "))
+  say("")
+}
+
+# 12. Freshwater zooplankton (compilation of 2026-11-10) -----------------------------
+# Dry over wet mass, AFDM over dry mass, carbon and energy per dry mass of
+# freshwater rotifers, copepods, cladocerans and ostracods, read from 11
+# sources into one table (Zooplankton2026/ under BMASSA_DATABASES), with the
+# columns of section 10 and how the wet mass was weighed. Not read:
+#   - values of studies in the data bank of Brey et al. (2010) (section 4):
+#     Salonen et al. (1976), Schindler et al. (1971) and Comita and Schindler
+#     (1963), the last two through Moreau et al. (2021), and the thesis of
+#     Ventura (2005), whose Lake Redon zooplankton is that of Ventura and
+#     Catalan (2005);
+#   - the carbon of González et al. (2018), read with the elemental
+#     composition (section 9);
+#   - Işık et al. (1999), excluded in version 0.2.0: their rotifers were
+#     weighed with the algae filtered from the cultures;
+#   - energy densities through Moreau et al. (2021) of Sitaramaiah (1967),
+#     calculated from nitrogen (and in Cummins and Wuycheck 1971, section 6),
+#     and of Anderson and Smith (1998), whose ostracods may or may not include
+#     their valves;
+#   - mixed zooplankton without a taxon (Karpowicz et al. 2020).
+# Kept but not used:
+#   - the energy densities of Riccardi and Mangoni (1999), calculated from the
+#     elemental composition (equations of Gnaiger and Bitterlich 1984), not
+#     measured, as in section 6;
+#   - the moisture of Ovie and Ovie (2006), of zooplankton air-dried on filter
+#     paper and stored before it was weighed, not of live animals.
+# The five feeds of the cultures of Moina macrocopa of Hasan et al. (2023), a
+# culture without a control feed, are averaged into one factor per
+# conversion. The other values are combined as in section 10 (single values
+# averaged by source, taxon, locality, life stage and conversion; means as
+# given). Subgenera are dropped from the names.
+
+zoo_file <- "Zooplankton2026/bmassa_block_c_zooplankton_factors.csv"
+zoo_ids <- c("10.4081/jlimnol.1999.58" = "riccardi1999", "10.5962/bhl.title.31524" = "birge1922",
+             "10.2331/suisan.44.979" = "watanabe1978", "10.22271/fish.2023.v11.i2b.2798" = "hasan2023",
+             "10.46989/001c.20428" = "ovie2006")
+zoo_sources <- unname(zoo_ids)
+if (any(use_source(zoo_sources, reg))) {
+  zo_id <- zoo_sources[use_source(zoo_sources, reg)][1]
+  zo <- read.csv(source_files(zo_id, reg)[[zoo_file]], stringsAsFactors = FALSE, check.names = FALSE,
+                 encoding = "UTF-8", na.strings = "")
+  stopifnot(all(zo$digitized == "no"), all(zo$habitat == "freshwater"),
+            all(zo$value_unit %in% c("fraction", "percent", "J_per_mg")))
+  n_rows <- nrow(zo)
+  from_moreau <- zo$doi %in% "10.5061/dryad.j3tx95xfg"
+  ref_starts <- function(x) !is.na(zo$original_reference) & startsWith(zo$original_reference, x)
+  not_read <- list(
+    brey = zo$doi %in% "10.4319/lo.1976.21.5.0724" | startsWith(zo$citation, "Ventura (2005)") |
+      (from_moreau & (ref_starts("Schindler") | ref_starts("Comita"))),
+    gonzalez = zo$doi %in% "10.5061/dryad.3cd2611",
+    isik = zo$doi %in% "10.1016/S0044-8486(99)00013-7",
+    energy = from_moreau & (ref_starts("Sitaramaiah") | ref_starts("Anderson")),
+    mixed = zo$doi %in% "10.1007/s10750-020-04271-5")
+  stopifnot(all(Reduce(`+`, not_read) <= 1), all(!from_moreau | Reduce(`|`, not_read)))
+  zo <- zo[!Reduce(`|`, not_read), ]
+  zo$source_id <- unname(zoo_ids[zo$doi])
+  if (anyNA(zo$source_id)) {
+    stop("Rows of an unknown source: ", paste(unique(zo$citation[is.na(zo$source_id)]), collapse = "; "))
+  }
+  zo <- zo[use_source(zo$source_id, reg), ]
+  stopifnot(!anyNA(zo$accepted_name), all(zo$from_shell %in% c("not_applicable", NA)))
+  zo$taxon <- gsub(" \\([A-Z][a-z]+\\)", "", zo$accepted_name)
+  zo$conv_to <- zo$to
+  zo$conv_from_shell <- FALSE
+  zo$conv_to_shell <- FALSE
+  scale <- unname(c(fraction = 1, percent = 0.01, J_per_mg = 1e-3)[zo$value_unit])
+  zo$f <- zo$value * scale
+  zo$f_sd <- scale * ifelse(!is.na(zo$sd), zo$sd, ifelse(!is.na(zo$se) & !is.na(zo$n), zo$se * sqrt(zo$n), NA))
+  zo$f_min <- zo$min * scale
+  zo$f_max <- zo$max * scale
+  is_ratio <- zo$conv_to != "energy"
+  stopifnot(all(zo$f[is_ratio] > 0 & zo$f[is_ratio] <= 1), all(zo$f[!is_ratio] > 0))
+  why <- rep(NA_character_, nrow(zo))
+  why[zo$source_id == "riccardi1999" & zo$conv_to == "energy"] <-
+    "energy calculated from organic composition, not measured"
+  why[zo$source_id == "ovie2006"] <- "wet mass after air-drying on filter paper and storage, not of live animals"
+  zo$why <- why
+  feeds <- zo$source_id == "hasan2023"
+  conv$zooplankton2026 <- compilation_factors(zo, "zooplankton2026", pool = zo$statistic == "single" | feeds)
+  zc <- conv$zooplankton2026
+  say("## Freshwater zooplankton (compilation of 2026-11-10)")
+  say("")
+  say("- %d rows; not read: %d of studies in the data bank of Brey et al. (2010), %d carbon values of González et al. (2018) (section 9), %d of Işık et al. (1999) (excluded in version 0.2.0), %d energy densities of Sitaramaiah (1967) and Anderson and Smith (1998) through Moreau et al. (2021) and %d of mixed zooplankton.",
+      n_rows, sum(not_read$brey), sum(not_read$gonzalez), sum(not_read$isik), sum(not_read$energy),
+      sum(not_read$mixed))
+  say("- %d values of %d sources (%s) give %d factors (the five feeds of Hasan et al. 2023 averaged into one per conversion).",
+      nrow(zo), length(unique(zo$source_id)),
+      paste(sprintf("%s %d", names(table(zo$source_id)), as.integer(table(zo$source_id))), collapse = ", "),
+      nrow(zc))
+  for (w in sort(unique(zo$why[!is.na(zo$why)]))) {
+    say("- Values not used, %s: %d.", w, sum(zo$why %in% w))
+  }
+  u_zc <- zc[zc$use_in_model, ]
+  say("- Factors used: %d of %d taxa (%s).", nrow(u_zc), length(unique(u_zc$taxon)),
+      paste(sprintf("%s %d", names(table(pair_of(u_zc))), as.integer(table(pair_of(u_zc)))), collapse = ", "))
+  say("")
+}
+
+# 13. Limno-STOICH (Corman et al. 2026) ------------------------------------------
+# Carbon, nitrogen and phosphorus as % of dry mass of the animals of the
+# Limno-STOICH database (release of 2025-12-11, package edi.2231.2 of the
+# Environmental Data Initiative; LimnoSTOICH2026/ under BMASSA_DATABASES):
+# organisms of inland waters entered from more than 190 data sources (data
+# sets of their authors, some unpublished, and articles) and checked by the
+# project, which entered only whole organisms (molluscs without shell count as
+# whole) and replaced by 999999999 the carbon below 20 %, the nitrogen below
+# 4 % and the phosphorus below detection (Corman et al. 2026; here NA). The
+# values are credited to the database (`source_id` corman2026), with their
+# data source in `original_reference`: first author, year and DOI (or title),
+# or the contributor of unpublished data. Decisions of the maintainer of
+# 2026-11-10. Not read:
+#   - data sources used already: Beck et al. (2022), Moody et al. (2018) and
+#     Knapp et al. (2021) (section 9), and González et al. (2017), whose
+#     invertebrates of bromeliads are those of González et al. (2018);
+#   - values that are not % of dry mass (masses per individual or per litre);
+#   - parts of animals, also when entered as whole organisms (the feet of
+#     snails and mussels, the tail of crayfish, fins, liver, eggs of birds);
+#   - other vertebrates (a grebe, a crocodile) and records without a genus,
+#     family or order;
+#   - eggs, embryos and parasites (metacercariae of trematodes).
+# Kept but not used:
+#   - fish analysed as muscle: those of Kiffney et al. (2002; dorsal muscle,
+#     p. 14 of their report), the trout of Volk and Kiffney (2012), with 1.0 %
+#     of phosphorus as in muscle (the whole fish of the other sources have 2.9
+#     to 4.5 %), and those of the unpublished data of C. Volk, without
+#     phosphorus, of the same species and year, with the same carbon and
+#     nitrogen;
+#   - amphibians other than the tadpoles of an unpublished thesis on ponds of
+#     Alberta: juveniles emerging after metamorphosis (Fritz and Whiles 2018),
+#     adult salamanders and juveniles of tailed frogs (C. Volk), juvenile frogs
+#     of Trinidad without genus, and juveniles of the thesis without their
+#     Gosner stage;
+#   - animals that are not aquatic: samples of the riparian zone, spiders,
+#     grasshoppers, ants and wasps, and the adults of mayflies, stoneflies,
+#     caddisflies, alderflies, dragonflies and flies, whose larvae are the
+#     aquatic stage;
+#   - molluscs with less than 33 % carbon and 6 % nitrogen (or without
+#     nitrogen): their soft tissue has 7 to 12 % nitrogen and 38 to 47 % carbon
+#     in most data sources, and so much mineral matter points to the shell (the
+#     snails of Watson et al. 2011, entered with and without shell, have 30 %
+#     and 47 % carbon) or to sediment in the gut;
+#   - values outside the range of whole animals (section 9), and the other
+#     elements of the same record.
+# The tadpoles of the thesis (Gosner 25-42, entered as juveniles and
+# metamorphs) have `life_stage` "larva": models of tadpoles, all their stages
+# as in section 9. Estuaries, the Odense Fjord, the lagoons of the Beaufort Sea
+# and a salt marsh of Virginia are "transitional"; the floodplain lagoons of the
+# Mitchell River (Jardine et al. 2011) and the rivers of the West Coast of New
+# Zealand (B. Crichton), entered as coastal, are freshwater. The single records
+# are averaged by data source, taxon, name, site, life stage (the Gosner stage
+# of tadpoles) and habitat, as in section 9, and so are the means of several
+# samples entered as aggregates, which can repeat a population (sampling
+# dates): a factor is the composition of a population.
+
+ls_file <- "LimnoSTOICH2026/STOICH_Release_Full_Join_20251211_shortened_notes.csv"
+if (use_source("corman2026", reg)) {
+  oc <- function(x) paste0(x, ".OrganismStoichiometry")
+  lim <- read.csv(source_files("corman2026", reg)[[ls_file]], stringsAsFactors = FALSE, check.names = FALSE,
+                 encoding = "UTF-8", na.strings = c("", "NA"), colClasses = "character")
+  animal_types <- c("Insecta", "Crustacean", "Mollusca", "Annelida", "Zooplankton", "Invertebrates (Other)",
+                    "Other", "Fish", "Amphibian", "Vertebrates (Other)")
+  lim <- lim[lim[[oc("Type")]] %in% animal_types, ]
+  stopifnot(!anyDuplicated(lim[[oc("Id")]]))
+  n_rows <- nrow(lim)
+  n_src <- length(unique(lim$Id.Source))
+  type <- lim[[oc("Type")]]
+  src <- lim$Id.Source
+  lower <- function(x) tolower(trimws(x))
+  doi_of <- function(x) {
+    m <- regexpr("10\\.[0-9]{4,9}/[^ ]+", x)
+    out <- rep(NA_character_, length(x))
+    out[!is.na(m) & m > 0] <- regmatches(x, m)
+    out
+  }
+  doi <- doi_of(lim$DOI.Source)
+  # Identities of the data sources named in the rules (checked, as their
+  # numbers could change in another release).
+  who <- function(id) unique(c(lim$FirstAuthor.Source[src == id], lim$LastName.Contact[src == id]))
+  stopifnot("Kiffney, Peter" %in% who("125"), "Volk, Carol" %in% who("139"), "Volk" %in% who("140"),
+            "Whiting" %in% who("74"), "Jardine, Timothy" %in% who("174"), "Crichton, Ben" %in% who("188"),
+            "Dunton, Kenneth" %in% who("150"), "Johnson, David" %in% who("94"))
+  # Values: % of dry mass only; 999999999 (left out by the project) and values
+  # not above 0 are missing.
+  pct <- function(e, what = "Mean") {
+    v <- num(lim[[oc(paste0(e, what))]])
+    v[!(lim[[oc(paste0(e, "Units"))]] %in% "percent_dm") | !is.finite(v) | v <= 0 | abs(v) >= 999999999] <- NA
+    v
+  }
+  elements <- c(carbon = "Carbon", nitrogen = "Nitrogen", phosphorus = "Phosphorus")
+  vals <- sapply(elements, pct)
+  sds <- sapply(elements, pct, what = "Stdev")
+  # Taxon: genus and species, or the genus, family or order (classes of
+  # molluscs entered as orders); names as given are in lower case.
+  low <- function(x) {
+    x <- lower(lim[[oc(x)]])
+    x[!is.na(x) & !nzchar(x)] <- NA
+    x
+  }
+  gen <- low("TaxonomicGenus")
+  spp <- low("TaxonomicSpecies")
+  fam <- low("TaxonomicFamily")
+  ord <- low("TaxonomicOrder")
+  spp[spp %in% c("sp", "sp.", "spp", "spp.")] <- NA
+  mollusc_class <- c(class_bivalva = "Bivalvia", class_gastropoda = "Gastropoda")
+  stopifnot(all(ord[startsWith(ord, "class_") %in% TRUE] %in% names(mollusc_class)))
+  cls <- unname(mollusc_class[ord])
+  ord[startsWith(ord, "class_") %in% TRUE] <- NA
+  up <- function(x) ifelse(is.na(x), NA, paste0(toupper(substr(x, 1, 1)), substring(x, 2)))
+  lim$taxon <- ifelse(!is.na(gen) & !is.na(spp), paste(up(gen), spp), ifelse(!is.na(gen), up(gen),
+                     ifelse(!is.na(fam), up(fam), ifelse(!is.na(ord), up(ord), cls))))
+  lim$name_as_given <- ifelse(!is.na(gen) & !is.na(spp), paste(gen, spp),
+                             ifelse(!is.na(gen), gen, ifelse(!is.na(fam), fam, low("TaxonomicOrder"))))
+  stage <- lower(lim[[oc("DevelopmentStage")]])
+  notes <- lower(lim[[oc("Notes")]])
+  tissue <- lower(lim[[oc("TissueSampled")]])
+  sampled <- lim[[oc("OrganismSampled")]]
+  order_l <- low("TaxonomicOrder")
+  habitat_ev <- lim$Habitat.SampleEvent
+  # Not read.
+  dup_dois <- c("10.5061/dryad.7f753f0", "10.1002/ecs2.3466", "10.1111/geb.13413", "10.3389/fevo.2017.00110")
+  soft <- type == "Mollusca" & grepl("shell removed|removed shell|without shell|no shell", tissue)
+  not_read <- list(
+    dup = doi %in% dup_dois,
+    unit = rowSums(!is.na(vals)) == 0,
+    part = !((sampled %in% "whole_organism") | soft) |
+      grepl("foot|muscle|tail|meat|fin|liver|albumen|yolk|needle", tissue),
+    vertebrate = type == "Vertebrates (Other)",
+    no_taxon = is.na(lim$taxon),
+    egg = stage %in% c("egg", "eggs", "embryos", "metacercariae"))
+  read <- !Reduce(`|`, not_read)
+  # Kept but not used.
+  why <- rep(NA_character_, nrow(lim))
+  addw <- function(k, text) why[k] <<- ifelse(is.na(why[k]), text, paste(why[k], text, sep = "; "))
+  gosner <- as.integer(sub("^.*gosner ([0-9]+).*$", "\\1", ifelse(grepl("gosner [0-9]+", notes), notes, NA)))
+  # Tadpoles: records of the thesis with their Gosner stage (those without it,
+  # entered as juveniles, are of an uncertain stage).
+  tadpole <- type == "Amphibian" & src == "74" & stage %in% c("juvenile", "metamorph") & !is.na(gosner)
+  stopifnot(all(gosner[tadpole] >= 25))
+  addw(which(type == "Fish" & src %in% c("125", "139", "140")), "fish analysed as muscle")
+  addw(which(type == "Amphibian" & !tadpole),
+       "amphibians other than tadpoles, or of an uncertain stage")
+  not_aquatic <- habitat_ev %in% "Riparian" | order_l %in% c("araneae", "orthoptera", "hymenoptera") |
+    (stage %in% c("adult", "adults") &
+       order_l %in% c("ephemeroptera", "plecoptera", "trichoptera", "megaloptera", "odonata", "diptera"))
+  addw(which(not_aquatic), "not aquatic (riparian samples, terrestrial orders, emerged adults of insects)")
+  mineral <- type == "Mollusca" & !is.na(vals[, "carbon"]) & vals[, "carbon"] < 33 &
+    (is.na(vals[, "nitrogen"]) | vals[, "nitrogen"] < 6)
+  addw(which(mineral), "molluscs with the carbon and nitrogen of a shell or of other mineral matter")
+  lo <- sapply(names(elements), function(e) elemental_bounds[[e]][1])
+  hi <- sapply(names(elements), function(e) elemental_bounds[[e]][2])
+  out_el <- sweep(vals, 2, lo, "<") | sweep(vals, 2, hi, ">")
+  out_el[is.na(out_el)] <- FALSE
+  out_rec <- rowSums(out_el) > 0
+  # Habitat.
+  coastal <- lim$EcosystemType.Site %in% "Coastal"
+  lim$habitat <- ifelse((coastal & !src %in% c("174", "188")) | src %in% c("150", "94"),
+                       "transitional", "freshwater")
+  # Data source of each record.
+  surname <- ifelse(grepl(",", lim$FirstAuthor.Source), sub(",.*$", "", lim$FirstAuthor.Source),
+                    ifelse(grepl("_", lim$FirstAuthor.Source), sub("_.*$", "", lim$FirstAuthor.Source),
+                           sub("^.* ", "", lim$FirstAuthor.Source)))
+  surname[lim$FirstAuthor.Source %in% "Rana, El-Sabaawi"] <- "El-Sabaawi"
+  surname[lim$FirstAuthor.Source %in% "Dörte, Köster"] <- "Köster"
+  year <- sub("\\.0$", "", lim$YearPublished.Source)
+  title <- up(lim$Title.Source)
+  unpublished <- lim$Type.Source %in% "raw_unpublished" | is.na(lim$FirstAuthor.Source)
+  contact <- trimws(paste(ifelse(is.na(lim$FirstName.Contact), "", lim$FirstName.Contact), lim$LastName.Contact))
+  lim$original_reference <- ifelse(unpublished,
+                                  paste0("Unpublished ", ifelse(grepl("thesis", lower(lim$Notes.Source)), "thesis", "data"),
+                                         " of ", contact, " (Limno-STOICH source ", src, ")"),
+                                  paste0(surname, " (", year, ")",
+                                         ifelse(!is.na(doi), paste0(", ", doi), ifelse(is.na(title), "", paste0(", ", title))),
+                                         " (Limno-STOICH source ", src, ")"))
+  site_of <- function(...) {
+    p <- cbind(...)
+    apply(p, 1, function(z) paste(z[!is.na(z) & nzchar(z)], collapse = ", "))
+  }
+  lim$locality <- site_of(lim$Name.Site, lim$State.Site, lim$Country.Site)
+  lim$stage_text <- ifelse(tadpole, paste0(ifelse(stage == "metamorph", "metamorph", "tadpole"), ", Gosner ", gosner),
+                          stage)
+  lim$why <- why
+  # One row per record and element.
+  long <- do.call(rbind, lapply(names(elements), function(e) {
+    k <- which(read & !is.na(vals[, e]))
+    data.frame(i = k, to = e, value = vals[k, e], sd = sds[k, e],
+               why = ifelse(out_el[k, e], paste0("outside the range of whole animals (", bounds_text, ")"),
+                            ifelse(out_rec[k], "another element of the same record outside the range of whole animals",
+                                   NA_character_)),
+               stringsAsFactors = FALSE)
+  }))
+  long$why <- ifelse(is.na(lim$why[long$i]), long$why,
+                     ifelse(is.na(long$why), lim$why[long$i], paste(lim$why[long$i], long$why, sep = "; ")))
+  r <- lim[long$i, ]
+  aggregate <- r[[oc("StatisticalPooling")]] %in% "Aggregate"
+  key <- paste(r$Id.Source, r$taxon, r$name_as_given, r$Id.Site, r$stage_text, r$habitat, long$to, long$why,
+               sep = "\u001f")
+  larva_of <- function(k) ifelse(tadpole[long$i[k]], "larva", NA_character_)
+  gut <- r[[oc("GutClearance")]]
+  agg <- lapply(split(seq_len(nrow(r)), key, drop = TRUE), function(k) {
+    v <- long$value[k] / 100
+    one <- length(k) == 1L
+    std(source_id = "corman2026", taxon = r$taxon[k[1]], name_as_given = r$name_as_given[k[1]],
+        habitat = r$habitat[k[1]], life_stage = larva_of(k[1]), from = "dry_mass", from_shell = FALSE,
+        to = long$to[k[1]], to_shell = FALSE, factor_unit = "ratio",
+        statistic = if (one && !aggregate[k]) "single" else "mean",
+        factor = mean(v), factor_sd = if (one) long$sd[k] / 100 else stats::sd(v),
+        factor_min = min(v), factor_max = max(v),
+        ln_mean = if (one) NA else mean(log(v)), ln_sd = if (length(k) > 2) stats::sd(log(v)) else NA,
+        n = if (one && aggregate[k]) num(r[[oc("SampleSize")]][k]) else length(k),
+        n_unit = if (one && aggregate[k]) "samples" else "records", scope = "population",
+        site = r$locality[k[1]], original_reference = r$original_reference[k[1]],
+        sample = paste("limnostoich2026", r$Id.Source[k[1]], r$taxon[k[1]], r$name_as_given[k[1]],
+                       r$Id.Site[k[1]], r$stage_text[k[1]], sep = ":"),
+        use_in_model = is.na(long$why[k[1]]), flag = long$why[k[1]],
+        note = paste0(if (one) "record " else "records ", first_last(r[[oc("Id")]][k]),
+                      ifelse(is.na(r$stage_text[k[1]]), "", paste0("; ", r$stage_text[k[1]])),
+                      ifelse(is.na(gut[k[1]]), "", paste0("; gut: ", gut[k[1]])), "; ",
+                      if (one) "" else paste0(length(k), " records, "),
+                      if (any(aggregate[k])) paste0(sum(aggregate[k]), " of them aggregates of samples")
+                      else "single samples"))
+  })
+  conv$limnostoich2026 <- do.call(rbind, agg)
+  lc <- conv$limnostoich2026
+  say("## Limno-STOICH (Corman et al. 2026)")
+  say("")
+  say("- %d records of animals of %d data sources; not read: %d of data sources used already, %d without values in %% of dry mass, %d parts of animals, %d other vertebrates, %d without a genus, family or order, %d eggs, embryos and parasites (a record can fall in several).",
+      n_rows, n_src, sum(not_read$dup), sum(not_read$unit), sum(not_read$part), sum(not_read$vertebrate),
+      sum(not_read$no_taxon), sum(not_read$egg))
+  say("- %d records read, of %d data sources: %d values (%s), %d of them means of aggregated samples; averaged by population into %d factors.",
+      sum(read), length(unique(src[read])), nrow(long),
+      paste(sprintf("%s %d", names(table(long$to)), as.integer(table(long$to))), collapse = ", "),
+      sum(aggregate), length(agg))
+  for (w in c("fish analysed as muscle", "amphibians other than tadpoles, or of an uncertain stage",
+              "not aquatic (riparian samples, terrestrial orders, emerged adults of insects)",
+              "molluscs with the carbon and nitrogen of a shell or of other mineral matter")) {
+    say("- Records not used, %s: %d.", w, sum(grepl(w, lim$why[read], fixed = TRUE)))
+  }
+  say("- Values not used, outside the range of whole animals: %d; other elements of the same records: %d.",
+      sum(out_el[read, ] & !is.na(vals[read, ])), sum(grepl("another element", long$why, fixed = TRUE)))
+  say("- Factors used: %d (%s); %d freshwater, %d transitional; of %d data sources.", sum(lc$use_in_model),
+      paste(sprintf("%s %d", names(table(lc$to[lc$use_in_model])), as.integer(table(lc$to[lc$use_in_model]))),
+            collapse = ", "),
+      sum(lc$use_in_model & lc$habitat == "freshwater"), sum(lc$use_in_model & lc$habitat == "transitional"),
+      length(unique(lc$original_reference[lc$use_in_model])))
+  tl <- lc$use_in_model & lc$life_stage %in% "larva"
+  say("- Of them, tadpoles: %d (%s) of %d species.", sum(tl),
+      paste(sprintf("%s %d", names(table(lc$to[tl])), as.integer(table(lc$to[tl]))), collapse = ", "),
+      length(unique(lc$taxon[tl])))
+  say("")
+}
+
+# 14. Remaining conversion factors of freshwater animals (compilation of 2026-11-10)
+# Mass ratios, carbon and energy densities of groups with few factors (water
+# mites, triclads, leeches, whole fish, tadpoles), read from seven articles
+# into one table (Remaining2026/ under BMASSA_DATABASES), with the columns of
+# section 10. Not read, as sources excluded in the registry:
+#   - Morante et al. (2012), excluded since version 0.2.0 for the quality of
+#     its masses (here: those of water mites near the error of the balance,
+#     and two families of triclads with the same masses);
+#   - Salonen et al. (1976), in the data bank of Brey et al. (2010);
+#   - farmed animals fed formulated diets: the bass of Wang et al. (2021),
+#     fattier than wild fish (48-54 % C of the dry mass, against 42-48 % in
+#     the wild fish of Penczak et al. 1985), and the bullfrog tadpoles of Gao
+#     et al. (2024) and Seixas Filho et al. (2022).
+# Kept but not used: the triclads starved for two weeks (Calow and Jennings
+# 1974) and the rainbow trout farmed in cages (Penczak et al. 1985). The
+# energy per dry mass of Calow and Jennings (1974) is their energy per AFDM
+# (micro-bomb calorimetry) times their AFDM/DM. The values are combined as in
+# section 10 (single values averaged by source, taxon, locality, life stage
+# and conversion; means as given).
+
+rem_file <- "Remaining2026/bmassa_block_e_remaining_factors.csv"
+rem_ids <- c("10.23818/limn.31.08" = "morante2012", "10.2307/1540570" = "calow1974",
+             "10.4319/lo.1976.21.5.0724" = "salonen1976", "10.1155/2024/5513496" = "gao2024",
+             "10.1016/j.aqrep.2021.100757" = "wang2021", "10.1590/S1519-99402122312022" = "seixas2022")
+rem_sources <- c("calow1974", "penczak1985")
+if (any(use_source(rem_sources, reg))) {
+  re_id <- rem_sources[use_source(rem_sources, reg)][1]
+  re <- read.csv(source_files(re_id, reg)[[rem_file]], stringsAsFactors = FALSE, check.names = FALSE,
+                 encoding = "UTF-8", na.strings = "")
+  stopifnot(all(re$digitized == "no"), all(re$habitat == "freshwater"),
+            all(re$value_unit %in% c("fraction", "percent", "J_per_mg")),
+            all(re$from_shell %in% "not_applicable"))
+  n_rows <- nrow(re)
+  re$source_id <- unname(rem_ids[re$doi])
+  re$source_id[is.na(re$doi) & startsWith(re$citation, "Penczak et al. (1985)")] <- "penczak1985"
+  if (anyNA(re$source_id)) {
+    stop("Rows of an unknown source: ", paste(unique(re$citation[is.na(re$source_id)]), collapse = "; "))
+  }
+  read_it <- use_source(re$source_id, reg)
+  not_read <- table(re$source_id[!read_it])
+  re <- re[read_it, ]
+  re$taxon <- re$accepted_name
+  re$conv_to <- re$to
+  re$conv_from_shell <- FALSE
+  re$conv_to_shell <- FALSE
+  scale <- unname(c(fraction = 1, percent = 0.01, J_per_mg = 1e-3)[re$value_unit])
+  re$f <- re$value * scale
+  re$f_sd <- scale * ifelse(!is.na(re$sd), re$sd, ifelse(!is.na(re$se) & !is.na(re$n), re$se * sqrt(re$n), NA))
+  re$f_min <- re$min * scale
+  re$f_max <- re$max * scale
+  stopifnot(all(re$f[re$conv_to != "energy"] > 0 & re$f[re$conv_to != "energy"] <= 1))
+  why <- rep(NA_character_, nrow(re))
+  why[re$source_id == "calow1974" & grepl("starved", re$treatment)] <- "starved for two weeks before the analysis"
+  why[re$source_id == "penczak1985" & re$treatment %in% "caged"] <- "farmed in cages, not a wild population"
+  re$why <- why
+  conv$remaining2026 <- compilation_factors(re, "remaining2026")
+  rc <- conv$remaining2026
+  say("## Remaining conversion factors of freshwater animals (compilation of 2026-11-10)")
+  say("")
+  say("- %d rows; not read (sources excluded in the registry): %s.", n_rows,
+      paste(sprintf("%s %d", names(not_read), as.integer(not_read)), collapse = ", "))
+  say("- %d values of %d sources (%s) give %d factors.", nrow(re), length(unique(re$source_id)),
+      paste(sprintf("%s %d", names(table(re$source_id)), as.integer(table(re$source_id))), collapse = ", "),
+      nrow(rc))
+  for (w in sort(unique(re$why[!is.na(re$why)]))) {
+    say("- Values not used, %s: %d.", w, sum(re$why %in% w))
+  }
+  u_rc <- rc[rc$use_in_model, ]
+  say("- Factors used: %d of %d taxa (%s).", nrow(u_rc), length(unique(u_rc$taxon)),
+      paste(sprintf("%s %d", names(table(pair_of(u_rc))), as.integer(table(pair_of(u_rc)))), collapse = ", "))
   say("")
 }
 
